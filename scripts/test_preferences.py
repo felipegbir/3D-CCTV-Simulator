@@ -1,5 +1,6 @@
 """Source regression guard for the N.O.M.A.D. 8e.4 preferences contract."""
 
+import re
 from pathlib import Path
 
 
@@ -26,7 +27,6 @@ for element_id in PREFERENCE_IDS:
     assert f"getElementById('{element_id}')" in JS, f"Unwired preference: {element_id}"
 
 REQUIRED_RUNTIME = (
-    "const APP_VERSION = '8e.4';",
     "const PREFERENCES_STORAGE_KEY = 'nomadCctvPreferences.v1';",
     "function sanitizePreferences(candidate)",
     "function loadPreferences()",
@@ -43,6 +43,9 @@ REQUIRED_RUNTIME = (
     "preferences.fbxAutoScale && sourceFormat === 'fbx'",
     "configureRendererQuality(renderer)",
 )
+
+assert re.search(r"const APP_VERSION = '8e\.\d+';", JS), "Missing app version"
+assert "theme: 'dark'" in JS, "Dark must be the new/reset preference default"
 
 for marker in REQUIRED_RUNTIME:
     assert marker in JS, f"Missing preference behavior: {marker}"

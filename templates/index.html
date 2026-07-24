@@ -266,7 +266,8 @@
       cursor: not-allowed;
     }
 
-    .menu-group.collapsed .menu-button {
+    .menu-group.collapsed .menu-button,
+    .menu-group.collapsed .preference-row {
       display: none;
     }
 
@@ -702,7 +703,7 @@
   </style>
 </head>
 
-<body data-theme="light">
+<body data-theme="dark">
 <div id="sidebar">
   <div id="appHeader">
     <h3>3D CCTV Simulator</h3>
@@ -770,7 +771,7 @@
         <div class="section-title">▶ View</div>
         <button class="menu-button" id="resetView">Reset View</button>
         <button class="menu-button" id="fitSelectedView">Fit Selected</button>
-        <button class="menu-button" id="toggleTheme" type="button" aria-pressed="false">Dark Mode</button>
+        <button class="menu-button" id="toggleTheme" type="button" aria-pressed="true">Light Mode</button>
         <button class="menu-button disabled">Zoom Out</button>
         <button class="menu-button disabled">Fit Grid</button>
         <button class="menu-button disabled">Show / Hide Grid</button>
@@ -1081,6 +1082,6 @@
   });
 </script>
 
-<script type="module" src="/static/viewer.js?v=921"></script>
+<script type="module" src="/static/viewer.js?v=922"></script>
 </body>
 </html>

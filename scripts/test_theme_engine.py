@@ -17,10 +17,10 @@ def require(condition: bool, message: str) -> None:
 
 
 def main() -> None:
-    require('body data-theme="light"' in HTML, "Light theme must remain the default")
+    require('body data-theme="dark"' in HTML, "Dark theme must be the 8e.5 document default")
     require('body[data-theme="dark"]' in HTML, "Dark theme variable override is missing")
     require('id="toggleTheme"' in HTML, "Theme toggle control is missing")
-    require('aria-pressed="false"' in HTML, "Theme toggle needs an accessible initial state")
+    require('aria-pressed="true"' in HTML, "Theme toggle needs the dark-default accessible state")
 
     declared = set(re.findall(r"(--[a-z0-9-]+)\s*:", HTML))
     required_variables = {

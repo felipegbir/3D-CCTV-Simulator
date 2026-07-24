@@ -51,7 +51,7 @@ const invalidEnums = JSON.parse(JSON.stringify(sandbox.sanitizePreferences({
   rendererQuality: 'ultra',
   coneOpacity: -5
 })));
-assert.equal(invalidEnums.theme, 'light');
+assert.equal(invalidEnums.theme, 'dark');
 assert.equal(invalidEnums.rendererQuality, 'high');
 assert.equal(invalidEnums.coneOpacity, 0.05);
 

@@ -16,7 +16,7 @@ const toolbarLayFace = document.getElementById('toolbarLayFace');
 const toolbarCameraView = document.getElementById('toolbarCameraView');
 const cameraViewportsContainer = document.getElementById('cameraViewports');
 const openCameraViewports = [];
-const APP_VERSION = '8e.4';
+const APP_VERSION = '8e.5';
 const PROJECT_SCHEMA_VERSION = 2;
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
 const addCameraButton = document.getElementById('addCameraButton');
@@ -133,7 +133,7 @@ const sceneObjects = [];
 let selectedId = null;
 const PREFERENCES_STORAGE_KEY = 'nomadCctvPreferences.v1';
 const DEFAULT_PREFERENCES = Object.freeze({
-  theme: 'light',
+  theme: 'dark',
   reversePan: false,
   reverseTilt: false,
   invertZoom: false,
@@ -209,10 +209,14 @@ function configureRendererQuality(targetRenderer) {
     high: 2
   };
   const cap = pixelRatioCaps[preferences.rendererQuality] || pixelRatioCaps.high;
+  targetRenderer.outputColorSpace = renderer.outputColorSpace;
+  targetRenderer.toneMapping = renderer.toneMapping;
+  targetRenderer.toneMappingExposure = renderer.toneMappingExposure;
+  targetRenderer.shadowMap.enabled = preferences.rendererQuality !== 'performance';
+  targetRenderer.shadowMap.type = renderer.shadowMap.type;
   targetRenderer.setPixelRatio(Math.min(window.devicePixelRatio, cap));
 
   if (targetRenderer === renderer) {
-    targetRenderer.shadowMap.enabled = preferences.rendererQuality !== 'performance';
     targetRenderer.setSize(container.clientWidth, container.clientHeight);
   } else {
     const host = targetRenderer.domElement?.parentElement;
@@ -1099,7 +1103,11 @@ function openCameraViewport(cameraItem) {
 
   ptzToggleBtn.style.display = 'none';
 
-  const viewportRenderer = new THREE.WebGLRenderer({ antialias: true });
+  const viewportRenderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: false,
+    powerPreference: 'high-performance'
+  });
   body.appendChild(viewportRenderer.domElement);
   configureRendererQuality(viewportRenderer);
 

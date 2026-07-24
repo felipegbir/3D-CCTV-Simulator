@@ -45,6 +45,7 @@ python scripts/test_project_schema.py
 python scripts/test_theme_engine.py
 python scripts/test_preferences.py
 node scripts/test_preferences_runtime.mjs
+python scripts/test_viewport_renderer_parity.py
 node scripts/test_project_schema_runtime.mjs
 Copy-Item static/viewer.js audit/viewer.mjs
 node --check audit/viewer.mjs

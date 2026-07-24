@@ -8,7 +8,7 @@ Purpose: establish a trustworthy Codex workspace and define the 8f entry point
 
 The recovered frontend is a coherent 8e MVP and passes JavaScript syntax and HTML/JavaScript ID-contract checks. The PTZ pivot architecture, corrected projection direction, live viewports, camera database integration, guarded FBX import, browser-side project JSON, and transform undo/redo are present.
 
-The workspace is not yet a production-ready application. The first verified correctness defect was PTZ project restoration. Release 8e.1 now restores nested and legacy PTZ fields and reapplies the pivot rig before projection refresh; server-side deployment checks passed, with the final visual save/load round trip awaiting owner confirmation.
+The workspace is not yet a production-ready application. The first verified correctness defect was PTZ project restoration. Release 8e.1 restores nested and legacy PTZ fields and reapplies the pivot rig before projection refresh. Server validation and owner visual acceptance passed; saved cameras, camera models, and PTZ settings restored successfully.
 
 ## Provenance
 
@@ -53,7 +53,7 @@ The initial recovered backend was older than the frontend. SSH verification esta
 | Reference image import | Present | Browser-local texture plane; no durable asset persistence |
 | Pixel-density analytics | Present | HFOV, scene width, and px/m calculations |
 | Project save/load | Partial | Cameras and model transforms serialize; local imported assets are not recreated |
-| PTZ persistence | Implemented in 8e.1; visual acceptance pending | Nested and legacy PTZ fields restore and `applyCameraPtzRig()` runs before projection refresh |
+| PTZ persistence | Accepted and complete in 8e.1 | Nested and legacy PTZ fields restore and `applyCameraPtzRig()` runs before projection refresh |
 | Undo/redo | Partial | Captures only position, rotation, and scale |
 | Theme/preferences | Not implemented | 0 CSS variable declarations and 52 hard-coded color literals |
 | Backend persistence | Not implemented | No project, upload, conversion, or report endpoints |
@@ -64,7 +64,7 @@ The initial recovered backend was older than the frontend. SSH verification esta
 
 ### P1 - PTZ state is not visually restored after project load
 
-Original 8e behavior merged saved camera data without reapplying the PTZ pivots. Release 8e.1 restores pan, tilt, roll, and zoom from nested or legacy fields, calls `applyCameraPtzRig()` before projection refresh, and adds a regression guard. Live server-side checks passed; owner visual confirmation remains required.
+Original 8e behavior merged saved camera data without reapplying the PTZ pivots. Release 8e.1 restores pan, tilt, roll, and zoom from nested or legacy fields, calls `applyCameraPtzRig()` before projection refresh, and adds a regression guard. Live server-side checks and owner visual confirmation passed.
 
 ### P1 - No durable asset recreation during load
 
@@ -96,7 +96,7 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 
 ## Recommended 8f execution order
 
-1. **8e.1 implemented:** fix and regression-test PTZ save/load restoration; owner visual confirmation pending.
+1. **8e.1 complete:** PTZ save/load restoration passed owner acceptance.
 2. Establish the actual VM `app.py` as source of truth or confirm this recovered backend; then commit/tag the verified baseline.
 3. Add schema versioning and explicit warnings/metadata for non-persistent imported assets.
 4. Implement the CSS-variable theme foundation and dark mode.

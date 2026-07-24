@@ -130,7 +130,7 @@ Preset persistence must include calculation inputs, derived results, scenario cl
 
 ### P2 - Viewport renderer parity and Preferences collapse correction implemented in 8e.5
 
-Camera viewport renderers now inherit the main renderer's color space, tone mapping, exposure, shadow-map type, high-performance preference, and quality-controlled pixel ratio/shadow setting. The owner-reported Preferences collapse defect is corrected by hiding preference rows when their menu group is collapsed. Automated and live server validation passed; owner visual/performance acceptance is pending.
+Camera viewport renderers now inherit the main renderer's color space, tone mapping, exposure, shadow-map type, high-performance preference, and quality-controlled pixel ratio/shadow setting. The owner-reported Preferences collapse defect is corrected by hiding preference rows when their menu group is collapsed. Automated, live server, and owner visual/performance acceptance passed.
 ### P3 - Legacy and placeholder UI remains
 
 Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` styles are still present. Cleanup should follow regression coverage so unused markup/styles are not removed speculatively.
@@ -142,7 +142,7 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 3. **8e.2 complete:** schema versioning and non-persistent asset warnings passed owner acceptance.
 4. **8e.3 complete:** CSS-variable theme foundation and dark mode passed owner acceptance.
 5. **8e.4 complete:** customer preferences model, UI, validation, and browser-local persistence passed owner acceptance.
-6. **8e.5 deployed:** viewport renderer parity, Dark default, and Preferences collapse correction implemented; owner acceptance pending.
+6. **8e.5 complete:** viewport renderer parity, Dark default, and Preferences collapse correction passed owner acceptance.
 7. Expand undo/redo into command-based history.
 8. Add NAS-backed project and asset persistence before reporting or advanced analysis features.
 

@@ -55,7 +55,7 @@ The initial recovered backend was older than the frontend. SSH verification esta
 | Project save/load | Partial | Cameras and model transforms serialize; local imported assets are not recreated |
 | PTZ persistence | Accepted and complete in 8e.1 | Nested and legacy PTZ fields restore and `applyCameraPtzRig()` runs before projection refresh |
 | Undo/redo | Partial | Captures only position, rotation, and scale |
-| Theme/preferences | Not implemented | 0 CSS variable declarations and 52 hard-coded color literals |
+| Theme/preferences | Implemented through 8e.4 | CSS-variable light/dark engine plus persistent customer preferences; owner acceptance pending for 8e.4 |
 | Backend persistence | Not implemented | No project, upload, conversion, or report endpoints |
 | Production packaging | Not implemented | CDN ESM imports, Flask dev server, no service/container/reverse proxy configuration |
 | Lay Face Flat | Diagnostic only | Triangle-plane analysis exists; production face selection/worker path does not |
@@ -78,9 +78,9 @@ The authoritative live `app.py` has now been synchronized into this repository. 
 
 Snapshots include position, rotation, and scale. Add/delete/import, PTZ, projection distance/color, focal/zoom changes, property edits, and project load are outside the history model.
 
-### P2 - Theme engine and preferences have not started
+### P2 - Theme engine and customer preferences implemented
 
-The page declares no CSS variables and contains 52 hard-coded color literals. There is no preferences model for theme, reverse pan/tilt, invert zoom, renderer quality, grid/axes visibility, cone opacity, or FBX auto-scale.
+Release 8e.3 established the accepted CSS-variable light/dark engine. Release 8e.4 adds a validated browser-local preference model and UI for theme, reverse pan/tilt, invert zoom, renderer quality, grid/axes visibility, cone opacity, and FBX auto-scale. Live server validation passed; 8e.4 owner acceptance is pending.
 
 ### P2 - Runtime dependencies remain externally coupled
 
@@ -92,7 +92,7 @@ Release 8e.2 adds numeric schema version 2, application version, save timestamp,
 
 ### P2 - CSS-variable theme foundation and dark mode implemented in 8e.3
 
-Release 8e.3 converts primary interface surfaces to shared light/dark CSS variables and adds a non-persistent theme toggle under Operations > View. The main Three.js scene background follows the selected theme. Automated regression, live server validation, and owner visual acceptance passed. Theme preference persistence remains deferred to 8e.4.
+Release 8e.3 converts primary interface surfaces to shared light/dark CSS variables and adds a theme toggle under Operations > View. The main Three.js scene background follows the selected theme. Automated regression, live server validation, and owner visual acceptance passed. Theme persistence is implemented in 8e.4.
 ### Deferred final persistence reconciliation - owner directive
 
 After the numbered roadmap feature work, perform a dedicated project-save/load reconciliation. Project JSON must persist each camera viewport palette/mode (Visible, IR White, IR Black, IR Rainbow, and other supported modes) and all applicable tool state. External model and reference-image binaries remain outside the JSON; save only their resolvable reference path/file plus complete position, rotation, scale, and applicable display metadata so load can recreate the referenced element exactly. This is an expansion of persistence coverage, not a redo of the accepted 8e.1 PTZ fix.
@@ -106,7 +106,7 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 2. **Baseline complete:** live `app.py` synchronized and authoritative Git history established.
 3. **8e.2 complete:** schema versioning and non-persistent asset warnings passed owner acceptance.
 4. **8e.3 complete:** CSS-variable theme foundation and dark mode passed owner acceptance.
-5. Implement a preferences model and persistence.
+5. **8e.4 deployed:** customer preferences model, UI, validation, and browser-local persistence implemented; owner acceptance pending.
 6. Align viewport renderer settings with the main renderer and perform visual regression testing.
 7. Expand undo/redo into command-based history.
 8. Add NAS-backed project and asset persistence before reporting or advanced analysis features.

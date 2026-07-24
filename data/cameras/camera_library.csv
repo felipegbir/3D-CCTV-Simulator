@@ -1,0 +1,2 @@
+manufacturer,model,camera_type,resolution_width,resolution_height,sensor_width_mm,sensor_height_mm,lens_type,focal_min_mm,focal_max_mm,hfov_min_deg,hfov_max_deg,vfov_min_deg,vfov_max_deg,optical_zoom,digital_zoom,mounting_notes,datasheet_url,notes
+Axis,P1467-LE,bullet,5120,2880,,,varifocal,3.9,10,38,104,22,56,,,Outdoor bullet camera placeholder; validate datasheet before production use,,Initial placeholder record

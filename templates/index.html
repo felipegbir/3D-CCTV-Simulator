@@ -1,0 +1,907 @@
+<!doctype html>
+<html>
+<head>
+  <title>NOMAD CCTV Digital Twin Simulator</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      background: #e9ecef;
+    }
+
+    #sidebar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 320px;
+      height: 100vh;
+      background: #d7dbe0;
+      border-right: 1px solid #9aa1aa;
+      box-sizing: border-box;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    #appHeader {
+      flex: 0 0 auto;
+      background: #2f3b46;
+      color: white;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.25);
+    }
+
+    #appHeader h3 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .panel-frame {
+      background: #f8f9fa;
+      border: 1px solid #aeb6c0;
+      border-radius: 8px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.18);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    #sceneFrame {
+      flex: 0 1 48%;
+      max-height: 48%;
+      min-height: 180px;
+    }
+
+    #sidebarSpacer {
+      flex: 1 1 auto;
+      min-height: 20px;
+    }
+
+    #operationsFrame {
+      flex: 0 1 48%;
+      max-height: 48%;
+      min-height: 180px;
+    }
+
+    .panel-title {
+      flex: 0 0 auto;
+      padding: 8px 10px;
+      background: #c2cad3;
+      border-bottom: 1px solid #aeb6c0;
+      font-weight: bold;
+      font-size: 13px;
+      color: #1f2933;
+    }
+
+    .panel-content {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+
+    .section-title {
+      cursor: pointer;
+      user-select: none;
+      font-weight: bold;
+      font-size: 13px;
+      margin: 8px 0 6px 0;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #d0d4da;
+      color: #263238;
+    }
+
+    .tree-item {
+      padding: 6px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .tree-item:hover {
+      background: #e1e7ef;
+    }
+
+    .tree-item.selected {
+      background: #007bff;
+      color: white;
+    }
+
+    .menu-group {
+      margin-bottom: 8px;
+    }
+
+    .menu-button {
+      width: 100%;
+      text-align: left;
+      padding: 7px;
+      margin: 2px 0;
+      border: 1px solid #c0c6cf;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+
+    .menu-button.disabled {
+      color: #999;
+      background: #f1f1f1;
+      cursor: not-allowed;
+    }
+
+    .menu-group.collapsed .menu-button {
+      display: none;
+    }
+
+    #viewer {
+      position: absolute;
+      left: 320px;
+      top: 0;
+      width: calc(100vw - 320px);
+      height: 100vh;
+    }
+
+    #selectedToolbar {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      width: auto;
+      max-width: min(900px, calc(100% - 40px));
+      background: rgba(47, 59, 70, 0.96);
+      color: white;
+      border: 1px solid #1f2933;
+      border-radius: 10px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 20;
+      box-sizing: border-box;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+   #selectedToolbar.hidden {
+     display: none;
+   }
+
+   #selectedToolbarLabel {
+     flex: 1 1 auto;
+     min-width: 0;
+     max-width: 360px;
+     overflow: hidden;
+     text-overflow: ellipsis;
+     white-space: nowrap;
+     font-size: 13px;
+     font-weight: bold;
+     margin-right: 8px;
+   }
+
+   .toolbar-button {
+     padding: 6px 10px;
+     border: 1px solid #9aa1aa;
+     border-radius: 5px;
+     background: #ffffff;
+     color: #1f2933;
+     cursor: pointer;
+     font-size: 13px;
+     white-space: nowrap;
+     flex: 0 0 auto;
+   }
+
+   .toolbar-button:hover {
+     background: #e6edf5;
+   }
+
+   .toolbar-button.disabled {
+     color: #999;
+     background: #d6d6d6;
+     cursor: not-allowed;
+   }
+
+   #objectInfoPanel {
+     position: absolute;
+     top: 8px;
+     right: 18px;
+     width: 280px;
+     background: rgba(248, 249, 250, 0.97);
+     border: 1px solid #aeb6c0;
+     border-radius: 10px;
+     box-shadow: 0 3px 12px rgba(0,0,0,0.28);
+     padding: 10px;
+     z-index: 21;
+     color: #1f2933;
+     font-size: 13px;
+     max-height: calc(100vh - 16px);
+     overflow-y: auto;
+     box-sizing: border-box;
+   }
+
+   #objectInfoPanel.hidden {
+     display: none;
+   }
+
+   .info-title {
+     font-weight: bold;
+     background: #c2cad3;
+     padding: 7px;
+     border-radius: 6px;
+     margin-bottom: 8px;
+   }
+
+   .info-title.small {
+     margin-top: 10px;
+   }
+
+   .info-title.collapsible {
+     cursor: pointer;
+     user-select: none;
+   }
+
+   .info-title.collapsible:hover {
+     background: #aeb8c3;
+   }
+
+   .info-row {
+     display: flex;
+     justify-content: space-between;
+     gap: 8px;
+     padding: 5px 2px;
+     border-bottom: 1px solid #d8dde3;
+   }
+
+   .info-row span {
+     color: #4b5563;
+   }
+
+   .info-row strong {
+     text-align: right;
+   }
+
+   .ptz-cross {
+     display: grid;
+     grid-template-columns: 1fr 1fr 1fr;
+     gap: 6px;
+     margin-top: 8px;
+     align-items: center;
+   }
+
+   .ptz-arrow {
+     font-size: 16px;
+     font-weight: bold;
+     padding: 7px;
+   }
+
+   .ptz-center {
+     text-align: center;
+     font-weight: bold;
+     font-size: 12px;
+     color: #4b5563;
+   }
+
+   .ptz-zoom-row {
+     display: grid;
+     grid-template-columns: 1fr 1fr;
+     gap: 6px;
+     margin-top: 8px;
+   }
+
+   .ptz-zoom-row button {
+     font-size: 12px;
+     padding: 6px;
+   }
+
+   #cameraViewports {
+     position: absolute;
+     top: 0;
+     left: 0;
+     width: 100%;
+     height: 100%;
+     pointer-events: none;
+   }
+
+   .camera-viewport {
+     position: absolute;
+     width: 320px;
+     height: 240px;
+     background: black;
+     border: 1px solid #444;
+     border-radius: 6px;
+     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+     pointer-events: auto;
+     display: flex;
+     flex-direction: column;
+     overflow: hidden;
+   }
+
+   .camera-viewport-header {
+     background: #2f3b46;
+     color: white;
+     font-size: 12px;
+     padding: 4px 6px;
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+   }
+
+.camera-viewport-body {
+  position: relative;
+  flex: 1;
+  background: black;
+  overflow: hidden;
+}
+
+.camera-viewport-body canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.viewport-roll-control {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(47, 59, 70, 0.72);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 8;
+  display: none;
+  backdrop-filter: blur(4px);
+}
+
+.viewport-roll-control:hover {
+  background: rgba(70, 90, 105, 0.92);
+}
+
+.viewport-roll-left {
+  left: 12px;
+}
+
+.viewport-roll-right {
+  right: 12px;
+}
+
+.viewport-ptz-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.65);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 7;
+  white-space: nowrap;
+}
+
+.viewport-ptz-hint.hidden {
+  display: none;
+}
+
+.viewport-ptz-toggle.active {
+  background: rgba(0, 170, 255, 0.25);
+  border-color: rgba(0, 170, 255, 0.8);
+}
+
+   .camera-viewport-ptz {
+     position: absolute;
+     top: 32px;
+     right: 8px;
+     width: 170px;
+     background: rgba(248, 249, 250, 0.95);
+     border: 1px solid #aeb6c0;
+     border-radius: 8px;
+     padding: 8px;
+     box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+     color: #1f2933;
+     z-index: 5;
+   }
+
+   .camera-viewport-ptz.hidden {
+     display: none;
+   }
+
+   .viewport-ptz-title {
+     font-size: 12px;
+     font-weight: bold;
+     margin-bottom: 8px;
+     text-align: center;
+   }
+
+   .viewport-ptz-cross {
+     display: grid;
+     grid-template-columns: 1fr 1fr 1fr;
+     gap: 5px;
+     align-items: center;
+   }
+
+   .viewport-ptz-btn {
+     padding: 5px;
+     font-size: 12px;
+     border: 1px solid #9aa1aa;
+     border-radius: 5px;
+     background: white;
+     cursor: pointer;
+   }
+
+   .viewport-ptz-center {
+     text-align: center;
+     font-size: 11px;
+     font-weight: bold;
+   }
+
+   .viewport-ptz-zoom-row,
+   .viewport-ptz-roll-row {
+     display: grid;
+     grid-template-columns: 1fr 1fr;
+     gap: 5px;
+     margin-top: 7px;
+   }
+
+   .camera-viewport-controls button {
+     width: 26px;
+     height: 22px;
+     background: transparent;
+     border: none;
+     color: white;
+     cursor: pointer;
+     font-size: 14px;
+     line-height: 20px;
+     margin-left: 2px;
+     text-align: center;
+     padding: 0;
+   }
+
+   .camera-viewport-controls .viewport-text-button {
+     width: auto;
+     min-width: 44px;
+     padding: 0 8px;
+     font-size: 12px;
+     border: 1px solid rgba(255,255,255,0.45);
+     border-radius: 4px;
+     margin-left: 4px;
+   }
+
+   .camera-viewport-controls .viewport-text-button:hover {
+     background: rgba(255,255,255,0.15);
+   }
+
+   .camera-combo {
+     position: relative;
+   }
+
+   .camera-combo-results {
+     display: none;
+     position: absolute;
+     right: 0;
+     top: 24px;
+     width: 220px;
+     max-height: 260px;
+     overflow-y: auto;
+     background: #ffffff;
+     border: 1px solid #9aa1aa;
+     border-radius: 4px;
+     box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+     z-index: 9999;
+   }
+
+   .camera-combo-result {
+     padding: 6px 8px;
+     cursor: pointer;
+     font-size: 12px;
+     border-bottom: 1px solid #e5e7eb;
+   }
+
+   .camera-combo-result:hover {
+     background: #007bff;
+     color: #ffffff;
+   }
+
+   .camera-combo-results::-webkit-scrollbar {
+     width: 10px;
+   }
+
+   .camera-combo-results::-webkit-scrollbar-track {
+     background: #f1f1f1;
+   }
+
+   .camera-combo-results::-webkit-scrollbar-thumb {
+     background: #9aa1aa;
+     border-radius: 6px;
+   }
+
+   .camera-combo-results::-webkit-scrollbar-thumb:hover {
+     background: #6b7280;
+   }
+
+/* ============================================================
+   CAMERA VIEWPORT PALETTE SELECTOR
+   NOMAD 8e Sensor Visualization
+   ============================================================ */
+
+.viewport-palette-label {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #ddd;
+  margin-right: 6px;
+}
+
+.viewport-palette-select {
+  height: 22px;
+  min-width: 120px;
+  font-size: 11px;
+  background: #222;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 3px;
+  outline: none;
+}
+
+.viewport-palette-select:hover {
+  border-color: #888;
+}
+
+.viewport-palette-select:focus {
+  border-color: #00aaff;
+}
+
+.viewport-palette-select option {
+  background: #222;
+  color: #fff;
+}
+
+  </style>
+</head>
+
+<body>
+<div id="sidebar">
+  <div id="appHeader">
+    <h3>3D CCTV Simulator</h3>
+  </div>
+
+  <div id="sceneFrame" class="panel-frame">
+    <div class="panel-title">Scene Tree</div>
+    <div class="panel-content">
+      <div id="sceneTree"></div>
+    </div>
+  </div>
+
+  <div id="sidebarSpacer"></div>
+
+  <div id="operationsFrame" class="panel-frame">
+    <div class="panel-title">Operations</div>
+    <div class="panel-content">
+      <div class="menu-group collapsed">
+        <div class="section-title">▶ File</div>
+        <button class="menu-button" id="loadProject">Load Project</button>
+
+        <input
+          id="loadProjectFile"
+          type="file"
+          accept="application/json"
+          style="display: none;"
+        >
+
+        <button class="menu-button disabled">Close Project</button>
+        <button class="menu-button" id="saveProject">Save Project</button>
+        <button class="menu-button disabled">Save As</button>
+        <button class="menu-button" id="importModel">Import Model</button>
+
+        <input
+          id="importModelFile"
+          type="file"
+          accept=".glb,.gltf,.fbx"
+          style="display: none;"
+        >
+
+        <button class="menu-button" id="importReferenceImage">Import Reference Image</button>
+
+        <input
+          id="importReferenceImageFile"
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp"
+          style="display: none;"
+        >
+
+        <button class="menu-button disabled">Export Project</button>
+        <button class="menu-button disabled">Upload</button>
+      </div>
+
+      <div class="menu-group collapsed">
+        <div class="section-title">▶ Edit</div>
+        <button class="menu-button disabled">Copy</button>
+        <button class="menu-button disabled">Cut</button>
+        <button class="menu-button disabled">Paste</button>
+        <button class="menu-button disabled">Delete</button>
+        <button class="menu-button disabled">Clone</button>
+        <button class="menu-button disabled">Add</button>
+      </div>
+
+      <div class="menu-group collapsed">
+        <div class="section-title">▶ View</div>
+        <button class="menu-button" id="resetView">Reset View</button>
+        <button class="menu-button" id="fitSelectedView">Fit Selected</button>
+        <button class="menu-button disabled">Zoom Out</button>
+        <button class="menu-button disabled">Fit Grid</button>
+        <button class="menu-button disabled">Show / Hide Grid</button>
+        <button class="menu-button disabled">Show / Hide Axes</button>
+      </div>
+
+      <div class="menu-group collapsed">
+        <div class="section-title">▶ Object</div>
+        <button class="menu-button" id="addCameraButton">Add Camera</button>
+        <button class="menu-button disabled">Add Object</button>
+        <button class="menu-button disabled">Define Object</button>
+        <button class="menu-button disabled">Object Properties</button>
+        <button class="menu-button disabled">Lock / Unlock</button>
+      </div>
+
+      <div class="menu-group collapsed">
+        <div class="section-title">▶ Help</div>
+        <button class="menu-button disabled">About</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="viewer">
+  <div id="cameraViewports"></div>
+  <div id="objectInfoPanel" class="hidden">
+    <div class="info-title collapsible" onclick="toggleObjectInspectorBody(this)">
+      <span class="collapse-indicator">▶</span> Object Inspector
+    </div>
+
+    <div id="objectInspectorBody" style="display: block;">
+
+    <div class="info-row">
+      <span>Name</span>
+      <input id="infoName" type="text" style="width: 120px;">
+    </div>
+
+    <div class="info-row">
+      <span>Type</span>
+      <strong id="infoType">-</strong>
+    </div>
+
+    <div class="info-row">
+      <span>X</span>
+      <input id="infoX" type="number" step="0.1" style="width: 80px;">
+    </div>
+
+    <div class="info-row">
+      <span>Y</span>
+      <input id="infoY" type="number" step="0.1" style="width: 80px;">
+    </div>
+
+    <div class="info-row">
+      <span>Z</span>
+      <input id="infoZ" type="number" step="0.1" style="width: 80px;">
+    </div>
+
+    <div class="info-row">
+      <span>Rotation X</span>
+      <input id="infoRotX" type="number" step="1" style="width: 80px;">
+    </div>
+
+    <div class="info-row">
+      <span>Rotation Y</span>
+      <input id="infoRotY" type="number" step="1" style="width: 80px;">
+    </div>
+
+    <div class="info-row">
+      <span>Rotation Z</span>
+      <input id="infoRotZ" type="number" step="1" style="width: 80px;">
+    </div>
+
+    <div id="scaleInfoSection">
+      <div class="info-row">
+        <span>Scale</span>
+        <input id="infoScaleUniform" type="number" step="0.01" min="0.001" style="width: 80px;">
+      </div>
+
+      <div class="info-row">
+        <span>Scale X</span>
+        <input id="infoScaleX" type="number" step="0.01" min="0.001" style="width: 80px;">
+      </div>
+
+      <div class="info-row">
+        <span>Scale Y</span>
+        <input id="infoScaleY" type="number" step="0.01" min="0.001" style="width: 80px;">
+      </div>
+
+      <div class="info-row">
+        <span>Scale Z</span>
+        <input id="infoScaleZ" type="number" step="0.01" min="0.001" style="width: 80px;">
+      </div>
+
+      <div class="info-row">
+        <span>Actual Width</span>
+        <input id="realWorldWidth" type="number" step="0.1" min="0.1" style="width: 80px;">
+      </div>
+
+      <div class="info-row">
+        <span>Apply Width</span>
+        <button class="toolbar-button" id="applyRealWorldWidth" style="padding: 4px 8px;">
+          Apply
+        </button>
+      </div>
+
+    </div>
+
+    <div id="cameraInfoSection">
+      <div class="info-title small collapsible" onclick="toggleInspectorSection(this)">
+        <span class="collapse-indicator">▶</span> Camera
+      </div>
+
+      <div class="info-section" style="display: none;">
+
+      <div class="info-row">
+        <span>Make</span>
+        <strong id="infoMake">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Model</span>
+        <div class="camera-combo">
+          <input
+            id="cameraModelSelect"
+            type="text"
+            autocomplete="off"
+            placeholder="Type camera model"
+            style="width: 170px;"
+          >
+          <div id="cameraModelResults" class="camera-combo-results"></div>
+        </div>
+      </div>
+
+      <div class="info-row">
+        <span>Lens</span>
+        <strong id="infoLens">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Pan</span>
+        <strong id="infoPan">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Tilt</span>
+        <strong id="infoTilt">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Zoom</span>
+        <strong id="infoZoom">-</strong>
+      </div>
+    </div>
+
+      <div class="info-title small collapsible" onclick="toggleInspectorSection(this)">
+        <span class="collapse-indicator">▶</span> Projection / Pixel Density
+      </div>
+
+      <div class="info-section" style="display: none;">
+
+      <div class="info-row">
+        <span>HFOV</span>
+        <strong id="projectionHfovValue">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Scene Width</span>
+        <strong id="projectionSceneWidthValue">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Pixel Density</span>
+        <strong id="projectionPixelDensityValue">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Color</span>
+        <input id="projectionColor" type="color" value="#00aaff">
+      </div>
+
+      <div class="info-row">
+        <span>Depth</span>
+        <strong><span id="projectionDistanceValue">20</span> m</strong>
+      </div>
+
+      <input
+        id="projectionDistanceSlider"
+        type="range"
+        min="1"
+        max="120"
+        step="1"
+        value="20"
+        style="width: 100%; margin-top: 8px;"
+      >
+
+      <div class="info-row">
+        <span>Depth Manual</span>
+        <input
+          id="projectionDistanceInput"
+          type="number"
+          min="1"
+          max="500"
+          step="0.5"
+          value="20"
+          style="width: 90px;"
+        >
+      </div>
+    </div>
+
+       <div class="info-title small collapsible" onclick="toggleInspectorSection(this)">
+         <span class="collapse-indicator">▶</span> PTZ Controls
+       </div>
+
+       <div class="info-section" style="display: none;">
+
+       <div class="ptz-cross">
+         <div></div>
+         <button class="toolbar-button ptz-arrow" id="ptzTiltUp">▲</button>
+         <div></div>
+
+         <button class="toolbar-button ptz-arrow" id="ptzPanLeft">◀</button>
+         <div class="ptz-center">PTZ</div>
+         <button class="toolbar-button ptz-arrow" id="ptzPanRight">▶</button>
+
+         <div></div>
+         <button class="toolbar-button ptz-arrow" id="ptzTiltDown">▼</button>
+         <div></div>
+       </div>
+
+       <div class="ptz-zoom-row">
+         <button class="toolbar-button" id="ptzZoomIn">Zoom In</button>
+         <button class="toolbar-button" id="ptzZoomOut">Zoom Out</button>
+       </div>
+    </div>
+  </div>
+</div>
+</div>
+
+  <div id="selectedToolbar" class="hidden">
+    <span id="selectedToolbarLabel">No object selected</span>
+    <button class="toolbar-button" id="toolbarMove">Move</button>
+    <button class="toolbar-button" id="toolbarRotate">Rotate</button>
+    <button class="toolbar-button" id="toolbarAlign">Drop to Ground</button>
+    <button class="toolbar-button" id="toolbarLayFace">Lay Face Flat</button>
+    <button class="toolbar-button" id="toolbarCameraView">Show Camera View</button>
+    <button class="toolbar-button disabled">Properties</button>
+    <button class="toolbar-button" id="toolbarDelete">Delete</button>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('#operationsFrame .menu-group').forEach(group => {
+    const title = group.querySelector('.section-title');
+
+    title.addEventListener('click', () => {
+      group.classList.toggle('collapsed');
+      const name = title.textContent.replace(/^▶ /, '').replace(/^▼ /, '');
+      title.textContent = group.classList.contains('collapsed') ? '▶ ' + name : '▼ ' + name;
+    });
+  });
+</script>
+
+<script type="module" src="/static/viewer.js?v=919"></script>
+</body>
+</html>

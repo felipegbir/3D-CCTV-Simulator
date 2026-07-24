@@ -1,0 +1,120 @@
+﻿# N.O.M.A.D. 8e Current-State Audit
+
+Audit date: 2026-07-24  
+Baseline: 8e master consolidation plus the June 17 frontend snapshots  
+Purpose: establish a trustworthy Codex workspace and define the 8f entry point
+
+## Executive result
+
+The recovered frontend is a coherent 8e MVP and passes JavaScript syntax and HTML/JavaScript ID-contract checks. The PTZ pivot architecture, corrected projection direction, live viewports, camera database integration, guarded FBX import, browser-side project JSON, and transform undo/redo are present.
+
+The workspace is not yet a production-ready application. The most important verified defect is that project loading restores PTZ values into `item.data` but does not call `applyCameraPtzRig()`. Pan, tilt, and roll therefore may be serialized correctly while the restored pivots remain at their defaults. This confirms the master document's PTZ persistence regression item as the first correctness task for 8f.
+
+## Provenance
+
+| Artifact | Workspace location | Source state |
+| --- | --- | --- |
+| Flask backend | `app.py` | Recovered from `backups/nomad8b_step5/app/app.py`, dated 2026-04-27 |
+| Frontend shell | `templates/index.html` | Top-level NAS snapshot dated 2026-06-17 |
+| Three.js application | `static/viewer.js` | Top-level NAS snapshot dated 2026-06-17 |
+| Camera database | `data/camera_database/camera_database.csv` | Current NAS database dated 2026-07-07 |
+| Master handoff | `docs/reference/NOMAD_8e_CCTV_Digital_Twin_Simulator_Master_Consolidation.docx` | Consolidated 8e requirements and history |
+
+The backend was older than the frontend and defaulted to the legacy `cameras/camera_library.csv`. Workspace preparation changed only its default data paths: local runs use the included `data` directory and the current camera database; NAS deployment remains configurable through environment variables.
+
+## Verification completed
+
+- `viewer.js` parses successfully as an ES module with `node --check`.
+- `app.py` compiles successfully with `python -m py_compile`.
+- Static frontend contract:
+  - 64 unique HTML IDs.
+  - 58 `getElementById()` references.
+  - 0 missing referenced IDs.
+  - 0 duplicate HTML IDs.
+  - All audited 8e feature markers are present.
+- Camera database:
+  - 221 records.
+  - 49 columns.
+  - Includes manufacturer, model/part number, resolution, focal range, HFOV, PTZ capability, thermal, and radiometric fields used by the frontend.
+- A Flask test-client smoke test was prepared but could not run in the bundled analysis runtime because Flask was not installed there. The recovered, exact dependency versions are now recorded in `requirements.txt`.
+
+## Requirements-to-code assessment
+
+| Area | Audit status | Evidence and limits |
+| --- | --- | --- |
+| Three.js scene and controls | Present | Three.js 0.160.0, OrbitControls, TransformControls, lighting, grid, axes, selection registry |
+| PTZ pivot rig | Present | `cameraRoot > panPivot > tiltPivot > rollPivot`; `applyCameraPtzRig()` applies independent axes |
+| Projection direction | Present | Cone rotates on X and is positioned along negative Z under the roll pivot |
+| Camera viewports | Present | Open/close, drag, minimize/maximize, capture, PTZ toggle, roll controls |
+| Viewport capture isolation | Present in code | Transform helper is hidden for capture; requires browser regression test |
+| Camera database | Present | `/api/cameras` fetch, search/index mapping, generic fallback |
+| GLB/glTF import | Present | GLTFLoader path and model registration |
+| FBX import | Present | File-size guardrails, triangle counting, orientation/scale heuristics |
+| Reference image import | Present | Browser-local texture plane; no durable asset persistence |
+| Pixel-density analytics | Present | HFOV, scene width, and px/m calculations |
+| Project save/load | Partial | Cameras and model transforms serialize; local imported assets are not recreated |
+| PTZ persistence | Defective | Values merge into camera data on load, but the pivot rig is not reapplied |
+| Undo/redo | Partial | Captures only position, rotation, and scale |
+| Theme/preferences | Not implemented | 0 CSS variable declarations and 52 hard-coded color literals |
+| Backend persistence | Not implemented | No project, upload, conversion, or report endpoints |
+| Production packaging | Not implemented | CDN ESM imports, Flask dev server, no service/container/reverse proxy configuration |
+| Lay Face Flat | Diagnostic only | Triangle-plane analysis exists; production face selection/worker path does not |
+
+## Findings
+
+### P1 - PTZ state is not visually restored after project load
+
+`applyLoadedProject()` merges saved camera data and calls `updateCameraProjection()`, but does not call `applyCameraPtzRig()`. Saved pan/tilt/roll values can appear in data and inspector fields without rotating the recovered pivots. Add the rig call after data restoration and cover the round trip with a regression test.
+
+### P1 - No durable asset recreation during load
+
+The project JSON stores model transforms and a top-level model file/path, but loading only applies transforms to models that are already in `sceneObjects`. Browser-local GLB, FBX, and reference-image imports cannot be reconstructed after a new session. This is consistent with prototype scope but is a data-loss risk if users interpret project save as complete persistence.
+
+### P1 - Backend source and deployment state are not authoritative
+
+Only an 8b-era `app.py` was recoverable. It implements the documented core routes but predates the June frontend and July camera database. The workspace now runs locally against the current database by default, but the actual NOMAD VM copy must be compared before this repository becomes the deployment source of truth.
+
+### P2 - Undo/redo covers transforms only
+
+Snapshots include position, rotation, and scale. Add/delete/import, PTZ, projection distance/color, focal/zoom changes, property edits, and project load are outside the history model.
+
+### P2 - Theme engine and preferences have not started
+
+The page declares no CSS variables and contains 52 hard-coded color literals. There is no preferences model for theme, reverse pan/tilt, invert zoom, renderer quality, grid/axes visibility, cone opacity, or FBX auto-scale.
+
+### P2 - Runtime dependencies remain externally coupled
+
+Three.js and loaders are imported from `https://esm.sh`. Startup can serve the page without internet, but the simulator cannot initialize in an offline browser unless dependencies are vendored or otherwise hosted locally.
+
+### P2 - Project schema is unversioned
+
+The saved JSON has no `schemaVersion`, application version, timestamps, project identity, asset manifest, preferences, or migration path.
+
+### P3 - Legacy and placeholder UI remains
+
+Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` styles are still present. Cleanup should follow regression coverage so unused markup/styles are not removed speculatively.
+
+## Recommended 8f execution order
+
+1. Fix and regression-test PTZ save/load restoration.
+2. Establish the actual VM `app.py` as source of truth or confirm this recovered backend; then commit/tag the verified baseline.
+3. Add schema versioning and explicit warnings/metadata for non-persistent imported assets.
+4. Implement the CSS-variable theme foundation and dark mode.
+5. Implement a preferences model and persistence.
+6. Align viewport renderer settings with the main renderer and perform visual regression testing.
+7. Expand undo/redo into command-based history.
+8. Add NAS-backed project and asset persistence before reporting or advanced analysis features.
+
+## Definition of done for the first 8f change
+
+- Baseline backup or Git commit exists.
+- JavaScript and Python syntax checks pass.
+- Static frontend contract audit passes.
+- A browser test proves pan, tilt, roll, zoom, cone direction, and viewport orientation survive a save/reload round trip.
+- Existing GLB/FBX import, viewport capture, selection, and transform behavior are regression-tested.
+- The audit and change notes identify exact modified files and deferred risks.
+
+## Workspace filesystem constraint
+
+Git could not create object files reliably in the original NAS workspace. This local NTFS working copy was created to provide the authoritative Git-backed development baseline. Use the NAS as a backup or deployment source rather than the live Git object database.
+

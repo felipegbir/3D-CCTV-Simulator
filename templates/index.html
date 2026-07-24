@@ -104,6 +104,42 @@
       color: var(--text);
     }
 
+    .preference-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 2px;
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .preference-row select {
+      width: 122px;
+      min-width: 0;
+    }
+
+    .preference-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--selected-bg);
+    }
+
+    .preference-range {
+      grid-template-columns: minmax(0, 1fr) 92px 38px;
+    }
+
+    .preference-range input[type="range"] {
+      width: 92px;
+      accent-color: var(--selected-bg);
+    }
+
+    .preference-output {
+      text-align: right;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
     #sidebar {
       position: absolute;
       top: 0;
@@ -750,6 +786,54 @@
         <button class="menu-button disabled">Lock / Unlock</button>
       </div>
 
+      <div class="menu-group collapsed" id="preferencesGroup">
+        <div class="section-title">▶ Preferences</div>
+        <label class="preference-row" for="preferenceTheme">
+          <span>Theme</span>
+          <select id="preferenceTheme">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+        <label class="preference-row" for="preferenceReversePan">
+          <span>Reverse Pan</span>
+          <input id="preferenceReversePan" type="checkbox">
+        </label>
+        <label class="preference-row" for="preferenceReverseTilt">
+          <span>Reverse Tilt</span>
+          <input id="preferenceReverseTilt" type="checkbox">
+        </label>
+        <label class="preference-row" for="preferenceInvertZoom">
+          <span>Invert Zoom</span>
+          <input id="preferenceInvertZoom" type="checkbox">
+        </label>
+        <label class="preference-row" for="preferenceRendererQuality">
+          <span>Renderer Quality</span>
+          <select id="preferenceRendererQuality">
+            <option value="performance">Performance</option>
+            <option value="balanced">Balanced</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+        <label class="preference-row" for="preferenceShowGrid">
+          <span>Show Grid</span>
+          <input id="preferenceShowGrid" type="checkbox">
+        </label>
+        <label class="preference-row" for="preferenceShowAxes">
+          <span>Show Axes</span>
+          <input id="preferenceShowAxes" type="checkbox">
+        </label>
+        <label class="preference-row preference-range" for="preferenceConeOpacity">
+          <span>Cone Opacity</span>
+          <input id="preferenceConeOpacity" type="range" min="0.05" max="0.50" step="0.05">
+          <output id="preferenceConeOpacityValue" class="preference-output">15%</output>
+        </label>
+        <label class="preference-row" for="preferenceFbxAutoScale">
+          <span>FBX Auto-Scale</span>
+          <input id="preferenceFbxAutoScale" type="checkbox">
+        </label>
+        <button class="menu-button" id="resetPreferences" type="button">Reset Preferences</button>
+      </div>
       <div class="menu-group collapsed">
         <div class="section-title">▶ Help</div>
         <button class="menu-button disabled">About</button>
@@ -997,6 +1081,6 @@
   });
 </script>
 
-<script type="module" src="/static/viewer.js?v=920"></script>
+<script type="module" src="/static/viewer.js?v=921"></script>
 </body>
 </html>

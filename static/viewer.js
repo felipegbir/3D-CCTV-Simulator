@@ -16,7 +16,7 @@ const toolbarLayFace = document.getElementById('toolbarLayFace');
 const toolbarCameraView = document.getElementById('toolbarCameraView');
 const cameraViewportsContainer = document.getElementById('cameraViewports');
 const openCameraViewports = [];
-const APP_VERSION = '8e.3';
+const APP_VERSION = '8e.4';
 const PROJECT_SCHEMA_VERSION = 2;
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
 const addCameraButton = document.getElementById('addCameraButton');
@@ -36,7 +36,6 @@ function applyTheme(theme) {
   toggleThemeButton.setAttribute('aria-pressed', String(isDark));
 }
 
-applyTheme('light');
 const viewerCamera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 10000);
 viewerCamera.position.set(10, 10, 10);
 
@@ -126,10 +125,177 @@ scene.add(sunLight);
 const fillLight = new THREE.DirectionalLight(0xffffff, 0.6);
 fillLight.position.set(-25, 20, -20);
 scene.add(fillLight);
-scene.add(new THREE.GridHelper(100, 100));
-scene.add(new THREE.AxesHelper(10));
+const gridHelper = new THREE.GridHelper(100, 100);
+const axesHelper = new THREE.AxesHelper(10);
+scene.add(gridHelper);
+scene.add(axesHelper);
 const sceneObjects = [];
 let selectedId = null;
+const PREFERENCES_STORAGE_KEY = 'nomadCctvPreferences.v1';
+const DEFAULT_PREFERENCES = Object.freeze({
+  theme: 'light',
+  reversePan: false,
+  reverseTilt: false,
+  invertZoom: false,
+  rendererQuality: 'high',
+  showGrid: true,
+  showAxes: true,
+  coneOpacity: 0.15,
+  fbxAutoScale: true
+});
+
+const preferenceControls = {
+  theme: document.getElementById('preferenceTheme'),
+  reversePan: document.getElementById('preferenceReversePan'),
+  reverseTilt: document.getElementById('preferenceReverseTilt'),
+  invertZoom: document.getElementById('preferenceInvertZoom'),
+  rendererQuality: document.getElementById('preferenceRendererQuality'),
+  showGrid: document.getElementById('preferenceShowGrid'),
+  showAxes: document.getElementById('preferenceShowAxes'),
+  coneOpacity: document.getElementById('preferenceConeOpacity'),
+  coneOpacityValue: document.getElementById('preferenceConeOpacityValue'),
+  fbxAutoScale: document.getElementById('preferenceFbxAutoScale'),
+  reset: document.getElementById('resetPreferences')
+};
+
+function sanitizePreferences(candidate) {
+  const safe = { ...DEFAULT_PREFERENCES };
+  if (!candidate || typeof candidate !== 'object') return safe;
+
+  if (candidate.theme === 'light' || candidate.theme === 'dark') {
+    safe.theme = candidate.theme;
+  }
+
+  if (['performance', 'balanced', 'high'].includes(candidate.rendererQuality)) {
+    safe.rendererQuality = candidate.rendererQuality;
+  }
+
+  for (const key of ['reversePan', 'reverseTilt', 'invertZoom', 'showGrid', 'showAxes', 'fbxAutoScale']) {
+    if (typeof candidate[key] === 'boolean') safe[key] = candidate[key];
+  }
+
+  const coneOpacity = Number.parseFloat(candidate.coneOpacity);
+  if (Number.isFinite(coneOpacity)) {
+    safe.coneOpacity = Math.min(0.5, Math.max(0.05, coneOpacity));
+  }
+
+  return safe;
+}
+
+function loadPreferences() {
+  try {
+    const stored = window.localStorage.getItem(PREFERENCES_STORAGE_KEY);
+    return stored ? sanitizePreferences(JSON.parse(stored)) : { ...DEFAULT_PREFERENCES };
+  } catch (error) {
+    console.warn('Unable to load saved preferences; defaults will be used.', error);
+    return { ...DEFAULT_PREFERENCES };
+  }
+}
+
+function savePreferences() {
+  try {
+    window.localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+  } catch (error) {
+    console.warn('Unable to save preferences in this browser.', error);
+  }
+}
+
+function configureRendererQuality(targetRenderer) {
+  if (!targetRenderer) return;
+
+  const pixelRatioCaps = {
+    performance: 1,
+    balanced: 1.5,
+    high: 2
+  };
+  const cap = pixelRatioCaps[preferences.rendererQuality] || pixelRatioCaps.high;
+  targetRenderer.setPixelRatio(Math.min(window.devicePixelRatio, cap));
+
+  if (targetRenderer === renderer) {
+    targetRenderer.shadowMap.enabled = preferences.rendererQuality !== 'performance';
+    targetRenderer.setSize(container.clientWidth, container.clientHeight);
+  } else {
+    const host = targetRenderer.domElement?.parentElement;
+    if (host) {
+      targetRenderer.setSize(Math.max(1, host.clientWidth), Math.max(1, host.clientHeight), false);
+    }
+  }
+}
+
+function syncPreferenceControls() {
+  preferenceControls.theme.value = preferences.theme;
+  preferenceControls.reversePan.checked = preferences.reversePan;
+  preferenceControls.reverseTilt.checked = preferences.reverseTilt;
+  preferenceControls.invertZoom.checked = preferences.invertZoom;
+  preferenceControls.rendererQuality.value = preferences.rendererQuality;
+  preferenceControls.showGrid.checked = preferences.showGrid;
+  preferenceControls.showAxes.checked = preferences.showAxes;
+  preferenceControls.coneOpacity.value = String(preferences.coneOpacity);
+  preferenceControls.coneOpacityValue.textContent = `${Math.round(preferences.coneOpacity * 100)}%`;
+  preferenceControls.fbxAutoScale.checked = preferences.fbxAutoScale;
+}
+
+function readPreferenceControls() {
+  return sanitizePreferences({
+    theme: preferenceControls.theme.value,
+    reversePan: preferenceControls.reversePan.checked,
+    reverseTilt: preferenceControls.reverseTilt.checked,
+    invertZoom: preferenceControls.invertZoom.checked,
+    rendererQuality: preferenceControls.rendererQuality.value,
+    showGrid: preferenceControls.showGrid.checked,
+    showAxes: preferenceControls.showAxes.checked,
+    coneOpacity: preferenceControls.coneOpacity.value,
+    fbxAutoScale: preferenceControls.fbxAutoScale.checked
+  });
+}
+
+function applyPreferences({ persist = false } = {}) {
+  applyTheme(preferences.theme);
+  gridHelper.visible = preferences.showGrid;
+  axesHelper.visible = preferences.showAxes;
+  configureRendererQuality(renderer);
+  openCameraViewports.forEach(viewport => configureRendererQuality(viewport.renderer));
+
+  sceneObjects
+    .filter(item => item.type === 'camera')
+    .forEach(item => {
+      const cone = item.object.userData.projectionCone;
+      if (cone?.material) {
+        cone.material.opacity = preferences.coneOpacity;
+        cone.material.needsUpdate = true;
+      }
+    });
+
+  syncPreferenceControls();
+  if (persist) savePreferences();
+}
+
+let preferences = loadPreferences();
+applyPreferences();
+
+function updatePreferencesFromControls() {
+  preferences = readPreferenceControls();
+  applyPreferences({ persist: true });
+}
+
+for (const control of [
+  preferenceControls.theme,
+  preferenceControls.reversePan,
+  preferenceControls.reverseTilt,
+  preferenceControls.invertZoom,
+  preferenceControls.rendererQuality,
+  preferenceControls.showGrid,
+  preferenceControls.showAxes,
+  preferenceControls.fbxAutoScale
+]) {
+  control.addEventListener('change', updatePreferencesFromControls);
+}
+
+preferenceControls.coneOpacity.addEventListener('input', updatePreferencesFromControls);
+preferenceControls.reset.addEventListener('click', () => {
+  preferences = { ...DEFAULT_PREFERENCES };
+  applyPreferences({ persist: true });
+});
 
 const undoStack = [];
 const redoStack = [];
@@ -339,7 +505,7 @@ function renderSceneTree() {
   });
 }
 
-function setProjectionPalette(colorHex, opacity = 0.15) {
+function setProjectionPalette(colorHex, opacity = preferences.coneOpacity) {
   sceneObjects
     .filter(item => item.type === 'camera')
     .forEach(item => {
@@ -935,6 +1101,7 @@ function openCameraViewport(cameraItem) {
 
   const viewportRenderer = new THREE.WebGLRenderer({ antialias: true });
   body.appendChild(viewportRenderer.domElement);
+  configureRendererQuality(viewportRenderer);
 
   viewportRenderer.domElement.style.width = '100%';
   viewportRenderer.domElement.style.height = '100%';
@@ -1016,8 +1183,11 @@ function openCameraViewport(cameraItem) {
         const currentPan = Number.parseFloat(cameraItem.data?.pan) || 0;
         const currentTilt = Number.parseFloat(cameraItem.data?.tilt) || 0;
 
-        cameraItem.data.pan = currentPan + deltaX * panSpeed;
-        cameraItem.data.tilt = currentTilt + deltaY * tiltSpeed;
+        const panDirection = preferences.reversePan ? -1 : 1;
+        const tiltDirection = preferences.reverseTilt ? -1 : 1;
+
+        cameraItem.data.pan = currentPan + deltaX * panSpeed * panDirection;
+        cameraItem.data.tilt = currentTilt + deltaY * tiltSpeed * tiltDirection;
 
         cameraItem.data.tilt = Math.max(
           -90,
@@ -1083,7 +1253,8 @@ function openCameraViewport(cameraItem) {
       if (!viewportPtzEnabled) return;
       if (!isMaximized) return;
 
-      const direction = event.deltaY < 0 ? 1 : -1;
+      const wheelDirection = event.deltaY < 0 ? 1 : -1;
+      const direction = preferences.invertZoom ? -wheelDirection : wheelDirection;
 
       zoomCameraItem(cameraItem, direction);
 
@@ -1496,7 +1667,7 @@ function createCameraObject(name, position = new THREE.Vector3(0, 2, 0)) {
   const coneMaterial = new THREE.MeshBasicMaterial({
     color: 0x00aaff,
     transparent: true,
-    opacity: 0.15,
+    opacity: preferences.coneOpacity,
     side: THREE.DoubleSide,
     depthWrite: false
   });
@@ -1755,8 +1926,8 @@ toolbarDelete.addEventListener('click', () => {
 });
 
 toggleThemeButton.addEventListener('click', () => {
-  const nextTheme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
-  applyTheme(nextTheme);
+  preferences.theme = preferences.theme === 'dark' ? 'light' : 'dark';
+  applyPreferences({ persist: true });
 });
 
 fitSelectedViewButton.addEventListener('click', () => {
@@ -2173,7 +2344,7 @@ const maxDimensionBeforeScale = Math.max(
 let importScale = 1;
 let scaleNote = 'No automatic scale adjustment applied.';
 
-if (sourceFormat === 'fbx' && maxDimensionBeforeScale > 100) {
+if (preferences.fbxAutoScale && sourceFormat === 'fbx' && maxDimensionBeforeScale > 100) {
   importScale = 0.01;
   scaleNote = 'Auto-scaled FBX by 0.01 based on observed Autodesk/NOMAD import behavior.';
 }

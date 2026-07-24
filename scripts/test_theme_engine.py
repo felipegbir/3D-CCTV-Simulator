@@ -38,18 +38,19 @@ def main() -> None:
     require(required_variables <= declared, "Required theme variables are incomplete")
 
     required_js = (
-        "const APP_VERSION = '8e.3'",
         "function applyTheme(theme)",
         "document.body.dataset.theme = normalizedTheme",
         "scene.background.set(isDark ? 0x11161c : 0xf2f2f2)",
         "toggleThemeButton.addEventListener('click'",
         "toggleThemeButton.setAttribute('aria-pressed', String(isDark))",
     )
+    require(re.search(r"const APP_VERSION = '8e\.\d+';", JS) is not None,
+            "Missing compatible app version marker")
     for marker in required_js:
         require(marker in JS, f"Missing theme behavior: {marker}")
 
-    require("localStorage" not in JS or "theme" not in JS.lower().split("localStorage", 1)[-1][:120],
-            "Theme persistence belongs to 8e.4, not 8e.3")
+    require("applyTheme(preferences.theme)" in JS,
+            "The 8e.3 theme engine must remain connected to current preferences")
     print(f"Theme variables: {len(declared)}")
     print("8e.3 theme regression checks passed")
 

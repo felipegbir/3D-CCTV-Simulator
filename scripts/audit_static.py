@@ -59,6 +59,7 @@ def main() -> int:
         "asset manifest": "buildProjectAssetManifest",
         "schema validation": "validateProjectSchema",
         "theme engine": "applyTheme",
+        "customer preferences": "PREFERENCES_STORAGE_KEY",
     }
     missing_markers = [
         label for label, marker in required_markers.items() if marker not in js

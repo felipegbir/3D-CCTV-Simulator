@@ -88,7 +88,7 @@ Three.js and loaders are imported from `https://esm.sh`. Startup can serve the p
 
 ### P2 - Project schema and asset warnings implemented in 8e.2
 
-Release 8e.2 adds numeric schema version 2, application version, save timestamp, structured asset manifest, backward compatibility for unversioned files, future-schema rejection, and cancellable save/load warnings for non-embedded browser-local models and reference images. Deployment and server checks passed; owner acceptance is pending. Project identity, preferences, and full migration/persistence remain deferred to their approved roadmap releases.
+Release 8e.2 adds numeric schema version 2, application version, save timestamp, structured asset manifest, backward compatibility for unversioned files, future-schema rejection, and cancellable save/load warnings for non-embedded browser-local models and reference images. Deployment, server checks, and owner acceptance passed. The owner confirmed the legacy schema-1 compatibility warning, successful restoration, and schema-2 output after saving and reopening. Project identity, preferences, and full migration/persistence remain deferred to their approved roadmap releases.
 
 ### P3 - Legacy and placeholder UI remains
 
@@ -98,7 +98,7 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 
 1. **8e.1 complete:** PTZ save/load restoration passed owner acceptance.
 2. **Baseline complete:** live `app.py` synchronized and authoritative Git history established.
-3. **8e.2 deployed:** schema versioning and non-persistent asset warnings implemented; owner acceptance pending.
+3. **8e.2 complete:** schema versioning and non-persistent asset warnings passed owner acceptance.
 4. Implement the CSS-variable theme foundation and dark mode.
 5. Implement a preferences model and persistence.
 6. Align viewport renderer settings with the main renderer and perform visual regression testing.

@@ -133,7 +133,7 @@ Preset persistence must include calculation inputs, derived results, scenario cl
 Camera viewport renderers now inherit the main renderer's color space, tone mapping, exposure, shadow-map type, high-performance preference, and quality-controlled pixel ratio/shadow setting. The owner-reported Preferences collapse defect is corrected by hiding preference rows when their menu group is collapsed. Automated, live server, and owner visual/performance acceptance passed.
 ### Owner-requested professional UI and viewport management implemented in 8e.6
 
-Release 8e.6 adds runtime version display, professional Help / About content, verified open-source package links, focus-based viewport stacking, a 16-viewport limit, and capacity-based 1x1 through 4x4 video-wall arrangement. Minimized renderers are skipped and closed renderers are disposed. Automated and live server validation passed; owner visual and multi-viewport acceptance is pending. The public source-repository URL remains intentionally pending until publication.
+Release 8e.6 adds runtime version display, professional Help / About content, verified open-source package links, focus-based viewport stacking, a 16-viewport limit, and capacity-based 1x1 through 4x4 video-wall arrangement. Minimized renderers are skipped and closed renderers are disposed. Automated, live server, and owner acceptance passed for the About UI, active viewport stacking, and wall arrangement. The owner-directed alternate Video Wall workflow is scheduled for 8e.7. The public source-repository URL remains intentionally pending until publication.
 ### P3 - Legacy and placeholder UI remains
 
 Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` styles are still present. Cleanup should follow regression coverage so unused markup/styles are not removed speculatively.
@@ -146,7 +146,7 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 4. **8e.3 complete:** CSS-variable theme foundation and dark mode passed owner acceptance.
 5. **8e.4 complete:** customer preferences model, UI, validation, and browser-local persistence passed owner acceptance.
 6. **8e.5 complete:** viewport renderer parity, Dark default, and Preferences collapse correction passed owner acceptance.
-7. **8e.6 deployed:** professional About/version UI, viewport focus stacking, 16-view capacity, and video-wall arrangement implemented; owner acceptance pending.
+7. **8e.6 complete:** professional About/version UI, viewport focus stacking, 16-view capacity, and initial wall arrangement passed owner acceptance.
 8. Expand undo/redo into command-based history.
 9. Add NAS-backed project and asset persistence before reporting or advanced analysis features.
 

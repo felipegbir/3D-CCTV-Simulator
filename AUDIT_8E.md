@@ -55,7 +55,7 @@ The initial recovered backend was older than the frontend. SSH verification esta
 | Project save/load | Partial | Cameras and model transforms serialize; local imported assets are not recreated |
 | PTZ persistence | Accepted and complete in 8e.1 | Nested and legacy PTZ fields restore and `applyCameraPtzRig()` runs before projection refresh |
 | Undo/redo | Partial | Captures only position, rotation, and scale |
-| Theme/preferences | Implemented through 8e.4 | CSS-variable light/dark engine plus persistent customer preferences; owner acceptance pending for 8e.4 |
+| Theme/preferences | Accepted through 8e.4 | CSS-variable light/dark engine plus persistent customer preferences passed owner acceptance |
 | Backend persistence | Not implemented | No project, upload, conversion, or report endpoints |
 | Production packaging | Not implemented | CDN ESM imports, Flask dev server, no service/container/reverse proxy configuration |
 | Lay Face Flat | Diagnostic only | Triangle-plane analysis exists; production face selection/worker path does not |
@@ -80,7 +80,7 @@ Snapshots include position, rotation, and scale. Add/delete/import, PTZ, project
 
 ### P2 - Theme engine and customer preferences implemented
 
-Release 8e.3 established the accepted CSS-variable light/dark engine. Release 8e.4 adds a validated browser-local preference model and UI for theme, reverse pan/tilt, invert zoom, renderer quality, grid/axes visibility, cone opacity, and FBX auto-scale. Live server validation passed; 8e.4 owner acceptance is pending.
+Release 8e.3 established the accepted CSS-variable light/dark engine. Release 8e.4 adds a validated browser-local preference model and UI for theme, reverse pan/tilt, invert zoom, renderer quality, grid/axes visibility, cone opacity, and FBX auto-scale. Live server validation and 8e.4 owner acceptance passed, including viewport drag verification for Reverse Pan and Reverse Tilt.
 
 ### P2 - Runtime dependencies remain externally coupled
 
@@ -96,6 +96,38 @@ Release 8e.3 converts primary interface surfaces to shared light/dark CSS variab
 ### Deferred final persistence reconciliation - owner directive
 
 After the numbered roadmap feature work, perform a dedicated project-save/load reconciliation. Project JSON must persist each camera viewport palette/mode (Visible, IR White, IR Black, IR Rainbow, and other supported modes) and all applicable tool state. External model and reference-image binaries remain outside the JSON; save only their resolvable reference path/file plus complete position, rotation, scale, and applicable display metadata so load can recreate the referenced element exactly. This is an expansion of persistence coverage, not a redo of the accepted 8e.1 PTZ fix.
+
+### Required for 8e.5 - Dark default
+
+Dark theme must become the default for new browsers and after Reset Preferences. Existing users with an explicitly saved theme choice retain that choice unless they reset preferences.
+
+### Planned camera presets and thermography pixel-density requirements - owner directive
+
+Camera presets must be named, editable, recallable, and fully persisted. Each preset stores the preset label/name, notes or descriptive information, camera identity and optical state, complete PTZ state, camera transform, projection/depth state, selected viewport palette/mode, and calculated pixel-density context.
+
+Each preset exposes a collapsible details panel showing at minimum:
+
+- preset name and notes;
+- camera make, model, lens, and zoom/focal state;
+- camera position plus pan, tilt, roll, and zoom;
+- camera depth/projection-distance setting;
+- horizontal and vertical scene footprint at that depth;
+- horizontal and vertical pixel density in pixels per configured unit;
+- estimated horizontal-by-vertical pixel coverage across the configured thermography target/ROI.
+
+Add a compact **Select Depth Surface** control. Activating it enters a clearly indicated pick mode; the next valid model-surface click uses a raycast hit point to calculate camera-to-surface distance and update projection depth. Ignore helpers, camera geometry, viewport overlays, and empty-space clicks. Store a stable reference to the target object/surface where possible, the world-space hit point, the calculated distance, and the calculation timestamp. Recalculate derived density whenever lens/zoom, resolution, camera pose, depth, target point, units, or ROI dimensions change.
+
+Thermography/thermometry scenarios require target or ROI width and height. The tool must convert pixel density into estimated pixels across that ROI and classify at least:
+
+- below minimum: either dimension is below 3 pixels;
+- minimum detection: at least 3 x 3 pixels;
+- preferred baseline: at least 9 x 9 pixels;
+- enhanced: exceeds 9 x 9, reporting the actual estimated coverage rather than imposing an upper limit.
+
+These are planning estimates, not a guarantee of thermographic measurement performance. Show the inputs and calculation basis so results remain auditable.
+
+Preset persistence must include calculation inputs, derived results, scenario classification, selected depth target reference, and viewport palette. On load, restore the complete preset and recalculate when referenced geometry is available; otherwise retain the saved values and display a clear stale/missing-target warning. This work is part of the final comprehensive persistence reconciliation and must use explicit schema versioning/migration.
+
 ### P3 - Legacy and placeholder UI remains
 
 Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` styles are still present. Cleanup should follow regression coverage so unused markup/styles are not removed speculatively.
@@ -106,7 +138,7 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 2. **Baseline complete:** live `app.py` synchronized and authoritative Git history established.
 3. **8e.2 complete:** schema versioning and non-persistent asset warnings passed owner acceptance.
 4. **8e.3 complete:** CSS-variable theme foundation and dark mode passed owner acceptance.
-5. **8e.4 deployed:** customer preferences model, UI, validation, and browser-local persistence implemented; owner acceptance pending.
+5. **8e.4 complete:** customer preferences model, UI, validation, and browser-local persistence passed owner acceptance.
 6. Align viewport renderer settings with the main renderer and perform visual regression testing.
 7. Expand undo/redo into command-based history.
 8. Add NAS-backed project and asset persistence before reporting or advanced analysis features.

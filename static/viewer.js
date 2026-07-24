@@ -16,9 +16,14 @@ const toolbarLayFace = document.getElementById('toolbarLayFace');
 const toolbarCameraView = document.getElementById('toolbarCameraView');
 const cameraViewportsContainer = document.getElementById('cameraViewports');
 const openCameraViewports = [];
-const APP_VERSION = '8e.5';
+const APP_VERSION = '8e.6';
 const PROJECT_SCHEMA_VERSION = 2;
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
+const appVersionLabel = document.getElementById('appVersionLabel');
+const aboutVersion = document.getElementById('aboutVersion');
+if (appVersionLabel) appVersionLabel.textContent = APP_VERSION;
+if (aboutVersion) aboutVersion.textContent = APP_VERSION;
+document.title = `N.O.M.A.D. CCTV Digital Twin Simulator ${APP_VERSION}`;
 const addCameraButton = document.getElementById('addCameraButton');
 const toggleThemeButton = document.getElementById('toggleTheme');
 let cameraCounter = 1;
@@ -102,6 +107,7 @@ const importModelFile = document.getElementById('importModelFile');
 const importReferenceImageButton = document.getElementById('importReferenceImage');
 const importReferenceImageFile = document.getElementById('importReferenceImageFile');
 const fitSelectedViewButton = document.getElementById('fitSelectedView');
+const arrangeCameraWallButton = document.getElementById('arrangeCameraWall');
 
 const orbitControls = new OrbitControls(viewerCamera, renderer.domElement);
 orbitControls.enableDamping = false;
@@ -799,8 +805,12 @@ function selectObject(id) {
   renderSceneTree();
   updateSelectedToolbar();
   updateObjectInfoPanel();
-}
 
+  if (item.type === 'camera') {
+    const viewportRecord = openCameraViewports.find(record => record.cameraId === item.id);
+    if (viewportRecord) focusCameraViewport(viewportRecord.element);
+  }
+}
 function clearSelection() {
   selectedId = null;
   transformControls.detach();
@@ -809,6 +819,7 @@ function clearSelection() {
   renderSceneTree();
   updateSelectedToolbar();
   updateObjectInfoPanel();
+
 }
 
 function alignObjectToGround(object) {
@@ -985,11 +996,63 @@ function applyViewportPalette(viewportRenderer, paletteKey) {
   viewportRenderer.domElement.style.filter = palette.filter;
 }
 
+const MAX_CAMERA_VIEWPORTS = 16;
+let viewportZCounter = 30;
+let cameraWallLayoutActive = false;
+
+function focusCameraViewport(viewport) {
+  if (!viewport) return;
+
+  viewportZCounter += 1;
+  openCameraViewports.forEach(record => {
+    record.element.classList.toggle('active-viewport', record.element === viewport);
+  });
+  viewport.style.zIndex = String(viewportZCounter);
+}
+
+function getCameraWallDimension(count) {
+  if (count <= 1) return 1;
+  if (count <= 4) return 2;
+  if (count <= 9) return 3;
+  return 4;
+}
+
+function arrangeCameraViewports() {
+  const count = openCameraViewports.length;
+  if (count === 0) {
+    cameraWallLayoutActive = false;
+    return;
+  }
+
+  const dimension = getCameraWallDimension(count);
+  const margin = 8;
+  const gap = 8;
+  const width = cameraViewportsContainer.clientWidth;
+  const height = cameraViewportsContainer.clientHeight;
+  const cellWidth = Math.max(1, Math.floor((width - margin * 2 - gap * (dimension - 1)) / dimension));
+  const cellHeight = Math.max(1, Math.floor((height - margin * 2 - gap * (dimension - 1)) / dimension));
+
+  cameraWallLayoutActive = true;
+  openCameraViewports.forEach((record, index) => {
+    const column = index % dimension;
+    const row = Math.floor(index / dimension);
+    record.applyWallLayout({
+      left: margin + column * (cellWidth + gap),
+      top: margin + row * (cellHeight + gap),
+      width: cellWidth,
+      height: cellHeight
+    });
+    record.element.style.zIndex = String(20 + index);
+  });
+
+  const selectedViewport = openCameraViewports.find(record => record.cameraId === selectedId);
+  focusCameraViewport(selectedViewport?.element || openCameraViewports[count - 1].element);
+}
 function openCameraViewport(cameraItem) {
   if (!cameraItem || cameraItem.type !== 'camera') return;
 
-  if (openCameraViewports.length >= 5) {
-    alert('Maximum of two Camera Viewports can be open at the same time.');
+  if (openCameraViewports.length >= MAX_CAMERA_VIEWPORTS) {
+    alert(`Maximum of ${MAX_CAMERA_VIEWPORTS} Camera Viewports can be open at the same time.`);
     return;
   }
 
@@ -1036,13 +1099,18 @@ function openCameraViewport(cameraItem) {
   `;
 
   cameraViewportsContainer.appendChild(viewport);
+  focusCameraViewport(viewport);
+  viewport.addEventListener('mousedown', () => focusCameraViewport(viewport), true);
   viewport.querySelector('.viewport-close').addEventListener('click', () => {
     viewport.remove();
 
+    const shouldRearrange = cameraWallLayoutActive;
     const index = openCameraViewports.findIndex(v => v.element === viewport);
     if (index !== -1) {
+      openCameraViewports[index].renderer.dispose();
       openCameraViewports.splice(index, 1);
     }
+    if (shouldRearrange) requestAnimationFrame(arrangeCameraViewports);
   });
 
   const header = viewport.querySelector('.camera-viewport-header');
@@ -1061,6 +1129,8 @@ function openCameraViewport(cameraItem) {
   header.addEventListener('mousedown', (e) => {
     if (e.target.closest('.camera-viewport-controls')) return;
 
+    cameraWallLayoutActive = false;
+    viewport.classList.remove('wall-layout');
     isDragging = true;
 
     const rect = viewport.getBoundingClientRect();
@@ -1296,8 +1366,39 @@ function openCameraViewport(cameraItem) {
     left: viewport.style.left,
     top: viewport.style.top
   };
+  function applyWallLayout(rect) {
+    isDragging = false;
+    isMinimized = false;
+    isMaximized = false;
+    viewport.userDataBeforeMinimize = null;
+    viewport.classList.add('wall-layout');
+    body.style.display = 'block';
+    viewport.style.left = `${rect.left}px`;
+    viewport.style.top = `${rect.top}px`;
+    viewport.style.width = `${rect.width}px`;
+    viewport.style.height = `${rect.height}px`;
+    viewport.style.right = 'auto';
+    viewport.style.bottom = 'auto';
+    normalViewportState.left = viewport.style.left;
+    normalViewportState.top = viewport.style.top;
+    normalViewportState.width = viewport.style.width;
+    normalViewportState.height = viewport.style.height;
+    minimizeBtn.textContent = '—';
+    minimizeBtn.style.display = 'inline-block';
+    maximizeBtn.textContent = '□';
+    maximizeBtn.style.display = 'inline-block';
+    captureBtn.style.display = 'inline-block';
+    ptzToggleBtn.style.display = 'none';
+    if (paletteLabel) paletteLabel.style.display = 'none';
+    setViewportPtzEnabled(false);
+    applyViewportPalette(viewportRenderer, selectedViewportPalette);
+    requestAnimationFrame(resizeCameraViewportRenderer);
+  }
 
   minimizeBtn.addEventListener('click', () => {
+    cameraWallLayoutActive = false;
+    viewport.classList.remove('wall-layout');
+    focusCameraViewport(viewport);
     isMinimized = !isMinimized;
 
     if (isMinimized) {
@@ -1419,6 +1520,9 @@ function openCameraViewport(cameraItem) {
     });
 
   maximizeBtn.addEventListener('click', () => {
+    cameraWallLayoutActive = false;
+    viewport.classList.remove('wall-layout');
+    focusCameraViewport(viewport);
     isMaximized = !isMaximized;
 
     minimizeBtn.style.display = isMaximized ? 'none' : 'inline-block';
@@ -1501,9 +1605,16 @@ function openCameraViewport(cameraItem) {
     element: viewport,
     renderer: viewportRenderer,
     body: body,
-    camera: viewportCamera
+    camera: viewportCamera,
+    applyWallLayout,
+    isRenderable: () => !isMinimized
   });
 
+  if (cameraWallLayoutActive) {
+    requestAnimationFrame(arrangeCameraViewports);
+  } else {
+    focusCameraViewport(viewport);
+  }
 }
 
 function frameObject(object) {
@@ -1937,6 +2048,8 @@ toggleThemeButton.addEventListener('click', () => {
   preferences.theme = preferences.theme === 'dark' ? 'light' : 'dark';
   applyPreferences({ persist: true });
 });
+arrangeCameraWallButton.addEventListener('click', arrangeCameraViewports);
+
 
 fitSelectedViewButton.addEventListener('click', () => {
   if (!selectedId) return;
@@ -2768,6 +2881,7 @@ function applyLoadedProject(project) {
   renderSceneTree();
   updateSelectedToolbar();
   updateObjectInfoPanel();
+
 }
 
 loadProjectFile.addEventListener('change', (event) => {
@@ -2916,6 +3030,8 @@ function animate() {
 
   renderer.render(scene, viewerCamera);
   openCameraViewports.forEach((viewportRecord) => {
+    if (viewportRecord.isRenderable && !viewportRecord.isRenderable()) return;
+
     const cameraItem = sceneObjects.find(o => o.id === viewportRecord.cameraId);
     if (!cameraItem || cameraItem.type !== 'camera') return;
 
@@ -2967,4 +3083,5 @@ window.addEventListener('resize', () => {
   viewerCamera.aspect = container.clientWidth / container.clientHeight;
   viewerCamera.updateProjectionMatrix();
   renderer.setSize(container.clientWidth, container.clientHeight);
+  if (cameraWallLayoutActive) arrangeCameraViewports();
 });

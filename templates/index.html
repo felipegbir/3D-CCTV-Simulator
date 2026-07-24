@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-  <title>NOMAD CCTV Digital Twin Simulator</title>
+  <title>N.O.M.A.D. CCTV Digital Twin Simulator 8e.6</title>
   <style>
     :root {
       color-scheme: light;
@@ -140,6 +140,45 @@
       font-variant-numeric: tabular-nums;
     }
 
+    #appHeader .app-version {
+      color: #9fd3ff;
+      font-size: 12px;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+
+    .camera-viewport.active-viewport {
+      border-color: #00aaff;
+      box-shadow: 0 0 0 2px rgba(0, 170, 255, 0.35), 0 6px 18px rgba(0,0,0,0.5);
+    }
+
+    .about-card {
+      margin-top: 6px;
+      padding: 9px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--control-bg);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .about-card strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .about-card a {
+      color: #4daeff;
+    }
+
+    .about-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      margin-top: 6px;
+    }
+
     #sidebar {
       position: absolute;
       top: 0;
@@ -267,7 +306,8 @@
     }
 
     .menu-group.collapsed .menu-button,
-    .menu-group.collapsed .preference-row {
+    .menu-group.collapsed .preference-row,
+    .menu-group.collapsed .about-card {
       display: none;
     }
 
@@ -706,7 +746,7 @@
 <body data-theme="dark">
 <div id="sidebar">
   <div id="appHeader">
-    <h3>3D CCTV Simulator</h3>
+    <h3>N.O.M.A.D. CCTV Simulator <span class="app-version">v<span id="appVersionLabel">8e.6</span></span></h3>
   </div>
 
   <div id="sceneFrame" class="panel-frame">
@@ -772,6 +812,7 @@
         <button class="menu-button" id="resetView">Reset View</button>
         <button class="menu-button" id="fitSelectedView">Fit Selected</button>
         <button class="menu-button" id="toggleTheme" type="button" aria-pressed="true">Light Mode</button>
+        <button class="menu-button" id="arrangeCameraWall" type="button" title="Arrange open camera viewports into a video wall">▦ Arrange Camera Wall</button>
         <button class="menu-button disabled">Zoom Out</button>
         <button class="menu-button disabled">Fit Grid</button>
         <button class="menu-button disabled">Show / Hide Grid</button>
@@ -835,9 +876,21 @@
         </label>
         <button class="menu-button" id="resetPreferences" type="button">Reset Preferences</button>
       </div>
-      <div class="menu-group collapsed">
-        <div class="section-title">▶ Help</div>
-        <button class="menu-button disabled">About</button>
+      <div class="menu-group collapsed" id="helpGroup">
+        <div class="section-title">▶ Help / About</div>
+        <div class="about-card" id="aboutPanel">
+          <strong>N.O.M.A.D. CCTV Digital Twin Simulator</strong>
+          <div>Version <span id="aboutVersion">8e.6</span></div>
+          <div>© 2026 Felipe Gomez. All rights reserved.</div>
+          <div><a href="mailto:felipe.gomez@live.ca">felipe.gomez@live.ca</a></div>
+          <div class="about-links" aria-label="Open-source packages">
+            <a href="https://threejs.org/" target="_blank" rel="noopener noreferrer">Three.js</a>
+            <a href="https://flask.palletsprojects.com/en/stable/" target="_blank" rel="noopener noreferrer">Flask</a>
+            <a href="https://www.python.org/" target="_blank" rel="noopener noreferrer">Python</a>
+            <a href="https://esm.sh/" target="_blank" rel="noopener noreferrer">esm.sh</a>
+          </div>
+          <div>Source repository: publication link pending.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1082,6 +1135,6 @@
   });
 </script>
 
-<script type="module" src="/static/viewer.js?v=922"></script>
+<script type="module" src="/static/viewer.js?v=923"></script>
 </body>
 </html>

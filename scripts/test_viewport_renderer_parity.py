@@ -1,5 +1,6 @@
 """Regression guard for N.O.M.A.D. 8e.5 defaults, collapse, and renderer parity."""
 
+import re
 from pathlib import Path
 
 
@@ -11,13 +12,12 @@ required_html = (
     'body data-theme="dark"',
     '.menu-group.collapsed .preference-row',
     'id="toggleTheme" type="button" aria-pressed="true">Light Mode',
-    '/static/viewer.js?v=922',
 )
 for marker in required_html:
     assert marker in HTML, f"Missing 8e.5 HTML contract: {marker}"
+assert re.search(r'/static/viewer\.js\?v=\d+', HTML), "Missing cache-busted viewer script"
 
 required_js = (
-    "const APP_VERSION = '8e.5';",
     "theme: 'dark'",
     "targetRenderer.outputColorSpace = renderer.outputColorSpace",
     "targetRenderer.toneMapping = renderer.toneMapping",
@@ -27,6 +27,7 @@ required_js = (
     "configureRendererQuality(viewportRenderer)",
     "powerPreference: 'high-performance'",
 )
+assert re.search(r"const APP_VERSION = '8e\.\d+';", JS), "Missing app version"
 for marker in required_js:
     assert marker in JS, f"Missing 8e.5 renderer/default contract: {marker}"
 

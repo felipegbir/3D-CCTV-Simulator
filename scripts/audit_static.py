@@ -61,6 +61,8 @@ def main() -> int:
         "theme engine": "applyTheme",
         "customer preferences": "PREFERENCES_STORAGE_KEY",
         "viewport renderer parity": "configureRendererQuality(viewportRenderer)",
+        "viewport wall": "arrangeCameraViewports",
+        "runtime version": "appVersionLabel",
     }
     missing_markers = [
         label for label, marker in required_markers.items() if marker not in js

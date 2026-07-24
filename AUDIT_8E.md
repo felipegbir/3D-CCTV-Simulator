@@ -90,6 +90,9 @@ Three.js and loaders are imported from `https://esm.sh`. Startup can serve the p
 
 Release 8e.2 adds numeric schema version 2, application version, save timestamp, structured asset manifest, backward compatibility for unversioned files, future-schema rejection, and cancellable save/load warnings for non-embedded browser-local models and reference images. Deployment, server checks, and owner acceptance passed. The owner confirmed the legacy schema-1 compatibility warning, successful restoration, and schema-2 output after saving and reopening. Project identity, preferences, and full migration/persistence remain deferred to their approved roadmap releases.
 
+### P2 - CSS-variable theme foundation and dark mode implemented in 8e.3
+
+Release 8e.3 converts primary interface surfaces to shared light/dark CSS variables and adds a non-persistent theme toggle under Operations > View. The main Three.js scene background follows the selected theme. Automated regression and live server validation passed; owner visual acceptance is pending. Theme preference persistence remains deferred to 8e.4.
 ### P3 - Legacy and placeholder UI remains
 
 Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` styles are still present. Cleanup should follow regression coverage so unused markup/styles are not removed speculatively.
@@ -99,7 +102,7 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 1. **8e.1 complete:** PTZ save/load restoration passed owner acceptance.
 2. **Baseline complete:** live `app.py` synchronized and authoritative Git history established.
 3. **8e.2 complete:** schema versioning and non-persistent asset warnings passed owner acceptance.
-4. Implement the CSS-variable theme foundation and dark mode.
+4. **8e.3 deployed:** CSS-variable theme foundation and dark mode implemented; owner visual acceptance pending.
 5. Implement a preferences model and persistence.
 6. Align viewport renderer settings with the main renderer and perform visual regression testing.
 7. Expand undo/redo into command-based history.

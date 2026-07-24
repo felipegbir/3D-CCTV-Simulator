@@ -40,6 +40,7 @@ The frontend imports Three.js modules from `esm.sh`, so the browser needs networ
 
 ```powershell
 python scripts/audit_static.py
+python scripts/test_ptz_persistence.py
 Copy-Item static/viewer.js audit/viewer.mjs
 node --check audit/viewer.mjs
 python -m py_compile app.py

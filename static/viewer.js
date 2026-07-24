@@ -2439,9 +2439,13 @@ function applyLoadedProject(project) {
         ...item.data,
         ...cameraData.data
       };
-    } else {
-      item.data.zoom = cameraData.zoom ?? 1;
     }
+
+    // Restore current nested data and support legacy top-level PTZ fields.
+    item.data.pan = cameraData.data?.pan ?? cameraData.pan ?? item.data.pan ?? 0;
+    item.data.tilt = cameraData.data?.tilt ?? cameraData.tilt ?? item.data.tilt ?? 0;
+    item.data.roll = cameraData.data?.roll ?? cameraData.roll ?? item.data.roll ?? 0;
+    item.data.zoom = cameraData.data?.zoom ?? cameraData.zoom ?? item.data.zoom ?? 1;
 
     item.data.projectionDistance =
       cameraData.data?.projectionDistance ??
@@ -2450,6 +2454,7 @@ function applyLoadedProject(project) {
 
     item.object.userData.projectionDistance = item.data.projectionDistance;
 
+    applyCameraPtzRig(item);
     updateCameraProjection(item);
 
     const cone = item.object.userData.projectionCone;

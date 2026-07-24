@@ -1,5 +1,6 @@
-"""Regression guard for the N.O.M.A.D. 8e.2 project schema contract."""
+"""Regression guard for the N.O.M.A.D. project schema-2 contract."""
 
+import re
 from pathlib import Path
 
 
@@ -7,7 +8,6 @@ root = Path(__file__).resolve().parents[1]
 source = (root / "static" / "viewer.js").read_text(encoding="utf-8")
 
 required_contract = (
-    "const APP_VERSION = '8e.2';",
     "const PROJECT_SCHEMA_VERSION = 2;",
     "const LEGACY_PROJECT_SCHEMA_VERSION = 1;",
     "function buildProjectAssetManifest()",
@@ -21,8 +21,10 @@ required_contract = (
     "REFERENCE_IMAGE_NOT_EMBEDDED",
 )
 
+assert re.search(r"const APP_VERSION = '8e\.\d+';", source), "Missing app version"
+
 for marker in required_contract:
-    assert marker in source, f"Missing 8e.2 contract marker: {marker}"
+    assert marker in source, f"Missing schema-2 contract marker: {marker}"
 
 load_start = source.index("loadProjectFile.addEventListener")
 load_end = source.index("saveProjectButton.addEventListener", load_start)

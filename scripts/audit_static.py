@@ -58,6 +58,7 @@ def main() -> int:
         "project schema": "PROJECT_SCHEMA_VERSION",
         "asset manifest": "buildProjectAssetManifest",
         "schema validation": "validateProjectSchema",
+        "theme engine": "applyTheme",
     }
     missing_markers = [
         label for label, marker in required_markers.items() if marker not in js
@@ -80,7 +81,14 @@ def main() -> int:
     print(f"CSS variable declarations: {len(css_variables)}")
     print(f"Hard-coded CSS color literals: {len(legacy_color_literals)}")
 
-    return 1 if missing_ids or duplicate_ids or missing_markers else 0
+    theme_contract_missing = (
+        len(css_variables) < 20
+        or 'body[data-theme="dark"]' not in html
+        or 'id="toggleTheme"' not in html
+    )
+    print(f"Theme contract missing: {int(theme_contract_missing)}")
+
+    return 1 if missing_ids or duplicate_ids or missing_markers or theme_contract_missing else 0
 
 
 if __name__ == "__main__":

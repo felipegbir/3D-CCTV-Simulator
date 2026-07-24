@@ -1,4 +1,4 @@
-﻿# N.O.M.A.D. CCTV Digital Twin Simulator
+# N.O.M.A.D. CCTV Digital Twin Simulator
 
 This workspace is the recoverable N.O.M.A.D. 8e application baseline assembled for continued development.
 
@@ -42,6 +42,7 @@ The frontend imports Three.js modules from `esm.sh`, so the browser needs networ
 python scripts/audit_static.py
 python scripts/test_ptz_persistence.py
 python scripts/test_project_schema.py
+python scripts/test_theme_engine.py
 node scripts/test_project_schema_runtime.mjs
 Copy-Item static/viewer.js audit/viewer.mjs
 node --check audit/viewer.mjs

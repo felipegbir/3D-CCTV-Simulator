@@ -3,11 +3,105 @@
 <head>
   <title>NOMAD CCTV Digital Twin Simulator</title>
   <style>
+    :root {
+      color-scheme: light;
+      --page-bg: #e9ecef;
+      --sidebar-bg: #d7dbe0;
+      --header-bg: #2f3b46;
+      --header-text: #ffffff;
+      --panel-bg: #f8f9fa;
+      --panel-title-bg: #c2cad3;
+      --border: #aeb6c0;
+      --border-strong: #9aa1aa;
+      --text: #1f2933;
+      --text-muted: #4b5563;
+      --section-text: #263238;
+      --section-border: #d0d4da;
+      --row-border: #d8dde3;
+      --hover-bg: #e1e7ef;
+      --selected-bg: #007bff;
+      --selected-text: #ffffff;
+      --control-bg: #ffffff;
+      --control-hover-bg: #e6edf5;
+      --control-disabled-bg: #f1f1f1;
+      --control-disabled-text: #777777;
+      --toolbar-bg: rgba(47, 59, 70, 0.96);
+      --inspector-bg: rgba(248, 249, 250, 0.97);
+      --viewport-bg: #f2f2f2;
+      --viewport-frame-bg: #000000;
+      --viewport-frame-border: #444444;
+      --viewport-panel-bg: rgba(248, 249, 250, 0.95);
+      --combo-border: #e5e7eb;
+      --scrollbar-track: #f1f1f1;
+      --scrollbar-thumb: #9aa1aa;
+      --scrollbar-thumb-hover: #6b7280;
+      --sensor-control-bg: #222222;
+      --sensor-control-text: #ffffff;
+      --sensor-label: #dddddd;
+      --sensor-border: #555555;
+      --sensor-border-hover: #888888;
+    }
+
+    body[data-theme="dark"] {
+      color-scheme: dark;
+      --page-bg: #11161c;
+      --sidebar-bg: #171e26;
+      --header-bg: #0c1117;
+      --header-text: #f4f7fa;
+      --panel-bg: #202a35;
+      --panel-title-bg: #2c3947;
+      --border: #485666;
+      --border-strong: #607185;
+      --text: #eef3f7;
+      --text-muted: #b8c4cf;
+      --section-text: #e2e8ee;
+      --section-border: #435160;
+      --row-border: #3b4856;
+      --hover-bg: #314052;
+      --selected-bg: #1479d4;
+      --selected-text: #ffffff;
+      --control-bg: #263341;
+      --control-hover-bg: #35475a;
+      --control-disabled-bg: #202832;
+      --control-disabled-text: #8895a3;
+      --toolbar-bg: rgba(12, 17, 23, 0.96);
+      --inspector-bg: rgba(25, 33, 42, 0.97);
+      --viewport-bg: #11161c;
+      --viewport-frame-bg: #05080b;
+      --viewport-frame-border: #627286;
+      --viewport-panel-bg: rgba(30, 40, 51, 0.96);
+      --combo-border: #3b4856;
+      --scrollbar-track: #1b242e;
+      --scrollbar-thumb: #5b6b7d;
+      --scrollbar-thumb-hover: #77899c;
+      --sensor-control-bg: #111820;
+      --sensor-control-text: #f4f7fa;
+      --sensor-label: #dce5ed;
+      --sensor-border: #607185;
+      --sensor-border-hover: #8fa1b3;
+    }
+
+    button,
+    input,
+    select {
+      color: var(--text);
+    }
+
+    input,
+    select {
+      background: var(--control-bg);
+      border-color: var(--border-strong);
+    }
+
+    .menu-button:hover:not(.disabled) {
+      background: var(--control-hover-bg);
+    }
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       overflow: hidden;
-      background: #e9ecef;
+      background: var(--page-bg);
+      color: var(--text);
     }
 
     #sidebar {
@@ -16,8 +110,8 @@
       left: 0;
       width: 320px;
       height: 100vh;
-      background: #d7dbe0;
-      border-right: 1px solid #9aa1aa;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border-strong);
       box-sizing: border-box;
       padding: 10px;
       display: flex;
@@ -28,8 +122,8 @@
 
     #appHeader {
       flex: 0 0 auto;
-      background: #2f3b46;
-      color: white;
+      background: var(--header-bg);
+      color: var(--header-text);
       padding: 10px;
       border-radius: 6px;
       box-shadow: 0 1px 5px rgba(0,0,0,0.25);
@@ -41,8 +135,8 @@
     }
 
     .panel-frame {
-      background: #f8f9fa;
-      border: 1px solid #aeb6c0;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
       border-radius: 8px;
       box-shadow: 0 1px 6px rgba(0,0,0,0.18);
       display: flex;
@@ -71,11 +165,11 @@
     .panel-title {
       flex: 0 0 auto;
       padding: 8px 10px;
-      background: #c2cad3;
-      border-bottom: 1px solid #aeb6c0;
+      background: var(--panel-title-bg);
+      border-bottom: 1px solid var(--border);
       font-weight: bold;
       font-size: 13px;
-      color: #1f2933;
+      color: var(--text);
     }
 
     .panel-content {
@@ -92,8 +186,8 @@
       font-size: 13px;
       margin: 8px 0 6px 0;
       padding-bottom: 4px;
-      border-bottom: 1px solid #d0d4da;
-      color: #263238;
+      border-bottom: 1px solid var(--section-border);
+      color: var(--section-text);
     }
 
     .tree-item {
@@ -105,12 +199,12 @@
     }
 
     .tree-item:hover {
-      background: #e1e7ef;
+      background: var(--hover-bg);
     }
 
     .tree-item.selected {
-      background: #007bff;
-      color: white;
+      background: var(--selected-bg);
+      color: var(--header-text);
     }
 
     .menu-group {
@@ -122,8 +216,8 @@
       text-align: left;
       padding: 7px;
       margin: 2px 0;
-      border: 1px solid #c0c6cf;
-      background: white;
+      border: 1px solid var(--border);
+      background: var(--control-bg);
       border-radius: 4px;
       cursor: pointer;
       font-size: 13px;
@@ -131,8 +225,8 @@
     }
 
     .menu-button.disabled {
-      color: #999;
-      background: #f1f1f1;
+      color: var(--control-disabled-text);
+      background: var(--control-disabled-bg);
       cursor: not-allowed;
     }
 
@@ -155,9 +249,9 @@
       transform: translateX(-50%);
       width: auto;
       max-width: min(900px, calc(100% - 40px));
-      background: rgba(47, 59, 70, 0.96);
-      color: white;
-      border: 1px solid #1f2933;
+      background: var(--toolbar-bg);
+      color: var(--header-text);
+      border: 1px solid var(--text);
       border-radius: 10px;
       box-shadow: 0 3px 12px rgba(0,0,0,0.35);
       padding: 10px;
@@ -188,10 +282,10 @@
 
    .toolbar-button {
      padding: 6px 10px;
-     border: 1px solid #9aa1aa;
+     border: 1px solid var(--border-strong);
      border-radius: 5px;
-     background: #ffffff;
-     color: #1f2933;
+     background: var(--control-bg);
+     color: var(--text);
      cursor: pointer;
      font-size: 13px;
      white-space: nowrap;
@@ -199,12 +293,12 @@
    }
 
    .toolbar-button:hover {
-     background: #e6edf5;
+     background: var(--control-hover-bg);
    }
 
    .toolbar-button.disabled {
-     color: #999;
-     background: #d6d6d6;
+     color: var(--control-disabled-text);
+     background: var(--control-disabled-bg);
      cursor: not-allowed;
    }
 
@@ -213,13 +307,13 @@
      top: 8px;
      right: 18px;
      width: 280px;
-     background: rgba(248, 249, 250, 0.97);
-     border: 1px solid #aeb6c0;
+     background: var(--inspector-bg);
+     border: 1px solid var(--border);
      border-radius: 10px;
      box-shadow: 0 3px 12px rgba(0,0,0,0.28);
      padding: 10px;
      z-index: 21;
-     color: #1f2933;
+     color: var(--text);
      font-size: 13px;
      max-height: calc(100vh - 16px);
      overflow-y: auto;
@@ -232,7 +326,7 @@
 
    .info-title {
      font-weight: bold;
-     background: #c2cad3;
+     background: var(--panel-title-bg);
      padding: 7px;
      border-radius: 6px;
      margin-bottom: 8px;
@@ -248,7 +342,7 @@
    }
 
    .info-title.collapsible:hover {
-     background: #aeb8c3;
+     background: var(--hover-bg);
    }
 
    .info-row {
@@ -256,11 +350,11 @@
      justify-content: space-between;
      gap: 8px;
      padding: 5px 2px;
-     border-bottom: 1px solid #d8dde3;
+     border-bottom: 1px solid var(--row-border);
    }
 
    .info-row span {
-     color: #4b5563;
+     color: var(--text-muted);
    }
 
    .info-row strong {
@@ -285,7 +379,7 @@
      text-align: center;
      font-weight: bold;
      font-size: 12px;
-     color: #4b5563;
+     color: var(--text-muted);
    }
 
    .ptz-zoom-row {
@@ -313,8 +407,8 @@
      position: absolute;
      width: 320px;
      height: 240px;
-     background: black;
-     border: 1px solid #444;
+     background: var(--viewport-frame-bg);
+     border: 1px solid var(--viewport-frame-border);
      border-radius: 6px;
      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
      pointer-events: auto;
@@ -324,7 +418,7 @@
    }
 
    .camera-viewport-header {
-     background: #2f3b46;
+     background: var(--header-bg);
      color: white;
      font-size: 12px;
      padding: 4px 6px;
@@ -336,7 +430,7 @@
 .camera-viewport-body {
   position: relative;
   flex: 1;
-  background: black;
+  background: var(--viewport-frame-bg);
   overflow: hidden;
 }
 
@@ -405,12 +499,12 @@
      top: 32px;
      right: 8px;
      width: 170px;
-     background: rgba(248, 249, 250, 0.95);
-     border: 1px solid #aeb6c0;
+     background: var(--viewport-panel-bg);
+     border: 1px solid var(--border);
      border-radius: 8px;
      padding: 8px;
      box-shadow: 0 3px 10px rgba(0,0,0,0.35);
-     color: #1f2933;
+     color: var(--text);
      z-index: 5;
    }
 
@@ -435,9 +529,9 @@
    .viewport-ptz-btn {
      padding: 5px;
      font-size: 12px;
-     border: 1px solid #9aa1aa;
+     border: 1px solid var(--border-strong);
      border-radius: 5px;
-     background: white;
+     background: var(--control-bg);
      cursor: pointer;
    }
 
@@ -495,8 +589,8 @@
      width: 220px;
      max-height: 260px;
      overflow-y: auto;
-     background: #ffffff;
-     border: 1px solid #9aa1aa;
+     background: var(--control-bg);
+     border: 1px solid var(--border-strong);
      border-radius: 4px;
      box-shadow: 0 3px 10px rgba(0,0,0,0.25);
      z-index: 9999;
@@ -506,12 +600,12 @@
      padding: 6px 8px;
      cursor: pointer;
      font-size: 12px;
-     border-bottom: 1px solid #e5e7eb;
+     border-bottom: 1px solid var(--combo-border);
    }
 
    .camera-combo-result:hover {
-     background: #007bff;
-     color: #ffffff;
+     background: var(--selected-bg);
+     color: var(--selected-text);
    }
 
    .camera-combo-results::-webkit-scrollbar {
@@ -519,16 +613,16 @@
    }
 
    .camera-combo-results::-webkit-scrollbar-track {
-     background: #f1f1f1;
+     background: var(--scrollbar-track);
    }
 
    .camera-combo-results::-webkit-scrollbar-thumb {
-     background: #9aa1aa;
+     background: var(--scrollbar-thumb);
      border-radius: 6px;
    }
 
    .camera-combo-results::-webkit-scrollbar-thumb:hover {
-     background: #6b7280;
+     background: var(--scrollbar-thumb-hover);
    }
 
 /* ============================================================
@@ -541,7 +635,7 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: #ddd;
+  color: var(--sensor-label);
   margin-right: 6px;
 }
 
@@ -549,15 +643,15 @@
   height: 22px;
   min-width: 120px;
   font-size: 11px;
-  background: #222;
-  color: #fff;
-  border: 1px solid #555;
+  background: var(--sensor-control-bg);
+  color: var(--sensor-control-text);
+  border: 1px solid var(--sensor-border);
   border-radius: 3px;
   outline: none;
 }
 
 .viewport-palette-select:hover {
-  border-color: #888;
+  border-color: var(--sensor-border-hover);
 }
 
 .viewport-palette-select:focus {
@@ -565,14 +659,14 @@
 }
 
 .viewport-palette-select option {
-  background: #222;
-  color: #fff;
+  background: var(--sensor-control-bg);
+  color: var(--sensor-control-text);
 }
 
   </style>
 </head>
 
-<body>
+<body data-theme="light">
 <div id="sidebar">
   <div id="appHeader">
     <h3>3D CCTV Simulator</h3>
@@ -640,6 +734,7 @@
         <div class="section-title">▶ View</div>
         <button class="menu-button" id="resetView">Reset View</button>
         <button class="menu-button" id="fitSelectedView">Fit Selected</button>
+        <button class="menu-button" id="toggleTheme" type="button" aria-pressed="false">Dark Mode</button>
         <button class="menu-button disabled">Zoom Out</button>
         <button class="menu-button disabled">Fit Grid</button>
         <button class="menu-button disabled">Show / Hide Grid</button>
@@ -902,6 +997,6 @@
   });
 </script>
 
-<script type="module" src="/static/viewer.js?v=919"></script>
+<script type="module" src="/static/viewer.js?v=920"></script>
 </body>
 </html>

@@ -16,15 +16,27 @@ const toolbarLayFace = document.getElementById('toolbarLayFace');
 const toolbarCameraView = document.getElementById('toolbarCameraView');
 const cameraViewportsContainer = document.getElementById('cameraViewports');
 const openCameraViewports = [];
-const APP_VERSION = '8e.2';
+const APP_VERSION = '8e.3';
 const PROJECT_SCHEMA_VERSION = 2;
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
 const addCameraButton = document.getElementById('addCameraButton');
+const toggleThemeButton = document.getElementById('toggleTheme');
 let cameraCounter = 1;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf2f2f2);
 
+function applyTheme(theme) {
+  const normalizedTheme = theme === 'dark' ? 'dark' : 'light';
+  const isDark = normalizedTheme === 'dark';
+
+  document.body.dataset.theme = normalizedTheme;
+  scene.background.set(isDark ? 0x11161c : 0xf2f2f2);
+  toggleThemeButton.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+  toggleThemeButton.setAttribute('aria-pressed', String(isDark));
+}
+
+applyTheme('light');
 const viewerCamera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 10000);
 viewerCamera.position.set(10, 10, 10);
 
@@ -1740,6 +1752,11 @@ toolbarDelete.addEventListener('click', () => {
   // Refresh UI
   renderSceneTree();
   updateObjectInfoPanel();
+});
+
+toggleThemeButton.addEventListener('click', () => {
+  const nextTheme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(nextTheme);
 });
 
 fitSelectedViewButton.addEventListener('click', () => {

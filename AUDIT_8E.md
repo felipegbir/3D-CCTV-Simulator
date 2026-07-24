@@ -14,13 +14,13 @@ The workspace is not yet a production-ready application. The most important veri
 
 | Artifact | Workspace location | Source state |
 | --- | --- | --- |
-| Flask backend | `app.py` | Recovered from `backups/nomad8b_step5/app/app.py`, dated 2026-04-27 |
+| Flask backend | `app.py` | Synchronized from live host `192.168.2.208:/home/vmuser/nomad-cctv-simulator/app.py` on 2026-07-24; live file dated 2026-05-06 |
 | Frontend shell | `templates/index.html` | Top-level NAS snapshot dated 2026-06-17 |
 | Three.js application | `static/viewer.js` | Top-level NAS snapshot dated 2026-06-17 |
 | Camera database | `data/camera_database/camera_database.csv` | Current NAS database dated 2026-07-07 |
 | Master handoff | `docs/reference/NOMAD_8e_CCTV_Digital_Twin_Simulator_Master_Consolidation.docx` | Consolidated 8e requirements and history |
 
-The backend was older than the frontend and defaulted to the legacy `cameras/camera_library.csv`. Workspace preparation changed only its default data paths: local runs use the included `data` directory and the current camera database; NAS deployment remains configurable through environment variables.
+The initial recovered backend was older than the frontend. SSH verification established the live May 6 backend as authoritative; it uses the current camera database, strips UTF-8 BOMs, normalizes CSV fields, and returns a controlled 404 when the database is absent.
 
 ## Verification completed
 
@@ -72,7 +72,7 @@ The project JSON stores model transforms and a top-level model file/path, but lo
 
 ### P1 - Backend source and deployment state are not authoritative
 
-Only an 8b-era `app.py` was recoverable. It implements the documented core routes but predates the June frontend and July camera database. The workspace now runs locally against the current database by default, but the actual NOMAD VM copy must be compared before this repository becomes the deployment source of truth.
+The authoritative live `app.py` has now been synchronized into this repository. The frontend files match the live host by SHA-256. Future backend changes should originate in Git and deploy to the host, avoiding further source drift.
 
 ### P2 - Undo/redo covers transforms only
 
@@ -117,4 +117,5 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 ## Workspace filesystem constraint
 
 Git could not create object files reliably in the original NAS workspace. This local NTFS working copy was created to provide the authoritative Git-backed development baseline. Use the NAS as a backup or deployment source rather than the live Git object database.
+
 

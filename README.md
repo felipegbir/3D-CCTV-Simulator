@@ -4,7 +4,7 @@ This workspace is the recoverable N.O.M.A.D. 8e application baseline assembled f
 
 ## Included
 
-- `app.py` - Flask backend recovered from the latest complete application backup.
+- `app.py` - Flask backend synchronized from the live NOMAD host on 2026-07-24.
 - `templates/index.html` - June 17, 2026 frontend snapshot.
 - `static/viewer.js` - June 17, 2026 Three.js implementation snapshot.
 - `data/camera_database/camera_database.csv` - July 7, 2026 camera database with 221 records.
@@ -48,3 +48,4 @@ python -m py_compile app.py
 ## Version-control note
 
 The NAS share does not permit Git object-file operations reliably. Keep the working source here if needed, but initialize the repository on a local NTFS/Linux filesystem and synchronize reviewed releases back to the NAS.
+

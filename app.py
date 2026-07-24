@@ -1,13 +1,12 @@
-﻿from flask import Flask, jsonify, render_template, send_from_directory
+from flask import Flask, jsonify, render_template, send_from_directory
 import csv
 import os
 
 app = Flask(__name__)
 
-APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-DATA_ROOT = os.environ.get("NOMAD_DATA_ROOT", os.path.join(APP_ROOT, "data"))
-CAMERA_LIBRARY = os.environ.get(
-    "CAMERA_LIBRARY",
+DATA_ROOT = os.environ.get("NOMAD_DATA_ROOT", "/mnt/nomad-nas/Share/CCTVSimulator")
+CAMERA_DATABASE = os.environ.get(
+    "CAMERA_DATABASE",
     os.path.join(DATA_ROOT, "camera_database", "camera_database.csv")
 )
 
@@ -48,15 +47,31 @@ def models():
         "models": records
     })
 
-
 @app.route("/api/cameras")
 def cameras():
     records = []
 
-    with open(CAMERA_LIBRARY, newline="", encoding="utf-8") as csvfile:
+    if not os.path.exists(CAMERA_DATABASE):
+        return jsonify({
+            "count": 0,
+            "cameras": [],
+            "error": f"Camera database not found: {CAMERA_DATABASE}"
+        }), 404
+
+    with open(CAMERA_DATABASE, newline="", encoding="utf-8-sig") as csvfile:
         reader = csv.DictReader(csvfile)
+
         for row in reader:
-            records.append(row)
+            cleaned_row = {}
+            for key, value in row.items():
+                if key is None:
+                    continue
+
+                clean_key = key.strip()
+                clean_value = value.strip() if isinstance(value, str) else value
+                cleaned_row[clean_key] = clean_value
+
+            records.append(cleaned_row)
 
     return jsonify({
         "count": len(records),
@@ -65,4 +80,3 @@ def cameras():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5010)
-

@@ -55,6 +55,9 @@ def main() -> int:
         "FBX import": "loadFbxModel",
         "project save": "saveProject",
         "project load": "loadProject",
+        "project schema": "PROJECT_SCHEMA_VERSION",
+        "asset manifest": "buildProjectAssetManifest",
+        "schema validation": "validateProjectSchema",
     }
     missing_markers = [
         label for label, marker in required_markers.items() if marker not in js

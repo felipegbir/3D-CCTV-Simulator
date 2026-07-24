@@ -16,6 +16,9 @@ const toolbarLayFace = document.getElementById('toolbarLayFace');
 const toolbarCameraView = document.getElementById('toolbarCameraView');
 const cameraViewportsContainer = document.getElementById('cameraViewports');
 const openCameraViewports = [];
+const APP_VERSION = '8e.2';
+const PROJECT_SCHEMA_VERSION = 2;
+const LEGACY_PROJECT_SCHEMA_VERSION = 1;
 const addCameraButton = document.getElementById('addCameraButton');
 let cameraCounter = 1;
 
@@ -2370,6 +2373,108 @@ toolbarLayFace.addEventListener('click', () => {
   alert(`Detected ${planes.length} triangle planes. Check browser console for top candidates.`);
 });
 
+function buildProjectAssetManifest() {
+  const modelAssets = sceneObjects
+    .filter(item => item.type === 'model')
+    .map(item => {
+      const browserLocal = Boolean(item.data?.sourceFormat);
+      const sourceFormat =
+        item.data?.sourceFormat ||
+        item.object.userData.sourceFormat ||
+        'glb';
+
+      return {
+        id: item.id,
+        name: item.name,
+        fileName: item.object.userData.fileName || item.name,
+        sourceFormat,
+        storage: browserLocal ? 'browser-session' : 'server',
+        restorable: !browserLocal
+      };
+    });
+
+  const referenceImageAssets = sceneObjects
+    .filter(item => item.data?.referenceImage)
+    .map(item => ({
+      id: item.id,
+      name: item.name,
+      fileName: item.data?.fileName || item.name,
+      sourceFormat: 'image',
+      storage: 'browser-session',
+      restorable: false
+    }));
+
+  const warnings = [
+    ...modelAssets
+      .filter(asset => !asset.restorable)
+      .map(asset => ({
+        code: 'LOCAL_MODEL_NOT_EMBEDDED',
+        severity: 'warning',
+        assetId: asset.id,
+        assetName: asset.name,
+        message: `${asset.name} is a browser-local ${asset.sourceFormat.toUpperCase()} model and is not embedded in the project JSON. Re-import the source file before loading this project.`
+      })),
+    ...referenceImageAssets.map(asset => ({
+      code: 'REFERENCE_IMAGE_NOT_EMBEDDED',
+      severity: 'warning',
+      assetId: asset.id,
+      assetName: asset.name,
+      message: `${asset.name} is a browser-local reference image and is not embedded in the project JSON. Re-import the image before loading this project.`
+    }))
+  ];
+
+  return {
+    generatedAt: new Date().toISOString(),
+    models: modelAssets,
+    referenceImages: referenceImageAssets,
+    warnings
+  };
+}
+
+function formatAssetWarningMessage(warnings) {
+  return warnings
+    .map((warning, index) => `${index + 1}. ${warning.message}`)
+    .join('\n');
+}
+
+function validateProjectSchema(project) {
+  const rawSchemaVersion =
+    project?.schemaVersion ?? LEGACY_PROJECT_SCHEMA_VERSION;
+  const schemaVersion = Number(rawSchemaVersion);
+
+  if (!Number.isInteger(schemaVersion) || schemaVersion < 1) {
+    alert('Project file has an invalid schemaVersion and cannot be loaded.');
+    return false;
+  }
+
+  if (schemaVersion > PROJECT_SCHEMA_VERSION) {
+    alert(
+      `This project uses schema version ${schemaVersion}, but this simulator supports up to version ${PROJECT_SCHEMA_VERSION}.\n\n` +
+      'Open it with a newer simulator version.'
+    );
+    return false;
+  }
+
+  if (schemaVersion < PROJECT_SCHEMA_VERSION) {
+    alert(
+      `Legacy project schema ${schemaVersion} detected. It will load in compatibility mode.\n\n` +
+      'Legacy files do not identify whether imported models or reference images were embedded. Confirm required assets are already loaded or re-import them.'
+    );
+  }
+
+  return true;
+}
+
+function showProjectAssetWarnings(project) {
+  const warnings = project?.assetManifest?.warnings;
+  if (!Array.isArray(warnings) || warnings.length === 0) return true;
+
+  return confirm(
+    'Project asset warning:\n\n' +
+    formatAssetWarningMessage(warnings) +
+    '\n\nCamera records and transforms can still load, but missing browser-local assets must be re-imported. Continue loading?'
+  );
+}
 function applyLoadedProject(project) {
   if (!project || !Array.isArray(project.cameras)) {
     alert('Project file does not contain a valid cameras array.');
@@ -2479,6 +2584,11 @@ loadProjectFile.addEventListener('change', (event) => {
     try {
       const project = JSON.parse(e.target.result);
       console.log('Loaded project:', project);
+
+      if (!validateProjectSchema(project)) return;
+
+      if (!showProjectAssetWarnings(project)) return;
+
       applyLoadedProject(project);
     } catch (err) {
       alert('Invalid project file');
@@ -2490,7 +2600,24 @@ loadProjectFile.addEventListener('change', (event) => {
 });
 
 saveProjectButton.addEventListener('click', () => {
+  const assetManifest = buildProjectAssetManifest();
+
+  if (assetManifest.warnings.length > 0) {
+    const shouldSave = confirm(
+      'This project contains browser-local assets that are not embedded in the JSON:\n\n' +
+      formatAssetWarningMessage(assetManifest.warnings) +
+      '\n\nSave the project anyway?'
+    );
+
+    if (!shouldSave) return;
+  }
+
   const project = {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    appVersion: APP_VERSION,
+    savedAt: new Date().toISOString(),
+    assetManifest,
+
     model: {
       file: loadedModelFile,
       path: loadedModelPath

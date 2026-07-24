@@ -97,9 +97,9 @@ Release 8e.3 converts primary interface surfaces to shared light/dark CSS variab
 
 After the numbered roadmap feature work, perform a dedicated project-save/load reconciliation. Project JSON must persist each camera viewport palette/mode (Visible, IR White, IR Black, IR Rainbow, and other supported modes) and all applicable tool state. External model and reference-image binaries remain outside the JSON; save only their resolvable reference path/file plus complete position, rotation, scale, and applicable display metadata so load can recreate the referenced element exactly. This is an expansion of persistence coverage, not a redo of the accepted 8e.1 PTZ fix.
 
-### Required for 8e.5 - Dark default
+### Dark default implemented in 8e.5
 
-Dark theme must become the default for new browsers and after Reset Preferences. Existing users with an explicitly saved theme choice retain that choice unless they reset preferences.
+Dark theme is now the default for new browsers and after Reset Preferences. Existing users with an explicitly saved theme choice retain that choice unless they reset preferences.
 
 ### Planned camera presets and thermography pixel-density requirements - owner directive
 
@@ -128,6 +128,9 @@ These are planning estimates, not a guarantee of thermographic measurement perfo
 
 Preset persistence must include calculation inputs, derived results, scenario classification, selected depth target reference, and viewport palette. On load, restore the complete preset and recalculate when referenced geometry is available; otherwise retain the saved values and display a clear stale/missing-target warning. This work is part of the final comprehensive persistence reconciliation and must use explicit schema versioning/migration.
 
+### P2 - Viewport renderer parity and Preferences collapse correction implemented in 8e.5
+
+Camera viewport renderers now inherit the main renderer's color space, tone mapping, exposure, shadow-map type, high-performance preference, and quality-controlled pixel ratio/shadow setting. The owner-reported Preferences collapse defect is corrected by hiding preference rows when their menu group is collapsed. Automated and live server validation passed; owner visual/performance acceptance is pending.
 ### P3 - Legacy and placeholder UI remains
 
 Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` styles are still present. Cleanup should follow regression coverage so unused markup/styles are not removed speculatively.
@@ -139,7 +142,7 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 3. **8e.2 complete:** schema versioning and non-persistent asset warnings passed owner acceptance.
 4. **8e.3 complete:** CSS-variable theme foundation and dark mode passed owner acceptance.
 5. **8e.4 complete:** customer preferences model, UI, validation, and browser-local persistence passed owner acceptance.
-6. Align viewport renderer settings with the main renderer and perform visual regression testing.
+6. **8e.5 deployed:** viewport renderer parity, Dark default, and Preferences collapse correction implemented; owner acceptance pending.
 7. Expand undo/redo into command-based history.
 8. Add NAS-backed project and asset persistence before reporting or advanced analysis features.
 

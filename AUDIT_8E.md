@@ -92,7 +92,10 @@ Release 8e.2 adds numeric schema version 2, application version, save timestamp,
 
 ### P2 - CSS-variable theme foundation and dark mode implemented in 8e.3
 
-Release 8e.3 converts primary interface surfaces to shared light/dark CSS variables and adds a non-persistent theme toggle under Operations > View. The main Three.js scene background follows the selected theme. Automated regression and live server validation passed; owner visual acceptance is pending. Theme preference persistence remains deferred to 8e.4.
+Release 8e.3 converts primary interface surfaces to shared light/dark CSS variables and adds a non-persistent theme toggle under Operations > View. The main Three.js scene background follows the selected theme. Automated regression, live server validation, and owner visual acceptance passed. Theme preference persistence remains deferred to 8e.4.
+### Deferred final persistence reconciliation - owner directive
+
+After the numbered roadmap feature work, perform a dedicated project-save/load reconciliation. Project JSON must persist each camera viewport palette/mode (Visible, IR White, IR Black, IR Rainbow, and other supported modes) and all applicable tool state. External model and reference-image binaries remain outside the JSON; save only their resolvable reference path/file plus complete position, rotation, scale, and applicable display metadata so load can recreate the referenced element exactly. This is an expansion of persistence coverage, not a redo of the accepted 8e.1 PTZ fix.
 ### P3 - Legacy and placeholder UI remains
 
 Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` styles are still present. Cleanup should follow regression coverage so unused markup/styles are not removed speculatively.
@@ -102,7 +105,7 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 1. **8e.1 complete:** PTZ save/load restoration passed owner acceptance.
 2. **Baseline complete:** live `app.py` synchronized and authoritative Git history established.
 3. **8e.2 complete:** schema versioning and non-persistent asset warnings passed owner acceptance.
-4. **8e.3 deployed:** CSS-variable theme foundation and dark mode implemented; owner visual acceptance pending.
+4. **8e.3 complete:** CSS-variable theme foundation and dark mode passed owner acceptance.
 5. Implement a preferences model and persistence.
 6. Align viewport renderer settings with the main renderer and perform visual regression testing.
 7. Expand undo/redo into command-based history.

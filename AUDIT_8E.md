@@ -215,3 +215,8 @@ Deployment validation passed on CCTV PID 917407 with cache 931 and matching fron
 Correction pass 7 is rejected due raster-scaling blur. Pass 8 uses PerspectiveCamera.setViewOffset to render a cursor-centered sub-frustum at native/high-DPI loupe resolution. The existing 2x-10x preference now controls crop size, not CSS pixel enlargement. Automated checks pass; owner visual confirmation remains mandatory.
 
 Deployment validation passed on CCTV PID 925413 with cache 932, deployed projection-crop marker, and matching frontend hashes. Owner should verify sharpness at 3x, 5x, and 10x.
+
+
+### 8e.7 owner correction pass 9 - pending acceptance
+
+The now-clear projection loupe is extended to a 2x-20x selectable range while retaining the 3x default and persisted preference contract. No rendering-method changes were made. Automated checks pass; owner confirmation remains pending.

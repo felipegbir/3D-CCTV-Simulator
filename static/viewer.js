@@ -232,7 +232,7 @@ function sanitizePreferences(candidate) {
 
   const loupeMagnification = Number.parseInt(candidate.loupeMagnification, 10);
   if (Number.isFinite(loupeMagnification)) {
-    safe.loupeMagnification = Math.min(10, Math.max(2, loupeMagnification));
+    safe.loupeMagnification = Math.min(20, Math.max(2, loupeMagnification));
   }
 
   const coneOpacity = Number.parseFloat(candidate.coneOpacity);

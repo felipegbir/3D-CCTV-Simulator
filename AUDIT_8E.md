@@ -208,3 +208,8 @@ Deployment validation passed on CCTV PID 908253 with cache key 930, explicit dep
 Correction pass 6 is rejected by owner visual testing. Pass 7 removes camera-position magnification and applies a configurable 2x-10x screen-space scale to the loupe canvas, defaulting to 3x. The Measurement Tools control updates live and persists through the preferences/project contract. Automated checks pass; owner confirmation remains mandatory.
 
 Deployment validation passed on CCTV PID 917407 with cache 931 and matching frontend hashes. Owner should test several 2x-10x slider values before acceptance.
+
+
+### 8e.7 owner correction pass 8 - pending acceptance
+
+Correction pass 7 is rejected due raster-scaling blur. Pass 8 uses PerspectiveCamera.setViewOffset to render a cursor-centered sub-frustum at native/high-DPI loupe resolution. The existing 2x-10x preference now controls crop size, not CSS pixel enlargement. Automated checks pass; owner visual confirmation remains mandatory.

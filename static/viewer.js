@@ -176,6 +176,7 @@ measurementMagnifierBadge.className = 'measurement-magnifier-level';
 measurementMagnifierBadge.textContent = String(DEFAULT_MEASUREMENT_MAGNIFICATION) + '\u00d7';
 measurementMagnifier.appendChild(measurementMagnifierBadge);
 let measurementMagnifierTarget = null;
+let measurementMagnifierView = null;
 let measurementPointerStart = null;
 let measurementPointerMoved = false;
 let selectedId = null;
@@ -328,7 +329,6 @@ function applyPreferences({ persist = false } = {}) {
   popupVideoWallRecords.forEach(record => configureRendererQuality(record.renderer));
   configureRendererQuality(measurementMagnifierRenderer);
   measurementMagnifierRenderer.setSize(180, 180, false);
-  measurementMagnifier.style.setProperty('--loupe-magnification', String(preferences.loupeMagnification));
   measurementMagnifierBadge.textContent = String(preferences.loupeMagnification) + '\u00d7';
 
   sceneObjects
@@ -2620,6 +2620,7 @@ function clearMeasurementPreview() {
   clearMeasurementHoverOutline();
   measurementMagnifier.classList.remove('active');
   measurementMagnifierTarget = null;
+  measurementMagnifierView = null;
 }
 
 function positionMeasurementMagnifier(event) {
@@ -2628,15 +2629,22 @@ function positionMeasurementMagnifier(event) {
 }
 
 function renderMeasurementMagnifier() {
-  if (!measurementMagnifier.classList.contains('active') || !measurementMagnifierTarget) return;
-  measurementMagnifierCamera.position.copy(viewerCamera.position);
+  if (!measurementMagnifier.classList.contains('active') || !measurementMagnifierView) return;
+  const { width, height, x, y } = measurementMagnifierView;
+  const magnification = preferences.loupeMagnification;
+  const cropSize = Math.max(1, Math.min(width, height) / magnification);
+  const offsetX = THREE.MathUtils.clamp(x - cropSize / 2, 0, Math.max(0, width - cropSize));
+  const offsetY = THREE.MathUtils.clamp(y - cropSize / 2, 0, Math.max(0, height - cropSize));
 
+  measurementMagnifierCamera.position.copy(viewerCamera.position);
+  measurementMagnifierCamera.quaternion.copy(viewerCamera.quaternion);
   measurementMagnifierCamera.up.copy(viewerCamera.up);
   measurementMagnifierCamera.fov = viewerCamera.fov;
   measurementMagnifierCamera.zoom = viewerCamera.zoom;
-  measurementMagnifierCamera.near = 0.01;
-  measurementMagnifierCamera.far = Math.max(10000, viewerCamera.far);
-  measurementMagnifierCamera.lookAt(measurementMagnifierTarget);
+  measurementMagnifierCamera.near = viewerCamera.near;
+  measurementMagnifierCamera.far = viewerCamera.far;
+  measurementMagnifierCamera.aspect = width / height;
+  measurementMagnifierCamera.setViewOffset(width, height, offsetX, offsetY, cropSize, cropSize);
   measurementMagnifierCamera.updateProjectionMatrix();
   renderCameraView(measurementMagnifierRenderer, measurementMagnifierCamera);
 }
@@ -2645,9 +2653,17 @@ function updateMeasurementMagnifier(event, pick) {
   if (!measurementMode || !event.shiftKey || !pick) {
     measurementMagnifier.classList.remove('active');
     measurementMagnifierTarget = null;
+    measurementMagnifierView = null;
     return;
   }
   measurementMagnifierTarget = pick.point.clone();
+  const rect = renderer.domElement.getBoundingClientRect();
+  measurementMagnifierView = {
+    width: Math.max(1, rect.width),
+    height: Math.max(1, rect.height),
+    x: THREE.MathUtils.clamp(event.clientX - rect.left, 0, rect.width),
+    y: THREE.MathUtils.clamp(event.clientY - rect.top, 0, rect.height)
+  };
   positionMeasurementMagnifier(event);
   measurementMagnifier.classList.add('active');
   renderMeasurementMagnifier();
@@ -2741,6 +2757,7 @@ renderer.domElement.addEventListener('pointerleave', () => {
     updateMeasurementPreview(null);
     measurementMagnifier.classList.remove('active');
     measurementMagnifierTarget = null;
+    measurementMagnifierView = null;
     measurementPointerStart = null;
     measurementPointerMoved = false;
   }
@@ -2749,6 +2766,7 @@ window.addEventListener('keyup', event => {
   if (event.key === 'Shift') {
     measurementMagnifier.classList.remove('active');
     measurementMagnifierTarget = null;
+    measurementMagnifierView = null;
   }
 });
 renderer.domElement.addEventListener('click', event => {

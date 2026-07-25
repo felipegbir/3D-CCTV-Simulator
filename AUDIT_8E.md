@@ -239,3 +239,6 @@ Schema 4 adds fully persisted per-camera preset collections. The shared manager 
 
 Recall is animated with cubic easing, shortest-path pan/roll, and a persisted 1-60 degrees/second speed preference (default 10). Manual PTZ/roll/zoom cancels recall. Completion applies exact target values and synchronizes the saved palette. Automated schema, persistence, normalization, animation, cancellation, renderer, wall, measurement, and legacy tests pass. Owner visual/interaction acceptance remains required.
 8e.7.1 deployment validation passed on CCTV PID 968533 with cache 940, schema 4, live preset recall marker, healthy API, and matching frontend hashes. The accepted 8e.7 frontend remains available as server rollback files. Owner interaction and save/load acceptance remain pending.
+### 8e.7.1 owner QA blockers - correction pending
+
+Owner testing found that project save is not completing and that the measurement target/cursor circle is enlarged by loupe magnification, obscuring fine selection. Save failure blocks schema-4 and PTZ preset persistence acceptance. The loupe target marker must be rendered as a constant-size screen-space overlay independent of the 2x-20x scene crop. Both are logged without code changes while the owner continues PTZ QA. Release candidate remains unaccepted.

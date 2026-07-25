@@ -2612,8 +2612,9 @@ function renderMeasurementMagnifier() {
   if (!measurementMagnifier.classList.contains('active') || !measurementMagnifierTarget) return;
   measurementMagnifierCamera.position.copy(viewerCamera.position);
   measurementMagnifierCamera.up.copy(viewerCamera.up);
-  measurementMagnifierCamera.fov = viewerCamera.fov;
-  measurementMagnifierCamera.zoom = Math.max(0.01, viewerCamera.zoom * 2);
+  const viewerHalfAngle = THREE.MathUtils.degToRad(viewerCamera.fov * 0.5);
+  measurementMagnifierCamera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(viewerHalfAngle) / 2));
+  measurementMagnifierCamera.zoom = viewerCamera.zoom;
   measurementMagnifierCamera.near = 0.01;
   measurementMagnifierCamera.far = Math.max(10000, viewerCamera.far);
   measurementMagnifierCamera.lookAt(measurementMagnifierTarget);

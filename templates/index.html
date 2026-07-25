@@ -952,6 +952,8 @@
     #operationsFrame .menu-group {
       position: relative;
       flex: 0 0 auto;
+      width: fit-content;
+      min-width: 0;
       height: 40px;
       margin: 0;
       overflow: visible;
@@ -974,14 +976,14 @@
       background: var(--hover-bg);
       color: var(--text);
     }
-    #operationsFrame .menu-group > :not(.section-title) {
+    #operationsFrame .menu-group > :not(.section-title):not(.menu-dropdown) {
       display: none;
       width: 280px;
       margin: 0;
       border-radius: 0;
       box-sizing: border-box;
     }
-    #operationsFrame .menu-group.open > :not(.section-title) {
+    #operationsFrame .menu-group.open > :not(.section-title):not(.menu-dropdown) {
       display: grid;
       position: relative;
       z-index: 1;
@@ -1025,7 +1027,12 @@
       background: var(--panel-bg);
       box-shadow: 0 10px 24px rgba(0,0,0,.48);
     }
-    #operationsFrame .menu-group.open > .menu-dropdown { display: block; }
+    #operationsFrame .menu-group.open > .menu-dropdown {
+      display: block;
+      position: absolute;
+      top: 40px;
+      left: 0;
+    }
     #operationsFrame .menu-dropdown > .menu-button,
     #operationsFrame .menu-dropdown > .preference-row,
     #operationsFrame .menu-dropdown > .about-card,
@@ -1627,6 +1634,6 @@
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=942"></script>
+<script type="module" src="/static/viewer.js?v=943"></script>
 </body>
 </html>

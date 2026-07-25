@@ -186,3 +186,4 @@ Deployment validation passed on CCTV PID 878130 with health ok, cache key 927, a
 ### 8e.7 owner correction pass 4 - pending acceptance
 
 Measurement lines now carry persistent human-readable IDs and parallel 3D distance labels, the Shift precision lens uses explicit 2x zoom, and projection-cone depth once again defines the camera render far plane. This restores the expected depth-analysis relationship without undoing the camera-helper and renderer-lifecycle corrections. Automated regression validation passes; deployment and owner acceptance remain pending.
+Deployment validation passed on CCTV PID 889552 with health status ok, cache key 928, and matching local/deployed frontend hashes. No container or unrelated service was restarted.

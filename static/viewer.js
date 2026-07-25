@@ -167,7 +167,12 @@ document.body.appendChild(measurementMagnifier);
 const measurementMagnifierRenderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 measurementMagnifierRenderer.setSize(180, 180, false);
 measurementMagnifier.appendChild(measurementMagnifierRenderer.domElement);
+const MEASUREMENT_MAGNIFICATION = 3;
 const measurementMagnifierCamera = new THREE.PerspectiveCamera(12, 1, 0.01, 10000);
+const measurementMagnifierBadge = document.createElement('span');
+measurementMagnifierBadge.className = 'measurement-magnifier-level';
+measurementMagnifierBadge.textContent = String(MEASUREMENT_MAGNIFICATION) + '\u00d7';
+measurementMagnifier.appendChild(measurementMagnifierBadge);
 let measurementMagnifierTarget = null;
 let measurementPointerStart = null;
 let measurementPointerMoved = false;
@@ -2610,10 +2615,12 @@ function positionMeasurementMagnifier(event) {
 
 function renderMeasurementMagnifier() {
   if (!measurementMagnifier.classList.contains('active') || !measurementMagnifierTarget) return;
-  measurementMagnifierCamera.position.copy(viewerCamera.position);
+  measurementMagnifierCamera.position.copy(viewerCamera.position).lerp(
+    measurementMagnifierTarget,
+    1 - (1 / MEASUREMENT_MAGNIFICATION)
+  );
   measurementMagnifierCamera.up.copy(viewerCamera.up);
-  const viewerHalfAngle = THREE.MathUtils.degToRad(viewerCamera.fov * 0.5);
-  measurementMagnifierCamera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(viewerHalfAngle) / 2));
+  measurementMagnifierCamera.fov = viewerCamera.fov;
   measurementMagnifierCamera.zoom = viewerCamera.zoom;
   measurementMagnifierCamera.near = 0.01;
   measurementMagnifierCamera.far = Math.max(10000, viewerCamera.far);

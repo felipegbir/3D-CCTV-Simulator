@@ -194,3 +194,8 @@ Deployment validation passed on CCTV PID 889552 with health status ok, cache key
 The loupe's zoom-property multiplier produced a visually reversed result in owner testing. It is replaced by an exact 2x half-angle field-of-view calculation. No other 8e.7 behavior changed; automated regression validation passes.
 
 Deployment validation passed on CCTV PID 899654 with health status ok, cache key 929, and matching frontend hashes. Owner confirmation will seal 8e.7.
+
+
+### 8e.7 owner correction pass 6 - pending acceptance
+
+Correction pass 5 is rejected: its FOV approach still appeared as zoom-out in owner testing. Pass 6 defines MEASUREMENT_MAGNIFICATION = 3, moves the loupe camera to one third of the viewer-to-cursor distance, and displays a 3x badge. This gives an explicit geometric 3x ratio at the selected surface plane. Automated checks pass; browser automation could not initialize from the UNC workspace, so owner visual confirmation remains mandatory.

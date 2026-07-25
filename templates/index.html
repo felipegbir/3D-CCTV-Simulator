@@ -307,7 +307,8 @@
 
     .menu-group.collapsed .menu-button,
     .menu-group.collapsed .preference-row,
-    .menu-group.collapsed .about-card {
+    .menu-group.collapsed .about-card,
+    .menu-group.collapsed .measurement-status {
       display: none;
     }
 
@@ -775,6 +776,7 @@
       min-height: 0;
       display: grid;
       grid-template-columns: repeat(var(--wall-columns, 2), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--wall-rows, 1), minmax(0, 1fr));
       gap: 6px;
       padding: 6px;
     }
@@ -788,6 +790,7 @@
       border-radius: 4px;
     }
     .video-wall-tile.drag-over { outline: 3px solid #00aaff; }
+    .video-wall-empty-slot { min-width: 0; min-height: 0; border: 1px dashed #33465a; border-radius: 4px; background: #0b1118; }
     .video-wall-tile canvas { width: 100%; height: 100%; display: block; }
     .video-wall-label {
       position: absolute;
@@ -851,8 +854,22 @@
       background: #000;
       box-shadow: 0 4px 18px rgba(0,0,0,.65);
       pointer-events: none;
+      overflow: hidden;
     }
     .measurement-magnifier.active { display: block; }
+    .measurement-magnifier canvas { width: 100%; height: 100%; display: block; }
+    .measurement-magnifier::before,
+    .measurement-magnifier::after {
+      content: '';
+      position: absolute;
+      z-index: 2;
+      left: 50%;
+      top: 50%;
+      background: #00e5ff;
+      transform: translate(-50%, -50%);
+    }
+    .measurement-magnifier::before { width: 38px; height: 1px; }
+    .measurement-magnifier::after { width: 1px; height: 38px; }
   </style>
 </head>
 
@@ -1290,6 +1307,6 @@
   });
 </script>
 
-<script type="module" src="/static/viewer.js?v=925"></script>
+<script type="module" src="/static/viewer.js?v=926"></script>
 </body>
 </html>

@@ -161,11 +161,16 @@ let measurementPreviewMarker = null;
 let measurementHoverMarker = null;
 let measurementEdgeOutline = null;
 let measurementOutlinedObject = null;
-const measurementMagnifier = document.createElement('canvas');
+const measurementMagnifier = document.createElement('div');
 measurementMagnifier.className = 'measurement-magnifier';
-measurementMagnifier.width = 180;
-measurementMagnifier.height = 180;
 document.body.appendChild(measurementMagnifier);
+const measurementMagnifierRenderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+measurementMagnifierRenderer.setSize(180, 180, false);
+measurementMagnifier.appendChild(measurementMagnifierRenderer.domElement);
+const measurementMagnifierCamera = new THREE.PerspectiveCamera(12, 1, 0.01, 10000);
+let measurementMagnifierTarget = null;
+let measurementPointerStart = null;
+let measurementPointerMoved = false;
 let selectedId = null;
 const PREFERENCES_STORAGE_KEY = 'nomadCctvPreferences.v1';
 const DEFAULT_PREFERENCES = Object.freeze({
@@ -305,6 +310,8 @@ function applyPreferences({ persist = false } = {}) {
   openCameraViewports.forEach(viewport => configureRendererQuality(viewport.renderer));
   videoWallRecords.forEach(record => configureRendererQuality(record.renderer));
   popupVideoWallRecords.forEach(record => configureRendererQuality(record.renderer));
+  configureRendererQuality(measurementMagnifierRenderer);
+  measurementMagnifierRenderer.setSize(180, 180, false);
 
   sceneObjects
     .filter(item => item.type === 'camera')
@@ -1066,6 +1073,34 @@ function getWallColumns(count, selection) {
   return Math.max(1, Math.min(5, Math.ceil(Math.sqrt(Math.max(1, count)))));
 }
 
+function getVideoWallLayout(count, selection) {
+  const columns = getWallColumns(count, selection);
+  if (selection === 'auto') {
+    return {
+      columns,
+      rows: Math.max(1, Math.ceil(Math.max(1, count) / columns)),
+      capacity: Math.max(1, count)
+    };
+  }
+  return { columns, rows: columns, capacity: columns * columns };
+}
+
+function applyVideoWallGridLayout(grid, count, selection) {
+  const layout = getVideoWallLayout(count, selection);
+  grid.style.setProperty('--wall-columns', String(layout.columns));
+  grid.style.setProperty('--wall-rows', String(layout.rows));
+  return layout;
+}
+
+function appendVideoWallEmptySlots(doc, grid, count) {
+  for (let index = 0; index < count; index += 1) {
+    const empty = doc.createElement('div');
+    empty.className = 'video-wall-empty-slot';
+    empty.setAttribute('aria-label', 'Empty video wall slot');
+    grid.appendChild(empty);
+  }
+}
+
 function syncWallCamera(target, sourceItem) {
   const source = sourceItem?.object?.userData?.renderCamera;
   if (!source) return false;
@@ -1231,8 +1266,10 @@ function buildIntegratedVideoWall() {
   disposeVideoWallRecords(videoWallRecords);
   videoWallGrid.replaceChildren();
   const sources = getVideoWallSources();
-  videoWallGrid.style.setProperty('--wall-columns', String(getWallColumns(sources.length, videoWallLayout.value)));
-  sources.forEach(source => createWallTile(document, videoWallGrid, source, videoWallRecords, reorderVideoWall));
+  const layout = applyVideoWallGridLayout(videoWallGrid, sources.length, videoWallLayout.value);
+  const visibleSources = sources.slice(0, layout.capacity);
+  visibleSources.forEach(source => createWallTile(document, videoWallGrid, source, videoWallRecords, reorderVideoWall));
+  appendVideoWallEmptySlots(document, videoWallGrid, layout.capacity - visibleSources.length);
 }
 
 function showVideoWall() {
@@ -1260,8 +1297,8 @@ function ensurePopupVideoWall() {
     html,body{height:100%;margin:0;background:#080c11;color:#eef3f7;font-family:Arial,sans-serif;overflow:hidden}
     .bar{height:48px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#111a24;border-bottom:1px solid #34465a}.bar strong{margin-right:auto}
     button,select{padding:7px 10px;border:1px solid #52677d;border-radius:4px;background:#233244;color:#fff}
-    #grid{height:calc(100% - 48px);box-sizing:border-box;display:grid;grid-template-columns:repeat(var(--wall-columns,2),minmax(0,1fr));gap:6px;padding:6px}
-    .video-wall-tile{min-width:0;min-height:0;position:relative;overflow:hidden;background:#000;border:1px solid #40536a;border-radius:4px}.video-wall-tile.drag-over{outline:3px solid #00aaff}.video-wall-tile canvas{width:100%;height:100%;display:block}.video-wall-label{position:absolute;left:6px;top:6px;z-index:2;padding:4px 7px;border-radius:3px;background:rgba(0,0,0,.7);font-size:12px;cursor:grab;user-select:none}.video-wall-tile-controls{position:absolute;top:5px;right:5px;z-index:3;display:flex;gap:4px;padding:3px;border-radius:4px;background:rgba(0,0,0,.72)}.video-wall-tile-controls button,.video-wall-tile-controls select{height:25px;padding:2px 6px;border:1px solid #5d7187;border-radius:3px;background:#1d2a38;color:#fff;font-size:11px}.video-wall-tile-controls button.active{background:#006db3}.video-wall-tile-controls button:disabled{opacity:.55}.video-wall-tile.ptz-active canvas{cursor:crosshair}
+    #grid{height:calc(100% - 48px);box-sizing:border-box;display:grid;grid-template-columns:repeat(var(--wall-columns,2),minmax(0,1fr));grid-template-rows:repeat(var(--wall-rows,1),minmax(0,1fr));gap:6px;padding:6px}
+    .video-wall-empty-slot{min-width:0;min-height:0;border:1px dashed #33465a;border-radius:4px;background:#0b1118}.video-wall-tile{min-width:0;min-height:0;position:relative;overflow:hidden;background:#000;border:1px solid #40536a;border-radius:4px}.video-wall-tile.drag-over{outline:3px solid #00aaff}.video-wall-tile canvas{width:100%;height:100%;display:block}.video-wall-label{position:absolute;left:6px;top:6px;z-index:2;padding:4px 7px;border-radius:3px;background:rgba(0,0,0,.7);font-size:12px;cursor:grab;user-select:none}.video-wall-tile-controls{position:absolute;top:5px;right:5px;z-index:3;display:flex;gap:4px;padding:3px;border-radius:4px;background:rgba(0,0,0,.72)}.video-wall-tile-controls button,.video-wall-tile-controls select{height:25px;padding:2px 6px;border:1px solid #5d7187;border-radius:3px;background:#1d2a38;color:#fff;font-size:11px}.video-wall-tile-controls button.active{background:#006db3}.video-wall-tile-controls button:disabled{opacity:.55}.video-wall-tile.ptz-active canvas{cursor:crosshair}
   </style></head><body><div class="bar"><strong>N.O.M.A.D. Video Wall</strong><label>Layout <select id="layout"><option value="auto">Auto</option><option value="1">1 x 1</option><option value="2">2 x 2</option><option value="3">3 x 3</option><option value="4">4 x 4</option><option value="5">5 x 5</option></select></label><button id="refresh">Refresh Sources</button></div><div id="grid"></div></body></html>`);
   doc.close();
   doc.querySelector('#layout').value = videoWallLayout.value;
@@ -1280,9 +1317,11 @@ function buildPopupVideoWall() {
   if (!grid) return;
   grid.replaceChildren();
   const sources = getVideoWallSources();
-  const layout = doc.querySelector('#layout').value;
-  grid.style.setProperty('--wall-columns', String(getWallColumns(sources.length, layout)));
-  sources.forEach(source => createWallTile(doc, grid, source, popupVideoWallRecords, reorderVideoWall));
+  const selection = doc.querySelector('#layout').value;
+  const layout = applyVideoWallGridLayout(grid, sources.length, selection);
+  const visibleSources = sources.slice(0, layout.capacity);
+  visibleSources.forEach(source => createWallTile(doc, grid, source, popupVideoWallRecords, reorderVideoWall));
+  appendVideoWallEmptySlots(doc, grid, layout.capacity - visibleSources.length);
 }
 
 function popOutVideoWall() {
@@ -2327,11 +2366,11 @@ function beginMeasurementTool(mode) {
   measurementMode = mode;
   measurementPoints = [];
   clearMeasurementPreview();
-  orbitControls.enabled = false;
+  orbitControls.enabled = true;
   renderer.domElement.style.cursor = 'crosshair';
   setMeasurementStatus(mode === 'calibration'
-    ? 'Calibration active: click two points on the selected model.'
-    : 'Distance tool active: click two surface points.');
+    ? 'Calibration active: click two points. Wheel to zoom; drag to orbit/pan; hold Shift for live magnifier.'
+    : 'Distance active: click two points. Wheel to zoom; drag to orbit/pan; hold Shift for live magnifier.');
 }
 
 function getMeasurementTargets() {
@@ -2464,29 +2503,36 @@ function clearMeasurementPreview() {
   }
   clearMeasurementHoverOutline();
   measurementMagnifier.classList.remove('active');
+  measurementMagnifierTarget = null;
 }
 
-function updateMeasurementMagnifier(event) {
-  if (!measurementMode || !event.shiftKey) {
-    measurementMagnifier.classList.remove('active');
-    return;
-  }
-  const rect = renderer.domElement.getBoundingClientRect();
-  const sourceX = (event.clientX - rect.left) / rect.width * renderer.domElement.width;
-  const sourceY = (event.clientY - rect.top) / rect.height * renderer.domElement.height;
-  const crop = 70;
-  const context = measurementMagnifier.getContext('2d');
-  context.clearRect(0, 0, 180, 180);
-  context.drawImage(renderer.domElement, sourceX - crop / 2, sourceY - crop / 2, crop, crop, 0, 0, 180, 180);
-  context.strokeStyle = '#00e5ff';
-  context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(90, 72); context.lineTo(90, 108);
-  context.moveTo(72, 90); context.lineTo(108, 90);
-  context.stroke();
+function positionMeasurementMagnifier(event) {
   measurementMagnifier.style.left = `${Math.min(window.innerWidth - 195, event.clientX + 22)}px`;
   measurementMagnifier.style.top = `${Math.max(8, Math.min(window.innerHeight - 195, event.clientY - 90))}px`;
+}
+
+function renderMeasurementMagnifier() {
+  if (!measurementMagnifier.classList.contains('active') || !measurementMagnifierTarget) return;
+  measurementMagnifierCamera.position.copy(viewerCamera.position);
+  measurementMagnifierCamera.up.copy(viewerCamera.up);
+  measurementMagnifierCamera.fov = THREE.MathUtils.clamp(viewerCamera.fov / 5, 3, 15);
+  measurementMagnifierCamera.near = 0.01;
+  measurementMagnifierCamera.far = Math.max(10000, viewerCamera.far);
+  measurementMagnifierCamera.lookAt(measurementMagnifierTarget);
+  measurementMagnifierCamera.updateProjectionMatrix();
+  renderCameraView(measurementMagnifierRenderer, measurementMagnifierCamera);
+}
+
+function updateMeasurementMagnifier(event, pick) {
+  if (!measurementMode || !event.shiftKey || !pick) {
+    measurementMagnifier.classList.remove('active');
+    measurementMagnifierTarget = null;
+    return;
+  }
+  measurementMagnifierTarget = pick.point.clone();
+  positionMeasurementMagnifier(event);
   measurementMagnifier.classList.add('active');
+  renderMeasurementMagnifier();
 }
 function completeMeasurement() {
   const [start, end] = measurementPoints;
@@ -2556,23 +2602,43 @@ function completeMeasurement() {
   cancelMeasurementTool(`Distance: ${measuredDistance.toFixed(3)} m. Saved with the project.`);
 }
 
+renderer.domElement.addEventListener('pointerdown', event => {
+  if (!measurementMode || !videoWallOverlay.classList.contains('hidden')) return;
+  measurementPointerStart = { x: event.clientX, y: event.clientY };
+  measurementPointerMoved = false;
+}, true);
 renderer.domElement.addEventListener('pointermove', event => {
   if (!measurementMode || !videoWallOverlay.classList.contains('hidden')) return;
+  if (measurementPointerStart && Math.hypot(event.clientX - measurementPointerStart.x, event.clientY - measurementPointerStart.y) > 4) {
+    measurementPointerMoved = true;
+  }
   const pick = pickMeasurementPoint(event);
   updateMeasurementPreview(pick);
-  updateMeasurementMagnifier(event);
+  updateMeasurementMagnifier(event, pick);
 }, true);
 renderer.domElement.addEventListener('pointerleave', () => {
   if (measurementMode) {
     updateMeasurementPreview(null);
     measurementMagnifier.classList.remove('active');
+    measurementMagnifierTarget = null;
+    measurementPointerStart = null;
+    measurementPointerMoved = false;
   }
 });
 window.addEventListener('keyup', event => {
-  if (event.key === 'Shift') measurementMagnifier.classList.remove('active');
+  if (event.key === 'Shift') {
+    measurementMagnifier.classList.remove('active');
+    measurementMagnifierTarget = null;
+  }
 });
 renderer.domElement.addEventListener('click', event => {
   if (!measurementMode || !videoWallOverlay.classList.contains('hidden')) return;
+  measurementPointerStart = null;
+  if (measurementPointerMoved) {
+    measurementPointerMoved = false;
+    setMeasurementStatus('View adjusted. Continue navigating or click to place a measurement point.');
+    return;
+  }
   const pick = pickMeasurementPoint(event);
   if (!pick) {
     setMeasurementStatus('No model/reference surface was hit. Click directly on a visible surface.');
@@ -3673,6 +3739,7 @@ function animate() {
   renderer.render(scene, viewerCamera);
   renderVideoWallRecords(videoWallRecords);
   renderVideoWallRecords(popupVideoWallRecords);
+  renderMeasurementMagnifier();
   openCameraViewports.forEach((viewportRecord) => {
     if (viewportRecord.isRenderable && !viewportRecord.isRenderable()) return;
 

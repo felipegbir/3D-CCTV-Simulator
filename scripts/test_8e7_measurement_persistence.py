@@ -3,9 +3,9 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 HTML=(ROOT/'templates'/'index.html').read_text(encoding='utf-8')
 JS=(ROOT/'static'/'viewer.js').read_text(encoding='utf-8')
-for marker in ('id="calibrateScaleTool"','id="measureDistanceTool"','id="measurementStatus"','&#9654; Measurement Tools','&#9654; Help','&#9654; About','value="hvdcMm"','video-wall-tile-controls','measurement-magnifier'):
+for marker in ('id="calibrateScaleTool"','id="measureDistanceTool"','id="measurementStatus"','&#9654; Measurement Tools','&#9654; Help','&#9654; About','value="hvdcMm"','video-wall-tile-controls','measurement-magnifier','.menu-group.collapsed .measurement-status'):
     assert marker in HTML, f'Missing 8e.7 corrected control: {marker}'
-for marker in ("const PROJECT_SCHEMA_VERSION = 3;","function beginMeasurementTool(mode)","function closestPointOnTriangleEdge(intersection)","function updateMeasurementMagnifier(event)","function renderCameraView(targetRenderer, targetCamera)","Math.max(10000, projectionDistance * 10)","cameraItem.data.viewportPalette = selectedViewportPalette","source.item.data.viewportPalette = record.palette","downloadRendererCapture(wallRenderer, source.label)","adjustCameraPtzFromView(source.item","measurements: measurements.map(record => ({","restoreMeasurements(project.measurements)","referenceImages: sceneObjects","preferences: { ...preferences }"):
+for marker in ("const PROJECT_SCHEMA_VERSION = 3;","function beginMeasurementTool(mode)","function closestPointOnTriangleEdge(intersection)","function updateMeasurementMagnifier(event, pick)","function renderMeasurementMagnifier()","measurementMagnifierRenderer","measurementPointerMoved","orbitControls.enabled = true","function renderCameraView(targetRenderer, targetCamera)","Math.max(10000, projectionDistance * 10)","cameraItem.data.viewportPalette = selectedViewportPalette","source.item.data.viewportPalette = record.palette","downloadRendererCapture(wallRenderer, source.label)","adjustCameraPtzFromView(source.item","measurements: measurements.map(record => ({","restoreMeasurements(project.measurements)","referenceImages: sceneObjects","preferences: { ...preferences }"):
     assert marker in JS, f'Missing 8e.7 corrected behavior: {marker}'
 assert JS.index("preferences.modelImportPreset === 'hvdcMm'") < JS.index('model.scale.multiplyScalar(importScale)')
-print('8e.7 corrected wall/camera/measurement/persistence guard passed')
+print('8e.7 live-lens/navigation/camera/persistence guard passed')

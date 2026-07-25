@@ -911,6 +911,208 @@
     .ptz-preset-details { white-space: pre-wrap; padding: 8px; border: 1px solid var(--panel-border); border-radius: 5px; background: var(--input-bg); font-size: 12px; }
     .ptz-preset-speed { display: grid; grid-template-columns: 1fr 150px 64px; align-items: center; gap: 6px; margin: 8px 0; }
     .ptz-preset-status { min-height: 18px; color: var(--accent-color); font-size: 12px; }
+
+    /* 8e.7.1 correction: compact top menu and collapsible Scene Tree. */
+    #operationsFrame {
+      position: fixed;
+      inset: 0 0 auto 0;
+      width: 100vw;
+      height: 40px;
+      min-height: 40px;
+      max-height: 40px;
+      z-index: 9000;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      overflow: visible;
+      border: 0;
+      border-bottom: 1px solid var(--border-strong);
+      border-radius: 0;
+      background: var(--header-bg);
+      box-shadow: 0 2px 8px rgba(0,0,0,.35);
+    }
+    #operationsFrame > .panel-title {
+      display: flex;
+      align-items: center;
+      min-width: 276px;
+      padding: 0 12px;
+      border: 0;
+      background: var(--header-bg);
+      color: var(--header-text);
+      white-space: nowrap;
+    }
+    #operationsFrame > .panel-content {
+      display: flex;
+      flex: 1;
+      align-items: stretch;
+      gap: 0;
+      padding: 0;
+      overflow: visible;
+    }
+    #operationsFrame .menu-group {
+      position: relative;
+      flex: 0 0 auto;
+      height: 40px;
+      margin: 0;
+      overflow: visible;
+      background: var(--header-bg);
+    }
+    #operationsFrame .section-title {
+      height: 40px;
+      margin: 0;
+      padding: 0 13px;
+      display: flex;
+      align-items: center;
+      border: 0;
+      color: var(--header-text);
+      font-size: 13px;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+    #operationsFrame .menu-group.open .section-title,
+    #operationsFrame .section-title:hover {
+      background: var(--hover-bg);
+      color: var(--text);
+    }
+    #operationsFrame .menu-group > :not(.section-title) {
+      display: none;
+      width: 280px;
+      margin: 0;
+      border-radius: 0;
+      box-sizing: border-box;
+    }
+    #operationsFrame .menu-group.open > :not(.section-title) {
+      display: grid;
+      position: relative;
+      z-index: 1;
+    }
+    #operationsFrame .menu-group.open > input[type="file"] { display: none; }
+    #operationsFrame .menu-button {
+      min-height: 32px;
+      padding: 7px 10px;
+      border-width: 0 1px 1px;
+      background: var(--panel-bg);
+    }
+    #operationsFrame .preference-row,
+    #operationsFrame .about-card,
+    #operationsFrame .measurement-status {
+      padding: 8px 10px;
+      border: 0;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      background: var(--panel-bg);
+    }
+    #operationsFrame .about-card { margin: 0; }
+    #operationsFrame .menu-group.open {
+      height: auto;
+      max-height: calc(100vh - 8px);
+      overflow-y: auto;
+      box-shadow: 0 8px 18px rgba(0,0,0,.45);
+    }
+    #appHeader, #sidebarSpacer { display: none; }
+    #sidebar {
+      top: 40px;
+      width: 300px;
+      height: calc(100vh - 40px);
+      padding: 8px;
+      transition: width .18s ease;
+    }
+    #sceneFrame {
+      flex: 1 1 auto;
+      width: 100%;
+      max-height: none;
+      min-height: 0;
+    }
+    #sceneFrame .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    #sceneTreeToggle {
+      min-width: 25px;
+      padding: 2px 6px;
+      border: 1px solid var(--border-strong);
+      border-radius: 4px;
+      background: var(--control-bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+    body.scene-tree-collapsed #sidebar { width: 38px; padding: 6px; }
+    body.scene-tree-collapsed #sceneFrame .panel-content,
+    body.scene-tree-collapsed #sceneFrame .panel-title > span { display: none; }
+    body.scene-tree-collapsed #sceneFrame .panel-title {
+      padding: 6px 0;
+      justify-content: center;
+      border: 0;
+      background: transparent;
+    }
+    #viewer {
+      left: 300px;
+      top: 40px;
+      width: calc(100vw - 300px);
+      height: calc(100vh - 40px);
+      transition: left .18s ease, width .18s ease;
+    }
+    body.scene-tree-collapsed #viewer {
+      left: 38px;
+      width: calc(100vw - 38px);
+    }
+    #objectInfoPanel {
+      top: 8px;
+      max-height: calc(100vh - 56px);
+    }
+
+    /* The preset manager is owned by and docked inside its maximized Camera View. */
+    .camera-viewport.has-preset-dock .camera-viewport-body { margin-right: 360px; }
+    .camera-viewport .ptz-preset-panel {
+      position: absolute;
+      inset: 29px 0 0 auto;
+      z-index: 5;
+      width: 360px;
+      max-width: 42%;
+      max-height: none;
+      transform: none;
+      padding: 12px;
+      border-width: 0 0 0 1px;
+      border-radius: 0;
+      box-shadow: -4px 0 12px rgba(0,0,0,.35);
+    }
+    .ptz-preset-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .ptz-preset-heading h3 { margin: 0; }
+    .ptz-preset-close {
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--control-bg);
+      cursor: pointer;
+    }
+    .ptz-preset-list option.limit-warning { color: #ff3b3b; font-weight: bold; }
+    .ptz-preset-limit-warning { color: #ff5252; font-weight: bold; }
+    .preset-depth-pick-banner {
+      position: fixed;
+      top: 50px;
+      left: 50%;
+      z-index: 9500;
+      transform: translateX(-50%);
+      padding: 9px 14px;
+      border: 2px solid #00e5ff;
+      border-radius: 7px;
+      background: rgba(0,18,28,.94);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(0,0,0,.55);
+      pointer-events: none;
+    }
+    body.preset-depth-pick-active #viewer canvas { cursor: crosshair !important; }
+
+    /* The screen-space precision reticle stays small at every loupe crop factor. */
+    .measurement-magnifier::before { width: 12px; height: 1px; }
+    .measurement-magnifier::after { width: 1px; height: 12px; }
   </style>
 </head>
 
@@ -921,7 +1123,7 @@
   </div>
 
   <div id="sceneFrame" class="panel-frame">
-    <div class="panel-title">Scene Tree</div>
+    <div class="panel-title"><span>Scene Tree</span><button id="sceneTreeToggle" type="button" title="Collapse Scene Tree" aria-expanded="true">◀</button></div>
     <div class="panel-content">
       <div id="sceneTree"></div>
     </div>
@@ -930,10 +1132,10 @@
   <div id="sidebarSpacer"></div>
 
   <div id="operationsFrame" class="panel-frame">
-    <div class="panel-title">Operations</div>
+    <div class="panel-title">N.O.M.A.D. CCTV Simulator <span class="app-version">&nbsp;v<span id="menuVersionLabel">8e.7.1</span></span></div>
     <div class="panel-content">
       <div class="menu-group collapsed">
-        <div class="section-title">▶ File</div>
+        <div class="section-title">File</div>
         <button class="menu-button" id="loadProject">Load Project</button>
 
         <input
@@ -969,7 +1171,7 @@
       </div>
 
       <div class="menu-group collapsed">
-        <div class="section-title">▶ Edit</div>
+        <div class="section-title">Edit</div>
         <button class="menu-button disabled">Copy</button>
         <button class="menu-button disabled">Cut</button>
         <button class="menu-button disabled">Paste</button>
@@ -979,7 +1181,7 @@
       </div>
 
       <div class="menu-group collapsed">
-        <div class="section-title">▶ View</div>
+        <div class="section-title">View</div>
         <button class="menu-button" id="resetView">Reset View</button>
         <button class="menu-button" id="fitSelectedView">Fit Selected</button>
         <button class="menu-button" id="openVideoWall" type="button">Open Video Wall</button>
@@ -991,7 +1193,7 @@
       </div>
 
       <div class="menu-group collapsed">
-        <div class="section-title">▶ Object</div>
+        <div class="section-title">Object</div>
         <button class="menu-button" id="addCameraButton">Add Camera</button>
         <button class="menu-button disabled">Add Object</button>
         <button class="menu-button disabled">Define Object</button>
@@ -1000,7 +1202,7 @@
       </div>
 
       <div class="menu-group collapsed" id="preferencesGroup">
-        <div class="section-title">▶ Preferences</div>
+        <div class="section-title">Preferences</div>
         <label class="preference-row" for="preferenceTheme">
           <span>Theme</span>
           <select id="preferenceTheme">
@@ -1055,7 +1257,7 @@
         <button class="menu-button" id="resetPreferences" type="button">Reset Preferences</button>
       </div>
       <div class="menu-group collapsed" id="toolsGroup">
-        <div class="section-title">&#9654; Measurement Tools</div>
+        <div class="section-title">Measurement Tools</div>
         <button class="menu-button" id="calibrateScaleTool" type="button">Calibrate Scale (2 Points)</button>
 <button class="menu-button" id="measureDistanceTool" type="button">Measure Distance</button>
         <label class="preference-row preference-range" for="measurementMagnification">
@@ -1068,14 +1270,14 @@
         <div class="measurement-status" id="measurementStatus">Select a tool. Measurements use project units (metres).</div>
       </div>
       <div class="menu-group collapsed" id="helpGroup">
-        <div class="section-title">&#9654; Help</div>
+        <div class="section-title">Help</div>
         <div class="about-card">
           <strong>User Manual</strong>
           <div>The manual link will be enabled when the documentation is published.</div>
         </div>
       </div>
       <div class="menu-group collapsed" id="aboutGroup">
-        <div class="section-title">&#9654; About</div>
+        <div class="section-title">About</div>
         <div class="about-card" id="aboutPanel">
           <strong>N.O.M.A.D. CCTV Digital Twin Simulator</strong>
           <div>Version <span id="aboutVersion">8e.7</span></div>
@@ -1343,17 +1545,55 @@
   <div id="videoWallGrid" class="video-wall-grid"></div>
 </div>
 <script>
-  document.querySelectorAll('#operationsFrame .menu-group').forEach(group => {
-    const title = group.querySelector('.section-title');
-
-    title.addEventListener('click', () => {
-      group.classList.toggle('collapsed');
-      const name = title.textContent.replace(/^[\u25B6\u25BC]\s*/, '');
-      title.textContent = group.classList.contains('collapsed') ? '\u25B6 ' + name : '\u25BC ' + name;
+  (() => {
+    const groups = [...document.querySelectorAll('#operationsFrame .menu-group')];
+    const closeMenus = except => groups.forEach(group => {
+      if (group !== except) group.classList.remove('open');
+      group.classList.add('collapsed');
     });
-  });
+
+    groups.forEach(group => {
+      const title = group.querySelector('.section-title');
+      title.setAttribute('role', 'button');
+      title.setAttribute('tabindex', '0');
+      const toggle = event => {
+        event.stopPropagation();
+        const willOpen = !group.classList.contains('open');
+        closeMenus(group);
+        group.classList.toggle('open', willOpen);
+        group.classList.toggle('collapsed', !willOpen);
+      };
+      title.addEventListener('click', toggle);
+      title.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') toggle(event);
+        if (event.key === 'Escape') closeMenus();
+      });
+      group.addEventListener('click', event => {
+        const command = event.target.closest('.menu-button:not(.disabled)');
+        if (command) setTimeout(() => closeMenus(), 0);
+      });
+      group.addEventListener('change', event => {
+        if (event.target.matches('select, input:not([type="range"])')) setTimeout(() => closeMenus(), 0);
+      });
+    });
+    document.addEventListener('pointerdown', event => {
+      if (!event.target.closest('#operationsFrame .menu-group')) closeMenus();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeMenus();
+    });
+
+    const sceneToggle = document.getElementById('sceneTreeToggle');
+    sceneToggle.addEventListener('click', () => {
+      const collapsed = document.body.classList.toggle('scene-tree-collapsed');
+      sceneToggle.textContent = collapsed ? '▶' : '◀';
+      sceneToggle.title = collapsed ? 'Expand Scene Tree' : 'Collapse Scene Tree';
+      sceneToggle.setAttribute('aria-expanded', String(!collapsed));
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 190);
+    });
+  })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=940"></script>
+<script type="module" src="/static/viewer.js?v=941"></script>
 </body>
 </html>

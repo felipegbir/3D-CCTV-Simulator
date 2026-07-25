@@ -3,7 +3,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 HTML=(ROOT/'templates'/'index.html').read_text(encoding='utf-8')
 JS=(ROOT/'static'/'viewer.js').read_text(encoding='utf-8')
-for marker in ('N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.1','ptz-preset-panel','/static/viewer.js?v=940'):
+for marker in ('N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.1','ptz-preset-panel','/static/viewer.js?v=941'):
     assert marker in HTML, f'Missing 8e.7.1 preset UI marker: {marker}'
 for marker in (
     "const APP_VERSION = '8e.7.1';",
@@ -15,7 +15,7 @@ for marker in (
     'function captureCameraPreset(cameraItem, existing = {})',
     'function recallPtzPreset(cameraItem, preset)',
     'function updatePtzPresetAnimations(now)',
-    'function openPtzPresetPanel(cameraItem)',
+    'function openPtzPresetPanel(cameraItem, viewportElement = null)',
     'function cancelCameraPresetAnimation(cameraItem',
     'const reverseForPointSequence = firstScreenX > secondScreenX',
     'item.data.ptzPresets = (cameraData.data?.ptzPresets || cameraData.ptzPresets || []).map(normalizePtzPreset)',

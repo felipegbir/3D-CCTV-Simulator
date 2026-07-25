@@ -178,3 +178,6 @@ Initial owner testing found corrupted encoding in the Measurement Tools, Help, a
 ### 8e.7 owner correction pass 2 - pending acceptance
 
 Owner follow-up found that measurement mode blocked scene navigation, the Shift lens did not contain a render, fixed Video Wall selections created columns rather than true square grids, and the measurement status panel remained exposed when collapsed. The second correction keeps orbit/pan/zoom active while suppressing placement after drag gestures, replaces the lens with a cursor-targeted WebGL camera, allocates true fixed grids with empty slots, and completes the Measurement Tools collapse selector. Automated and live server validation pass on corrected PID 865305; owner acceptance is pending.
+### 8e.7 owner correction pass 3 - pending acceptance
+
+Owner testing found completed measurement lines could disappear behind the measured surface, whole-model edge outlines were visually excessive, and returning from Video Wall could leave the Planning Scene and Camera Views blank. The third correction renders accepted measurements as non-depth-tested overlays, highlights only the hovered triangle's three local edges, and explicitly releases discarded wall/viewport WebGL contexts. Camera helper visibility restoration is exception-safe. Automated regression validation passes; deployment and owner acceptance remain pending.

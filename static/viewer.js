@@ -160,7 +160,7 @@ let measurementPreviewLine = null;
 let measurementPreviewMarker = null;
 let measurementHoverMarker = null;
 let measurementEdgeOutline = null;
-let measurementOutlinedObject = null;
+let measurementOutlinedFaceKey = null;
 const measurementMagnifier = document.createElement('div');
 measurementMagnifier.className = 'measurement-magnifier';
 document.body.appendChild(measurementMagnifier);
@@ -1064,7 +1064,15 @@ function getVideoWallSources() {
 }
 
 function disposeVideoWallRecords(records) {
-  records.forEach(record => record.renderer.dispose());
+  const disposedRenderers = new Set();
+  records.forEach(record => {
+    const wallRenderer = record.renderer;
+    if (!wallRenderer || disposedRenderers.has(wallRenderer)) return;
+    disposedRenderers.add(wallRenderer);
+    wallRenderer.dispose();
+    wallRenderer.forceContextLoss?.();
+    wallRenderer.domElement?.remove();
+  });
   records.length = 0;
 }
 
@@ -1393,6 +1401,7 @@ function openCameraViewport(cameraItem) {
     const index = openCameraViewports.findIndex(v => v.element === viewport);
     if (index !== -1) {
       openCameraViewports[index].renderer.dispose();
+      openCameraViewports[index].renderer.forceContextLoss?.();
       openCameraViewports.splice(index, 1);
     }
   });
@@ -2310,14 +2319,22 @@ function disposeMeasurementVisuals() {
 function addMeasurementVisual(record) {
   const start = new THREE.Vector3(record.start.x, record.start.y, record.start.z);
   const end = new THREE.Vector3(record.end.x, record.end.y, record.end.z);
-  const material = new THREE.LineBasicMaterial({ color: record.kind === 'calibration' ? 0xffb020 : 0x00e5ff });
+const material = new THREE.LineBasicMaterial({
+    color: record.kind === 'calibration' ? 0xffb020 : 0x00e5ff,
+    depthTest: false
+  });
   const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
   const line = new THREE.Line(geometry, material);
+  line.renderOrder = 1000;
   line.userData.measurementId = record.id;
   measurementVisuals.add(line);
   const markerGeometry = new THREE.SphereGeometry(0.07, 12, 8);
   [start, end].forEach(point => {
-    const marker = new THREE.Mesh(markerGeometry.clone(), new THREE.MeshBasicMaterial({ color: material.color }));
+const marker = new THREE.Mesh(
+      markerGeometry.clone(),
+      new THREE.MeshBasicMaterial({ color: material.color, depthTest: false })
+    );
+    marker.renderOrder = 1001;
     marker.position.copy(point);
     marker.userData.measurementId = record.id;
     measurementVisuals.add(marker);
@@ -2432,19 +2449,33 @@ function clearMeasurementHoverOutline() {
     measurementEdgeOutline.material.dispose();
   }
   measurementEdgeOutline = null;
-  measurementOutlinedObject = null;
+  measurementOutlinedFaceKey = null;
 }
 
-function showMeasurementEdgeOutline(mesh) {
-  if (!mesh?.isMesh || !mesh.geometry || mesh === measurementOutlinedObject) return;
+function showMeasurementEdgeOutline(intersection) {
+  const mesh = intersection?.object;
+  const sourceGeometry = mesh?.geometry;
+  const position = sourceGeometry?.attributes?.position;
+  const faceIndex = intersection?.faceIndex;
+  if (!mesh?.isMesh || !position || !Number.isInteger(faceIndex)) return;
+  const faceKey = `${mesh.uuid}:${faceIndex}`;
+  if (faceKey === measurementOutlinedFaceKey) return;
   clearMeasurementHoverOutline();
-  const geometry = new THREE.EdgesGeometry(mesh.geometry, 20);
+  const index = sourceGeometry.index;
+  const offset = faceIndex * 3;
+  const vertexIndex = slot => index ? index.getX(offset + slot) : offset + slot;
+  const vertices = [0, 1, 2].map(slot => (
+    new THREE.Vector3().fromBufferAttribute(position, vertexIndex(slot)).applyMatrix4(mesh.matrixWorld)
+  ));
+  const geometry = new THREE.BufferGeometry().setFromPoints([
+    vertices[0], vertices[1],
+    vertices[1], vertices[2],
+    vertices[2], vertices[0]
+  ]);
   const material = new THREE.LineBasicMaterial({ color: 0x00e5ff, transparent: true, opacity: 0.85, depthTest: false });
   measurementEdgeOutline = new THREE.LineSegments(geometry, material);
-  measurementEdgeOutline.matrixAutoUpdate = false;
-  measurementEdgeOutline.matrix.copy(mesh.matrixWorld);
   measurementEdgeOutline.renderOrder = 999;
-  measurementOutlinedObject = mesh;
+  measurementOutlinedFaceKey = faceKey;
   scene.add(measurementEdgeOutline);
 }
 
@@ -2482,7 +2513,7 @@ function updateMeasurementPreview(pick) {
   if (!pick) return;
   measurementHoverMarker.position.copy(pick.point);
   measurementHoverMarker.material.color.setHex(pick.snapped ? 0x00ff88 : 0xffffff);
-  showMeasurementEdgeOutline(pick.intersection.object);
+  showMeasurementEdgeOutline(pick.intersection);
   const start = measurementPoints[0];
   measurementPreviewMarker.visible = Boolean(start);
   measurementPreviewLine.visible = Boolean(start);
@@ -3698,8 +3729,11 @@ function renderCameraView(targetRenderer, targetCamera) {
     });
   const visibility = hidden.map(object => object ? object.visible : null);
   hidden.forEach(object => { if (object) object.visible = false; });
-  targetRenderer.render(scene, targetCamera);
-  hidden.forEach((object, index) => { if (object) object.visible = visibility[index]; });
+  try {
+    targetRenderer.render(scene, targetCamera);
+  } finally {
+    hidden.forEach((object, index) => { if (object) object.visible = visibility[index]; });
+  }
 }
 function renderVideoWallRecords(records) {
   const helper = transformControls.getHelper ? transformControls.getHelper() : transformControls;

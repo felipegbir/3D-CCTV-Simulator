@@ -242,3 +242,6 @@ Recall is animated with cubic easing, shortest-path pan/roll, and a persisted 1-
 ### 8e.7.1 owner QA blockers - correction pending
 
 Owner testing found that project save is not completing and that the measurement target/cursor circle is enlarged by loupe magnification, obscuring fine selection. Save failure blocks schema-4 and PTZ preset persistence acceptance. The loupe target marker must be rendered as a constant-size screen-space overlay independent of the 2x-20x scene crop. Both are logged without code changes while the owner continues PTZ QA. Release candidate remains unaccepted.
+### 8e.7.1 additional owner PTZ QA blockers - correction pending
+
+Additional PTZ QA found that the preset manager is immovably centered instead of dockable/floatable, the active preset name is not cleared when manual camera movement invalidates the recalled pose, and Select Depth Surface produces no visible action or feedback. The PTZ movement-speed slider also appears disconnected from the actual recall speed. These are acceptance blockers. Depth selection must provide a clear armed state, raycast confirmation, and visible target/depth update; speed validation must demonstrate materially different recall durations at separated settings. No implementation or deployment changes were made while owner QA continues.

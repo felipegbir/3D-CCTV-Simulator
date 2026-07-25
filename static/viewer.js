@@ -903,7 +903,7 @@ function updateCameraProjection(cameraItem) {
   const renderCamera = cameraItem.object.userData.renderCamera;
   if (renderCamera) {
     renderCamera.fov = currentHfov;
-    renderCamera.far = Math.max(10000, projectionDistance * 10);
+    renderCamera.far = Math.max(renderCamera.near + 0.01, projectionDistance);
     renderCamera.updateProjectionMatrix();
   }
 }
@@ -2056,7 +2056,7 @@ function createCameraObject(name, position = new THREE.Vector3(0, 2, 0)) {
     hfov,
     16 / 9,
     0.01,
-    Math.max(10000, projectionDistance * 10)
+    Math.max(0.02, projectionDistance)
   );
 
   renderCamera.position.set(0, 0, 0);
@@ -2308,6 +2308,7 @@ function setMeasurementStatus(message) {
 function disposeMeasurementVisuals() {
   measurementVisuals.traverse(child => {
     child.geometry?.dispose?.();
+    child.material?.map?.dispose?.();
     child.material?.dispose?.();
   });
   measurementVisuals.clear();
@@ -2316,10 +2317,71 @@ function disposeMeasurementVisuals() {
   measurementHoverMarker = null;
 }
 
+function nextMeasurementDisplayId() {
+  const used = new Set(measurements.map(record => record.displayId));
+  let number = 1;
+  while (used.has(`M-${String(number).padStart(3, '0')}`)) number += 1;
+  return `M-${String(number).padStart(3, '0')}`;
+}
+
+function createMeasurementLabel(record, start, end) {
+  const text = `${record.displayId}  ${record.distance.toFixed(3)} ${record.unit}`;
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 96;
+  const context = canvas.getContext('2d');
+  context.fillStyle = 'rgba(8, 20, 30, 0.88)';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.strokeStyle = record.kind === 'calibration' ? '#ffb020' : '#00e5ff';
+  context.lineWidth = 5;
+  context.strokeRect(2.5, 2.5, canvas.width - 5, canvas.height - 5);
+  context.fillStyle = '#ffffff';
+  context.font = 'bold 44px Arial, sans-serif';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const labelHeight = THREE.MathUtils.clamp(start.distanceTo(end) * 0.045, 0.16, 0.55);
+  const geometry = new THREE.PlaneGeometry(labelHeight * (canvas.width / canvas.height), labelHeight);
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    depthTest: false,
+    side: THREE.DoubleSide
+  });
+  const label = new THREE.Mesh(geometry, material);
+  label.renderOrder = 1002;
+  label.userData.measurementId = record.id;
+  label.userData.measurementDisplayId = record.displayId;
+  label.userData.measurementLabel = true;
+  label.userData.start = start.clone();
+  label.userData.end = end.clone();
+  measurementVisuals.add(label);
+  return label;
+}
+
+function orientMeasurementLabels(camera) {
+  measurementVisuals.children.forEach(label => {
+    if (!label.userData.measurementLabel) return;
+    const start = label.userData.start;
+    const end = label.userData.end;
+    const xAxis = end.clone().sub(start).normalize();
+    const midpoint = start.clone().add(end).multiplyScalar(0.5);
+    const zAxis = camera.position.clone().sub(midpoint);
+    zAxis.addScaledVector(xAxis, -zAxis.dot(xAxis));
+    if (zAxis.lengthSq() < 1e-8) zAxis.set(0, 1, 0).addScaledVector(xAxis, -xAxis.y);
+    zAxis.normalize();
+    const yAxis = zAxis.clone().cross(xAxis).normalize();
+    label.position.copy(midpoint).addScaledVector(yAxis, 0.1);
+    label.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis));
+  });
+}
+
 function addMeasurementVisual(record) {
   const start = new THREE.Vector3(record.start.x, record.start.y, record.start.z);
   const end = new THREE.Vector3(record.end.x, record.end.y, record.end.z);
-const material = new THREE.LineBasicMaterial({
+  const material = new THREE.LineBasicMaterial({
     color: record.kind === 'calibration' ? 0xffb020 : 0x00e5ff,
     depthTest: false
   });
@@ -2327,18 +2389,21 @@ const material = new THREE.LineBasicMaterial({
   const line = new THREE.Line(geometry, material);
   line.renderOrder = 1000;
   line.userData.measurementId = record.id;
+  line.userData.measurementDisplayId = record.displayId;
   measurementVisuals.add(line);
   const markerGeometry = new THREE.SphereGeometry(0.07, 12, 8);
   [start, end].forEach(point => {
-const marker = new THREE.Mesh(
+    const marker = new THREE.Mesh(
       markerGeometry.clone(),
       new THREE.MeshBasicMaterial({ color: material.color, depthTest: false })
     );
     marker.renderOrder = 1001;
     marker.position.copy(point);
     marker.userData.measurementId = record.id;
+    marker.userData.measurementDisplayId = record.displayId;
     measurementVisuals.add(marker);
   });
+  createMeasurementLabel(record, start, end);
 }
 
 function restoreMeasurements(records) {
@@ -2349,6 +2414,7 @@ function restoreMeasurements(records) {
     if (!record?.start || !record?.end) return;
     const safe = {
       id: record.id || `measurement-${Date.now()}-${measurements.length}`,
+      displayId: record.displayId || nextMeasurementDisplayId(),
       kind: record.kind === 'calibration' ? 'calibration' : 'distance',
       label: record.label || 'Measurement',
       start: { ...record.start },
@@ -2546,7 +2612,8 @@ function renderMeasurementMagnifier() {
   if (!measurementMagnifier.classList.contains('active') || !measurementMagnifierTarget) return;
   measurementMagnifierCamera.position.copy(viewerCamera.position);
   measurementMagnifierCamera.up.copy(viewerCamera.up);
-  measurementMagnifierCamera.fov = THREE.MathUtils.clamp(viewerCamera.fov / 5, 3, 15);
+  measurementMagnifierCamera.fov = viewerCamera.fov;
+  measurementMagnifierCamera.zoom = Math.max(0.01, viewerCamera.zoom * 2);
   measurementMagnifierCamera.near = 0.01;
   measurementMagnifierCamera.far = Math.max(10000, viewerCamera.far);
   measurementMagnifierCamera.lookAt(measurementMagnifierTarget);
@@ -2602,6 +2669,7 @@ function completeMeasurement() {
     };
     const record = {
       id: `calibration-${Date.now()}`,
+      displayId: nextMeasurementDisplayId(),
       kind: 'calibration',
       label: `${item.name}: ${realDistance.toFixed(3)} m calibration`,
       start: { x: calibratedStart.x, y: calibratedStart.y, z: calibratedStart.z },
@@ -2619,6 +2687,7 @@ function completeMeasurement() {
   }
   const record = {
     id: `measurement-${Date.now()}`,
+    displayId: nextMeasurementDisplayId(),
     kind: 'distance',
     label: `${measuredDistance.toFixed(3)} m`,
     start: { x: start.x, y: start.y, z: start.z },
@@ -3770,6 +3839,7 @@ function animate() {
     updateObjectInfoPanel();
   }
 
+  orientMeasurementLabels(viewerCamera);
   renderer.render(scene, viewerCamera);
   renderVideoWallRecords(videoWallRecords);
   renderVideoWallRecords(popupVideoWallRecords);

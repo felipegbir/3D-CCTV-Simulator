@@ -182,3 +182,7 @@ Owner follow-up found that measurement mode blocked scene navigation, the Shift 
 
 Owner testing found completed measurement lines could disappear behind the measured surface, whole-model edge outlines were visually excessive, and returning from Video Wall could leave the Planning Scene and Camera Views blank. The third correction renders accepted measurements as non-depth-tested overlays, highlights only the hovered triangle's three local edges, and explicitly releases discarded wall/viewport WebGL contexts. Camera helper visibility restoration is exception-safe. Automated regression validation passes; deployment and owner acceptance remain pending.
 Deployment validation passed on CCTV PID 878130 with health ok, cache key 927, and matching local/deployed frontend hashes. No container or unrelated service was restarted.
+
+### 8e.7 owner correction pass 4 - pending acceptance
+
+Measurement lines now carry persistent human-readable IDs and parallel 3D distance labels, the Shift precision lens uses explicit 2x zoom, and projection-cone depth once again defines the camera render far plane. This restores the expected depth-analysis relationship without undoing the camera-helper and renderer-lifecycle corrections. Automated regression validation passes; deployment and owner acceptance remain pending.

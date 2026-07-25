@@ -20,7 +20,7 @@ for marker in (
     '.camera-viewport.has-preset-dock .camera-viewport-body',
     '.ptz-preset-list option.limit-warning',
     'preset-depth-pick-banner',
-    '/static/viewer.js?v=943',
+    '/static/viewer.js?v=944',
 ):
     assert marker in HTML, f'Missing owner-QA layout marker: {marker}'
 
@@ -33,6 +33,10 @@ for marker in (
     'preset.depthTarget = { ...depthTarget }',
     'preset.projectionDistance = distance',
     'ptzPresetPanel.refreshDerived',
+    "ptzPresetPanel.querySelector('.ptz-preset-camera')",
+    'viewport.setPresetDockOpen = open =>',
+    'baseWidth + 360',
+    "containerRect.width * 0.68",
     'const updateMetadataPreview = () =>',
     'retainedPresets',
     "option.style.color = '#ff3b3b'",
@@ -44,4 +48,5 @@ for marker in (
 
 assert 'item.data = newData;' not in JS
 assert 'Math.max(400, angularTravel / speed' not in JS
+assert "panel.querySelector('.ptz-preset-camera').textContent = `${activePresetCamera.name}" not in JS
 print('8e.7.1 owner-QA layout/persistence/preset lifecycle guard passed')

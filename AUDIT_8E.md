@@ -260,3 +260,6 @@ Owner QA accepted Scene Tree collapse and top-menu styling but found cache 941 d
 ### 8e.7.1 cache-943 menu polish - deployment pending
 
 Cache 943 corrects the owner-reported cache-942 dropdown gap and active-label width expansion. `.menu-dropdown` is excluded from the legacy in-flow selectors, its absolute placement is reinforced at open-state specificity, and menu groups use natural fit-content widths. Automated regressions pass; owner visual confirmation remains required.Cache 943 menu-polish deployment passed on CCTV PID 1036638 with health `ok`, exact deployed hashes, and live fit-content/selector-exclusion/cache-943 markers. Independent services were not restarted. Owner visual confirmation remains pending.
+### 8e.7.1 cache-944 PTZ dock correction - deployment pending
+
+Owner QA confirmed PTZ failed only while the preset dock was visible. The visible metadata callback referenced an undefined local `panel`, throwing during active-preset invalidation before manual movement applied. Cache 944 uses the valid global preset panel, preserves PTZ operation with the dock open, restores the original 68% maximized camera image, and expands/restores the containing window around the dock. Full targeted regressions pass; owner interaction confirmation remains required.

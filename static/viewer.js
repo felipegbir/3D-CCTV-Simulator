@@ -1614,7 +1614,7 @@ function ensurePtzPresetPanel() {
     const details = ptzPresetPanel.querySelector('.ptz-preset-details');
     details.textContent = formatPtzPresetDetails(preset);
     details.classList.toggle('ptz-preset-limit-warning', Boolean(preset?.limitIssues?.length));
-    panel.querySelector('.ptz-preset-camera').textContent = `${activePresetCamera.name} — ${activePresetCamera.data?.make || ''} ${activePresetCamera.data?.model || ''}`.trim();
+    ptzPresetPanel.querySelector('.ptz-preset-camera').textContent = `${activePresetCamera.name} — ${activePresetCamera.data?.make || ''} ${activePresetCamera.data?.model || ''}`.trim();
   };
   return ptzPresetPanel;
 }
@@ -1622,7 +1622,8 @@ function ensurePtzPresetPanel() {
 function closePtzPresetPanel() {
   if (!ptzPresetPanel) return;
   ptzPresetPanel.classList.add('hidden');
-  ptzPresetPanel.closest('.camera-viewport')?.classList.remove('has-preset-dock');
+  const ownerViewport = ptzPresetPanel.closest('.camera-viewport');
+  ownerViewport?.setPresetDockOpen?.(false);
 }
 
 function openPtzPresetPanel(cameraItem, viewportElement = null) {
@@ -1634,9 +1635,10 @@ function openPtzPresetPanel(cameraItem, viewportElement = null) {
   const ownerViewport = viewportElement || viewportRecord.element;
   activePresetCamera = cameraItem;
   const panel = ensurePtzPresetPanel();
-  panel.closest('.camera-viewport')?.classList.remove('has-preset-dock');
+  const previousViewport = panel.closest('.camera-viewport');
+  if (previousViewport && previousViewport !== ownerViewport) previousViewport.setPresetDockOpen?.(false);
   ownerViewport.appendChild(panel);
-  ownerViewport.classList.add('has-preset-dock');
+  ownerViewport.setPresetDockOpen?.(true);
   panel.querySelector('.ptz-preset-camera').textContent = `${cameraItem.name} — ${cameraItem.data?.make || ''} ${cameraItem.data?.model || ''}`.trim();
   const speed = panel.querySelector('.ptz-preset-speed-input');
   speed.value = String(preferences.ptzPresetSpeed);
@@ -2227,6 +2229,23 @@ function openCameraViewport(cameraItem) {
     top: viewport.style.top
   };
 
+  viewport.setPresetDockOpen = open => {
+    if (open) {
+      if (!viewport.dataset.prePresetDockWidth) viewport.dataset.prePresetDockWidth = viewport.style.width;
+      const baseWidth = Number.parseFloat(viewport.dataset.prePresetDockWidth) || viewport.getBoundingClientRect().width;
+      const availableWidth = Math.max(320, container.getBoundingClientRect().width - 48);
+      viewport.style.width = `${Math.min(availableWidth, baseWidth + 360)}px`;
+      viewport.classList.add('has-preset-dock');
+    } else {
+      viewport.classList.remove('has-preset-dock');
+      if (viewport.dataset.prePresetDockWidth) {
+        viewport.style.width = viewport.dataset.prePresetDockWidth;
+        delete viewport.dataset.prePresetDockWidth;
+      }
+    }
+    requestAnimationFrame(resizeCameraViewportRenderer);
+  };
+
   minimizeBtn.addEventListener('click', () => {
     focusCameraViewport(viewport);
     isMinimized = !isMinimized;
@@ -2373,8 +2392,8 @@ function openCameraViewport(cameraItem) {
 
       viewport.style.left = '24px';
       viewport.style.top = '24px';
-      viewport.style.width = `${Math.floor(containerRect.width * 0.92)}px`;
-      viewport.style.height = `${Math.floor(containerRect.height * 0.86)}px`;
+      viewport.style.width = `${Math.floor(containerRect.width * 0.68)}px`;
+      viewport.style.height = `${Math.floor(containerRect.height * 0.68)}px`;
 
       requestAnimationFrame(resizeCameraViewportRenderer);
 

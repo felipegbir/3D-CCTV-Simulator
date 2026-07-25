@@ -181,3 +181,4 @@ Owner follow-up found that measurement mode blocked scene navigation, the Shift 
 ### 8e.7 owner correction pass 3 - pending acceptance
 
 Owner testing found completed measurement lines could disappear behind the measured surface, whole-model edge outlines were visually excessive, and returning from Video Wall could leave the Planning Scene and Camera Views blank. The third correction renders accepted measurements as non-depth-tested overlays, highlights only the hovered triangle's three local edges, and explicitly releases discarded wall/viewport WebGL contexts. Camera helper visibility restoration is exception-safe. Automated regression validation passes; deployment and owner acceptance remain pending.
+Deployment validation passed on CCTV PID 878130 with health ok, cache key 927, and matching local/deployed frontend hashes. No container or unrelated service was restarted.

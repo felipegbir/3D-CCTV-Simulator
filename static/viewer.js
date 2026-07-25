@@ -20,8 +20,8 @@ var videoWallRecords = [];
 var popupVideoWallRecords = [];
 var popupVideoWallWindow = null;
 let videoWallOrder = ['scene'];
-const APP_VERSION = '8e.7';
-const PROJECT_SCHEMA_VERSION = 3;
+const APP_VERSION = '8e.7.1';
+const PROJECT_SCHEMA_VERSION = 4;
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
 const appVersionLabel = document.getElementById('appVersionLabel');
 const aboutVersion = document.getElementById('aboutVersion');
@@ -120,6 +120,7 @@ const calibrateScaleToolButton = document.getElementById('calibrateScaleTool');
 const measureDistanceToolButton = document.getElementById('measureDistanceTool');
 const cancelMeasurementToolButton = document.getElementById('cancelMeasurementTool');
 const clearMeasurementsButton = document.getElementById('clearMeasurements');
+const ptzPresetsInspectorButton = document.getElementById('ptzPresetsInspector');
 const measurementStatus = document.getElementById('measurementStatus');
 const measurementMagnificationControl = document.getElementById('measurementMagnification');
 const measurementMagnificationValue = document.getElementById('measurementMagnificationValue');
@@ -192,7 +193,8 @@ const DEFAULT_PREFERENCES = Object.freeze({
   coneOpacity: 0.15,
   fbxAutoScale: true,
   modelImportPreset: 'hvdcMm',
-  loupeMagnification: 3
+  loupeMagnification: 3,
+  ptzPresetSpeed: 10
 });
 
 const preferenceControls = {
@@ -233,6 +235,11 @@ function sanitizePreferences(candidate) {
   const loupeMagnification = Number.parseInt(candidate.loupeMagnification, 10);
   if (Number.isFinite(loupeMagnification)) {
     safe.loupeMagnification = Math.min(20, Math.max(2, loupeMagnification));
+  }
+
+  const ptzPresetSpeed = Number.parseFloat(candidate.ptzPresetSpeed);
+  if (Number.isFinite(ptzPresetSpeed)) {
+    safe.ptzPresetSpeed = Math.min(60, Math.max(1, ptzPresetSpeed));
   }
 
   const coneOpacity = Number.parseFloat(candidate.coneOpacity);
@@ -1163,6 +1170,7 @@ function downloadRendererCapture(targetRenderer, sourceName) {
 
 function adjustCameraPtzFromView(cameraItem, deltaX, deltaY) {
   if (!cameraItem?.data) return;
+  cancelCameraPresetAnimation(cameraItem, 'Preset recall cancelled by manual PTZ input.');
   const panDirection = preferences.reversePan ? -1 : 1;
   const tiltDirection = preferences.reverseTilt ? -1 : 1;
   cameraItem.data.pan = (Number.parseFloat(cameraItem.data.pan) || 0) + deltaX * 0.25 * panDirection;
@@ -1175,6 +1183,366 @@ function adjustCameraPtzFromView(cameraItem, deltaX, deltaY) {
   if (selectedId === cameraItem.id) updateObjectInfoPanel();
 }
 
+const activePtzPresetAnimations = new Map();
+let activePresetCamera = null;
+let ptzPresetPanel = null;
+let pendingPresetDepthCamera = null;
+
+function normalizePtzPreset(preset, index = 0) {
+  const safe = preset && typeof preset === 'object' ? preset : {};
+  return {
+    id: String(safe.id || `ptz-preset-${Date.now()}-${index}`),
+    name: String(safe.name || `Preset ${index + 1}`),
+    notes: String(safe.notes || ''),
+    pan: Number.parseFloat(safe.pan) || 0,
+    tilt: THREE.MathUtils.clamp(Number.parseFloat(safe.tilt) || 0, -90, 90),
+    roll: Number.parseFloat(safe.roll) || 0,
+    zoom: Math.max(0.01, Number.parseFloat(safe.zoom) || 1),
+    currentFocalLengthMm: Number.parseFloat(safe.currentFocalLengthMm) || null,
+    hfov: Number.parseFloat(safe.hfov) || 90,
+    projectionDistance: Math.max(0.02, Number.parseFloat(safe.projectionDistance) || 20),
+    viewportPalette: String(safe.viewportPalette || 'visible'),
+    cameraPosition: { x: Number(safe.cameraPosition?.x) || 0, y: Number(safe.cameraPosition?.y) || 0, z: Number(safe.cameraPosition?.z) || 0 },
+    cameraRotation: { x: Number(safe.cameraRotation?.x) || 0, y: Number(safe.cameraRotation?.y) || 0, z: Number(safe.cameraRotation?.z) || 0 },
+    cameraIdentity: safe.cameraIdentity && typeof safe.cameraIdentity === 'object' ? { ...safe.cameraIdentity } : {},
+    roi: { width: Number(safe.roi?.width) || null, height: Number(safe.roi?.height) || null },
+    depthTarget: safe.depthTarget && typeof safe.depthTarget === 'object' ? { ...safe.depthTarget } : null,
+    analysis: safe.analysis && typeof safe.analysis === 'object' ? { ...safe.analysis } : {},
+    createdAt: safe.createdAt || new Date().toISOString(),
+    updatedAt: safe.updatedAt || new Date().toISOString()
+  };
+}
+
+function ensureCameraPtzPresets(cameraItem) {
+  if (!cameraItem?.data) return [];
+  const source = Array.isArray(cameraItem.data.ptzPresets) ? cameraItem.data.ptzPresets : [];
+  cameraItem.data.ptzPresets = source.map(normalizePtzPreset);
+  return cameraItem.data.ptzPresets;
+}
+
+function calculatePresetAnalysis(cameraItem, roi = {}) {
+  const depth = Math.max(0.02, Number(cameraItem.data?.projectionDistance) || 20);
+  const hfov = Number(cameraItem.data?.hfov) || 90;
+  const vfov = Number(cameraItem.data?.vfov) || hfov * 9 / 16;
+  const width = 2 * depth * Math.tan(THREE.MathUtils.degToRad(hfov / 2));
+  const height = 2 * depth * Math.tan(THREE.MathUtils.degToRad(vfov / 2));
+  const resolutionWidth = Number(cameraItem.data?.resolutionWidth) || 1920;
+  const resolutionHeight = Number(cameraItem.data?.resolutionHeight) || 1080;
+  const horizontalPixelDensity = width > 0 ? resolutionWidth / width : 0;
+  const verticalPixelDensity = height > 0 ? resolutionHeight / height : 0;
+  const roiWidth = Number(roi.width) || null;
+  const roiHeight = Number(roi.height) || null;
+  const roiPixelsX = roiWidth ? roiWidth * horizontalPixelDensity : null;
+  const roiPixelsY = roiHeight ? roiHeight * verticalPixelDensity : null;
+  let thermographyClass = 'ROI not configured';
+  if (roiPixelsX !== null && roiPixelsY !== null) {
+    if (roiPixelsX < 3 || roiPixelsY < 3) thermographyClass = 'Below minimum 3 x 3';
+    else if (roiPixelsX < 9 || roiPixelsY < 9) thermographyClass = 'Minimum detection 3 x 3';
+    else if (roiPixelsX >= 9 && roiPixelsY >= 9) thermographyClass = 'Preferred/enhanced 9 x 9 or greater';
+  }
+  return {
+    depth,
+    hfov,
+    vfov,
+    footprintWidth: width,
+    footprintHeight: height,
+    horizontalPixelDensity,
+    verticalPixelDensity,
+    resolutionWidth,
+    resolutionHeight,
+    roiWidth,
+    roiHeight,
+    roiPixelsX,
+    roiPixelsY,
+    thermographyClass,
+    calculatedAt: new Date().toISOString()
+  };
+}
+
+function captureCameraPreset(cameraItem, existing = {}) {
+  const now = new Date().toISOString();
+  return normalizePtzPreset({
+    ...existing,
+    id: existing.id || (crypto.randomUUID?.() ? `ptz-${crypto.randomUUID()}` : `ptz-${Date.now()}`),
+    name: existing.name || `Preset ${ensureCameraPtzPresets(cameraItem).length + 1}`,
+    notes: existing.notes || '',
+    pan: cameraItem.data?.pan,
+    tilt: cameraItem.data?.tilt,
+    roll: cameraItem.data?.roll,
+    zoom: cameraItem.data?.zoom,
+    currentFocalLengthMm: cameraItem.data?.currentFocalLengthMm,
+    hfov: cameraItem.data?.hfov,
+    projectionDistance: cameraItem.data?.projectionDistance,
+    viewportPalette: cameraItem.data?.viewportPalette || getDefaultViewportPalette(cameraItem),
+    cameraPosition: { x: cameraItem.object.position.x, y: cameraItem.object.position.y, z: cameraItem.object.position.z },
+    cameraRotation: { x: cameraItem.object.rotation.x, y: cameraItem.object.rotation.y, z: cameraItem.object.rotation.z },
+    cameraIdentity: { make: cameraItem.data?.make || '', model: cameraItem.data?.model || '', lens: cameraItem.data?.lens || '', resolutionWidth: cameraItem.data?.resolutionWidth || 0, resolutionHeight: cameraItem.data?.resolutionHeight || 0 },
+    roi: existing.roi || { width: cameraItem.data?.roiWidth || null, height: cameraItem.data?.roiHeight || null },
+    depthTarget: cameraItem.data?.depthTarget || null,
+    analysis: calculatePresetAnalysis(cameraItem, existing.roi || { width: cameraItem.data?.roiWidth, height: cameraItem.data?.roiHeight }),
+    createdAt: existing.createdAt || now,
+    updatedAt: now
+  });
+}
+
+function formatPtzPresetDetails(preset) {
+  if (!preset) return 'No preset selected.';
+  const a = preset.analysis || {};
+  return [
+    `ID: ${preset.id}`,
+    `PTZ: ${preset.pan.toFixed(2)}° / ${preset.tilt.toFixed(2)}° / ${preset.roll.toFixed(2)}°`,
+    `Zoom: ${preset.zoom.toFixed(2)}x   Focal: ${preset.currentFocalLengthMm ?? '-'} mm`,
+    `HFOV: ${preset.hfov.toFixed(2)}°   Depth: ${preset.projectionDistance.toFixed(2)} m`,
+    `Palette: ${preset.viewportPalette}`,
+    `Position: ${preset.cameraPosition.x.toFixed(2)}, ${preset.cameraPosition.y.toFixed(2)}, ${preset.cameraPosition.z.toFixed(2)}`,
+    `Footprint: ${(a.footprintWidth || 0).toFixed(2)} x ${(a.footprintHeight || 0).toFixed(2)} m`,
+    `Density: ${(a.horizontalPixelDensity || 0).toFixed(2)} x ${(a.verticalPixelDensity || 0).toFixed(2)} px/m`,
+    preset.notes ? `Notes: ${preset.notes}` : ''
+  ].filter(Boolean).join('\n');
+}
+
+function syncCameraPalette(cameraItem, paletteKey) {
+  cameraItem.data.viewportPalette = paletteKey;
+  [...videoWallRecords, ...popupVideoWallRecords]
+    .filter(record => record.item?.id === cameraItem.id)
+    .forEach(record => {
+      record.palette = paletteKey;
+      if (record.paletteSelect) record.paletteSelect.value = paletteKey;
+      applyViewportPalette(record.renderer, paletteKey);
+    });
+  openCameraViewports
+    .filter(record => record.cameraId === cameraItem.id)
+    .forEach(record => record.setPalette?.(paletteKey));
+}
+
+function cancelCameraPresetAnimation(cameraItem, message = '') {
+  if (!cameraItem) return;
+  if (activePtzPresetAnimations.delete(cameraItem.id) && message && ptzPresetPanel) {
+    ptzPresetPanel.querySelector('.ptz-preset-status').textContent = message;
+  }
+}
+
+function shortestAngleDelta(from, to) {
+  return ((to - from + 540) % 360) - 180;
+}
+
+function applyAnimatedOpticalState(cameraItem, focalLength, fallbackZoom, fallbackHfov) {
+  const min = Number(cameraItem.data?.focalLengthMinMm);
+  const max = Number(cameraItem.data?.focalLengthMaxMm);
+  if (Number.isFinite(focalLength) && Number.isFinite(min) && Number.isFinite(max) && max > min) {
+    const clamped = THREE.MathUtils.clamp(focalLength, min, max);
+    const ratio = (clamped - min) / (max - min);
+    cameraItem.data.currentFocalLengthMm = clamped;
+    cameraItem.data.zoom = clamped / min;
+    cameraItem.data.hfov = cameraItem.data.hfovWide - ratio * (cameraItem.data.hfovWide - cameraItem.data.hfovTele);
+  } else {
+    cameraItem.data.zoom = fallbackZoom;
+    cameraItem.data.hfov = fallbackHfov;
+  }
+}
+
+function recallPtzPreset(cameraItem, preset) {
+  if (!cameraItem || !preset) return;
+  cancelCameraPresetAnimation(cameraItem);
+  const startPan = Number(cameraItem.data.pan) || 0;
+  const startTilt = Number(cameraItem.data.tilt) || 0;
+  const startRoll = Number(cameraItem.data.roll) || 0;
+  const angularTravel = Math.max(
+    Math.abs(shortestAngleDelta(startPan, preset.pan)),
+    Math.abs(preset.tilt - startTilt),
+    Math.abs(shortestAngleDelta(startRoll, preset.roll))
+  );
+  const speed = THREE.MathUtils.clamp(Number(preferences.ptzPresetSpeed) || 10, 1, 60);
+  const durationMs = Math.max(400, angularTravel / speed * 1000, Math.abs((preset.zoom || 1) - (cameraItem.data.zoom || 1)) * 350);
+  activePtzPresetAnimations.set(cameraItem.id, {
+    cameraItem,
+    preset,
+    startedAt: performance.now(),
+    durationMs,
+    start: {
+      pan: startPan,
+      tilt: startTilt,
+      roll: startRoll,
+      focal: Number(cameraItem.data.currentFocalLengthMm) || null,
+      zoom: Number(cameraItem.data.zoom) || 1,
+      hfov: Number(cameraItem.data.hfov) || 90,
+      depth: Number(cameraItem.data.projectionDistance) || 20
+    }
+  });
+  if (ptzPresetPanel) ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `Recalling ${preset.name} at ${speed.toFixed(0)}°/s…`;
+}
+
+function updatePtzPresetAnimations(now) {
+  activePtzPresetAnimations.forEach((animation, cameraId) => {
+    const { cameraItem, preset, start, startedAt, durationMs } = animation;
+    const raw = THREE.MathUtils.clamp((now - startedAt) / durationMs, 0, 1);
+    const t = raw < 0.5 ? 4 * raw * raw * raw : 1 - Math.pow(-2 * raw + 2, 3) / 2;
+    cameraItem.data.pan = start.pan + shortestAngleDelta(start.pan, preset.pan) * t;
+    cameraItem.data.tilt = THREE.MathUtils.lerp(start.tilt, preset.tilt, t);
+    cameraItem.data.roll = start.roll + shortestAngleDelta(start.roll, preset.roll) * t;
+    const targetFocal = Number(preset.currentFocalLengthMm);
+    const focal = Number.isFinite(start.focal) && Number.isFinite(targetFocal) ? THREE.MathUtils.lerp(start.focal, targetFocal, t) : null;
+    applyAnimatedOpticalState(cameraItem, focal, THREE.MathUtils.lerp(start.zoom, preset.zoom, t), THREE.MathUtils.lerp(start.hfov, preset.hfov, t));
+    updateProjectionDistance(cameraItem, THREE.MathUtils.lerp(start.depth, preset.projectionDistance, t));
+    applyCameraPtzRig(cameraItem);
+    if (raw >= 1) {
+      cameraItem.data.pan = preset.pan;
+      cameraItem.data.tilt = preset.tilt;
+      cameraItem.data.roll = preset.roll;
+      applyAnimatedOpticalState(cameraItem, preset.currentFocalLengthMm, preset.zoom, preset.hfov);
+      updateProjectionDistance(cameraItem, preset.projectionDistance);
+      applyCameraPtzRig(cameraItem);
+      syncCameraPalette(cameraItem, preset.viewportPalette);
+      activePtzPresetAnimations.delete(cameraId);
+      if (ptzPresetPanel && activePresetCamera?.id === cameraId) ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `${preset.name} recalled.`;
+    }
+  });
+}
+
+function ensurePtzPresetPanel() {
+  if (ptzPresetPanel) return ptzPresetPanel;
+  ptzPresetPanel = document.createElement('div');
+  ptzPresetPanel.className = 'ptz-preset-panel hidden';
+  ptzPresetPanel.innerHTML = `
+    <h3>PTZ Presets</h3>
+    <div class="ptz-preset-camera"></div>
+    <label>Existing presets<select class="ptz-preset-list" size="5"></select></label>
+    <label>Name<input class="ptz-preset-name" type="text" maxlength="80"></label>
+    <label>Notes<textarea class="ptz-preset-notes" maxlength="1000"></textarea></label>
+    <div class="ptz-preset-speed"><span>Target ROI (m)</span><input class="ptz-preset-roi-width" type="number" min="0" step="0.001" placeholder="Width"><input class="ptz-preset-roi-height" type="number" min="0" step="0.001" placeholder="Height"></div>
+    <label class="ptz-preset-speed">Movement speed<input class="ptz-preset-speed-input" type="range" min="1" max="60" step="1"><output class="ptz-preset-speed-value"></output></label>
+    <div class="ptz-preset-actions">
+      <button type="button" data-action="recall">Recall</button>
+      <button type="button" data-action="add">Add Current</button>
+      <button type="button" data-action="save">Save Details</button>
+      <button type="button" data-action="update">Update Current</button>
+      <button type="button" data-action="depth">Select Depth Surface</button>
+      <button type="button" data-action="delete">Delete</button>
+      <button type="button" data-action="close">Close</button>
+    </div>
+    <div class="ptz-preset-status"></div>
+    <div class="ptz-preset-details"></div>`;
+  document.body.appendChild(ptzPresetPanel);
+  const list = ptzPresetPanel.querySelector('.ptz-preset-list');
+  const speed = ptzPresetPanel.querySelector('.ptz-preset-speed-input');
+  const speedValue = ptzPresetPanel.querySelector('.ptz-preset-speed-value');
+  const selectedPreset = () => ensureCameraPtzPresets(activePresetCamera).find(preset => preset.id === list.value);
+  const refresh = (selectedId = list.value) => {
+    const presets = ensureCameraPtzPresets(activePresetCamera);
+    list.replaceChildren(...presets.map(preset => {
+      const option = document.createElement('option');
+      option.value = preset.id;
+      option.textContent = preset.name;
+      return option;
+    }));
+    if (presets.some(preset => preset.id === selectedId)) list.value = selectedId;
+    else if (presets[0]) list.value = presets[0].id;
+    const preset = selectedPreset();
+    ptzPresetPanel.querySelector('.ptz-preset-name').value = preset?.name || '';
+    ptzPresetPanel.querySelector('.ptz-preset-notes').value = preset?.notes || '';
+    ptzPresetPanel.querySelector('.ptz-preset-roi-width').value = preset?.roi?.width || '';
+    ptzPresetPanel.querySelector('.ptz-preset-roi-height').value = preset?.roi?.height || '';
+    ptzPresetPanel.querySelector('.ptz-preset-details').textContent = formatPtzPresetDetails(preset);
+  };
+  list.addEventListener('change', () => refresh(list.value));
+  speed.addEventListener('input', () => {
+    preferences.ptzPresetSpeed = THREE.MathUtils.clamp(Number(speed.value) || 10, 1, 60);
+    speedValue.textContent = `${preferences.ptzPresetSpeed.toFixed(0)}°/s`;
+    savePreferences();
+  });
+  ptzPresetPanel.addEventListener('click', event => {
+    const action = event.target.dataset.action;
+    if (!action || !activePresetCamera) return;
+    if (action === 'close') return ptzPresetPanel.classList.add('hidden');
+    const preset = selectedPreset();
+    if (action === 'recall') {
+      if (preset) recallPtzPreset(activePresetCamera, preset);
+      return;
+    }
+    const nameField = ptzPresetPanel.querySelector('.ptz-preset-name');
+    const notesField = ptzPresetPanel.querySelector('.ptz-preset-notes');
+    const roi = { width: Number(ptzPresetPanel.querySelector('.ptz-preset-roi-width').value) || null, height: Number(ptzPresetPanel.querySelector('.ptz-preset-roi-height').value) || null };
+    if (action === 'add') {
+      const created = captureCameraPreset(activePresetCamera, { name: nameField.value.trim() || undefined, notes: notesField.value.trim(), roi });
+      ensureCameraPtzPresets(activePresetCamera).push(created);
+      refresh(created.id);
+      ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `${created.name} added from the current camera view.`;
+    }
+    if (action === 'update' && preset) {
+      const updated = captureCameraPreset(activePresetCamera, { ...preset, name: nameField.value.trim() || preset.name, notes: notesField.value.trim(), roi });
+      const index = activePresetCamera.data.ptzPresets.findIndex(entry => entry.id === preset.id);
+      activePresetCamera.data.ptzPresets[index] = updated;
+      refresh(updated.id);
+      ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `${updated.name} updated from the current camera view.`;
+    }
+    if (action === 'save' && preset) {
+      preset.name = nameField.value.trim() || preset.name;
+      preset.notes = notesField.value.trim();
+      preset.roi = roi;
+      preset.analysis = calculatePresetAnalysis(activePresetCamera, roi);
+      preset.updatedAt = new Date().toISOString();
+      refresh(preset.id);
+      ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `${preset.name} details saved without changing its PTZ position.`;
+    }
+    if (action === 'depth') {
+      pendingPresetDepthCamera = activePresetCamera;
+      ptzPresetPanel.classList.add('hidden');
+      setMeasurementStatus(`Select a model surface to set ${activePresetCamera.name} preset depth.`);
+    }    if (action === 'delete' && preset && confirm(`Delete PTZ preset "${preset.name}"?`)) {
+      activePresetCamera.data.ptzPresets = activePresetCamera.data.ptzPresets.filter(entry => entry.id !== preset.id);
+      refresh();
+      ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `${preset.name} deleted.`;
+    }
+  });
+  ptzPresetPanel.refresh = refresh;
+  return ptzPresetPanel;
+}
+
+function openPtzPresetPanel(cameraItem) {
+  if (!cameraItem || cameraItem.type !== 'camera') return;
+  activePresetCamera = cameraItem;
+  const panel = ensurePtzPresetPanel();
+  panel.querySelector('.ptz-preset-camera').textContent = `${cameraItem.name} — ${cameraItem.data?.make || ''} ${cameraItem.data?.model || ''}`.trim();
+  const speed = panel.querySelector('.ptz-preset-speed-input');
+  speed.value = String(preferences.ptzPresetSpeed);
+  panel.querySelector('.ptz-preset-speed-value').textContent = `${Number(preferences.ptzPresetSpeed).toFixed(0)}°/s`;
+  panel.querySelector('.ptz-preset-status').textContent = '';
+  panel.refresh();
+  panel.classList.remove('hidden');
+}
+
+renderer.domElement.addEventListener('click', event => {
+  if (!pendingPresetDepthCamera) return;
+  const cameraItem = pendingPresetDepthCamera;
+  const pick = pickMeasurementPoint(event);
+  if (!pick) {
+    setMeasurementStatus('No model/reference surface was hit. Select a visible surface for preset depth.');
+    event.stopImmediatePropagation();
+    return;
+  }
+  cameraItem.object.updateMatrixWorld(true);
+  const cameraPosition = cameraItem.object.userData.renderCamera?.getWorldPosition(new THREE.Vector3()) || cameraItem.object.getWorldPosition(new THREE.Vector3());
+  const distance = cameraPosition.distanceTo(pick.point);
+  const hitMesh = pick.intersection.object;
+  const targetItem = sceneObjects.find(item => {
+    let contains = false;
+    item.object?.traverse?.(child => { if (child === hitMesh) contains = true; });
+    return contains;
+  });
+  cameraItem.data.depthTarget = {
+    objectId: targetItem?.id || null,
+    objectName: targetItem?.name || hitMesh.name || 'Surface',
+    point: { x: pick.point.x, y: pick.point.y, z: pick.point.z },
+    distance,
+    selectedAt: new Date().toISOString()
+  };
+  updateProjectionDistance(cameraItem, distance);
+  pendingPresetDepthCamera = null;
+  setMeasurementStatus(`Depth set from ${cameraItem.name} to ${targetItem?.name || 'selected surface'}: ${distance.toFixed(3)} m.`);
+  openPtzPresetPanel(cameraItem);
+  event.preventDefault();
+  event.stopImmediatePropagation();
+}, true);
 function createWallTile(doc, host, source, records, onDrop) {
   const tile = doc.createElement('div');
   tile.className = 'video-wall-tile';
@@ -1241,6 +1609,7 @@ function createWallTile(doc, host, source, records, onDrop) {
       applyViewportPalette(wallRenderer, record.palette);
     });
     controls.prepend(palette);
+    record.paletteSelect = palette;
 
     const ptz = doc.createElement('button');
     ptz.type = 'button';
@@ -1257,8 +1626,11 @@ function createWallTile(doc, host, source, records, onDrop) {
     const presets = doc.createElement('button');
     presets.type = 'button';
     presets.textContent = 'Presets';
-    presets.title = 'PTZ presets will use this camera tile in a future release';
-    presets.disabled = true;
+    presets.title = 'Manage and recall PTZ presets';
+    presets.addEventListener('click', event => {
+      event.stopPropagation();
+      openPtzPresetPanel(source.item);
+    });
     controls.appendChild(presets);
 
     const canvas = wallRenderer.domElement;
@@ -1396,6 +1768,7 @@ function openCameraViewport(cameraItem) {
         </label>
         <button class="viewport-capture viewport-text-button" title="Capture">Capture</button>
         <button class="viewport-ptz-toggle viewport-text-button" title="PTZ Controls">PTZ</button>
+        <button class="viewport-presets viewport-text-button" title="Manage PTZ Presets">Presets</button>
         <button class="viewport-minimize" title="Minimize">—</button>
         <button class="viewport-maximize" title="Maximize">□</button>
         <button class="viewport-close" title="Close">X</button>
@@ -1473,6 +1846,7 @@ function openCameraViewport(cameraItem) {
   const minimizeBtn = viewport.querySelector('.viewport-minimize');
   const captureBtn = viewport.querySelector('.viewport-capture');
   const ptzToggleBtn = viewport.querySelector('.viewport-ptz-toggle');
+  const presetsBtn = viewport.querySelector('.viewport-presets');
   const rollLeftBtn = viewport.querySelector('.viewport-roll-left');
   const rollRightBtn = viewport.querySelector('.viewport-roll-right');
   const ptzHint = viewport.querySelector('.viewport-ptz-hint');
@@ -1506,6 +1880,7 @@ function openCameraViewport(cameraItem) {
 
     paletteSelect.addEventListener('change', () => {
       selectedViewportPalette = paletteSelect.value;
+      cameraItem.data.viewportPalette = selectedViewportPalette;
       applyViewportPalette(viewportRenderer, selectedViewportPalette);
     });
   }
@@ -1565,6 +1940,7 @@ function openCameraViewport(cameraItem) {
 
       function rotateCameraFromViewport(deltaX, deltaY) {
         if (!viewportPtzEnabled) return;
+        cancelCameraPresetAnimation(cameraItem, 'Preset recall cancelled by manual PTZ input.');
 
         const panSpeed = 0.25;
         const tiltSpeed = 0.25;
@@ -1590,6 +1966,7 @@ function openCameraViewport(cameraItem) {
 
       function rollCameraFromViewport(direction) {
         if (!viewportPtzEnabled) return;
+        cancelCameraPresetAnimation(cameraItem, 'Preset recall cancelled by manual roll input.');
 
         const rollStep = 5;
         const currentRoll = Number.parseFloat(cameraItem.data?.roll) || 0;
@@ -1794,6 +2171,8 @@ function openCameraViewport(cameraItem) {
     link.click();
   });
 
+    presetsBtn.addEventListener('click', () => openPtzPresetPanel(cameraItem));
+
     ptzToggleBtn.addEventListener('click', () => {
       if (!isMaximized) return;
 
@@ -1885,6 +2264,13 @@ function openCameraViewport(cameraItem) {
     renderer: viewportRenderer,
     body: body,
     camera: viewportCamera,
+    paletteSelect,
+    setPalette: paletteKey => {
+      selectedViewportPalette = paletteKey;
+      cameraItem.data.viewportPalette = paletteKey;
+      if (paletteSelect) paletteSelect.value = paletteKey;
+      applyViewportPalette(viewportRenderer, paletteKey);
+    },
     isRenderable: () => !isMinimized
   });
   focusCameraViewport(viewport);
@@ -1940,6 +2326,7 @@ function buildGenericCameraData() {
     tilt: 0,
     zoom: 1,
     projectionDistance: 20,
+    ptzPresets: [],
     units: 'metric',
     supportsPan: true,
     supportsTilt: true,
@@ -2011,6 +2398,7 @@ function buildCameraDataFromRecord(record) {
     tilt: 0,
     zoom: 1,
     projectionDistance: 20,
+    ptzPresets: [],
     units: 'metric',
     supportsPan: Boolean(record?.pan_tilt_raw),
     supportsTilt: Boolean(record?.pan_tilt_raw),
@@ -2186,6 +2574,7 @@ toolbarAlign.addEventListener('click', () => {
 
 function zoomCameraItem(cameraItem, direction) {
   if (!cameraItem || cameraItem.type !== 'camera') return;
+  cancelCameraPresetAnimation(cameraItem, 'Preset recall cancelled by manual zoom input.');
   if (!cameraItem.data?.supportsZoom) return;
 
   const minFocal = Number.parseFloat(cameraItem.data.focalLengthMinMm);
@@ -2236,6 +2625,7 @@ function stepSelectedCameraPtz(panDelta, tiltDelta) {
 
   const item = sceneObjects.find(o => o.id === selectedId);
   if (!item || item.type !== 'camera') return;
+  cancelCameraPresetAnimation(item, 'Preset recall cancelled by manual PTZ input.');
 
   const currentPan = Number.parseFloat(item.data?.pan) || 0;
   const currentTilt = Number.parseFloat(item.data?.tilt) || 0;
@@ -2274,6 +2664,11 @@ ptzZoomIn.addEventListener('click', () => {
 
 ptzZoomOut.addEventListener('click', () => {
   zoomSelectedCamera(-1);
+});
+
+ptzPresetsInspectorButton.addEventListener('click', () => {
+  const item = sceneObjects.find(entry => entry.id === selectedId && entry.type === 'camera');
+  if (item) openPtzPresetPanel(item);
 });
 
 toolbarCameraView.addEventListener('click', () => {
@@ -3651,6 +4046,7 @@ function applyLoadedProject(project) {
     item.data.tilt = cameraData.data?.tilt ?? cameraData.tilt ?? item.data.tilt ?? 0;
     item.data.roll = cameraData.data?.roll ?? cameraData.roll ?? item.data.roll ?? 0;
     item.data.zoom = cameraData.data?.zoom ?? cameraData.zoom ?? item.data.zoom ?? 1;
+    item.data.ptzPresets = (cameraData.data?.ptzPresets || cameraData.ptzPresets || []).map(normalizePtzPreset);
 
     item.data.projectionDistance =
       cameraData.data?.projectionDistance ??
@@ -3880,6 +4276,7 @@ function renderVideoWallRecords(records) {
 function animate() {
   requestAnimationFrame(animate);
   orbitControls.update();
+  updatePtzPresetAnimations(performance.now());
 
   if (selectedId) {
     updateObjectInfoPanel();

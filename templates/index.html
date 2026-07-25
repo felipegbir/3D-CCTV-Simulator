@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-  <title>N.O.M.A.D. CCTV Digital Twin Simulator 8e.7</title>
+  <title>N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.1</title>
   <style>
     :root {
       color-scheme: light;
@@ -882,13 +882,42 @@
       background: rgba(0, 18, 28, 0.82);
       font: bold 12px Arial, sans-serif;
     }
+
+    .ptz-preset-panel {
+      position: fixed;
+      z-index: 8000;
+      width: min(420px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      padding: 14px;
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      background: var(--panel-bg);
+      color: var(--text-color);
+      box-shadow: 0 12px 38px rgba(0,0,0,.65);
+    }
+    .ptz-preset-panel.hidden { display: none; }
+    .ptz-preset-panel h3 { margin: 0 0 4px; }
+    .ptz-preset-camera { margin-bottom: 10px; color: var(--muted-text); }
+    .ptz-preset-panel select,
+    .ptz-preset-panel input[type="text"],
+    .ptz-preset-panel textarea { width: 100%; box-sizing: border-box; margin: 4px 0 8px; }
+    .ptz-preset-panel textarea { min-height: 64px; resize: vertical; }
+    .ptz-preset-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .ptz-preset-actions button { flex: 1 1 105px; }
+    .ptz-preset-details { white-space: pre-wrap; padding: 8px; border: 1px solid var(--panel-border); border-radius: 5px; background: var(--input-bg); font-size: 12px; }
+    .ptz-preset-speed { display: grid; grid-template-columns: 1fr 150px 64px; align-items: center; gap: 6px; margin: 8px 0; }
+    .ptz-preset-status { min-height: 18px; color: var(--accent-color); font-size: 12px; }
   </style>
 </head>
 
 <body data-theme="dark">
 <div id="sidebar">
   <div id="appHeader">
-    <h3>N.O.M.A.D. CCTV Simulator <span class="app-version">v<span id="appVersionLabel">8e.7</span></span></h3>
+    <h3>N.O.M.A.D. CCTV Simulator <span class="app-version">v<span id="appVersionLabel">8e.7.1</span></span></h3>
   </div>
 
   <div id="sceneFrame" class="panel-frame">
@@ -1275,6 +1304,7 @@
          <button class="toolbar-button" id="ptzZoomIn">Zoom In</button>
          <button class="toolbar-button" id="ptzZoomOut">Zoom Out</button>
        </div>
+       <button class="toolbar-button" id="ptzPresetsInspector" type="button">Presets</button>
     </div>
   </div>
 </div>
@@ -1324,6 +1354,6 @@
   });
 </script>
 
-<script type="module" src="/static/viewer.js?v=934"></script>
+<script type="module" src="/static/viewer.js?v=940"></script>
 </body>
 </html>

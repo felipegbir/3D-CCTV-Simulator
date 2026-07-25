@@ -201,3 +201,8 @@ Deployment validation passed on CCTV PID 899654 with health status ok, cache key
 Correction pass 5 is rejected: its FOV approach still appeared as zoom-out in owner testing. Pass 6 defines MEASUREMENT_MAGNIFICATION = 3, moves the loupe camera to one third of the viewer-to-cursor distance, and displays a 3x badge. This gives an explicit geometric 3x ratio at the selected surface plane. Automated checks pass; browser automation could not initialize from the UNC workspace, so owner visual confirmation remains mandatory.
 
 Deployment validation passed on CCTV PID 908253 with cache key 930, explicit deployed magnification constant 3, and matching frontend hashes. Owner visual confirmation remains required.
+
+
+### 8e.7 owner correction pass 7 - pending acceptance
+
+Correction pass 6 is rejected by owner visual testing. Pass 7 removes camera-position magnification and applies a configurable 2x-10x screen-space scale to the loupe canvas, defaulting to 3x. The Measurement Tools control updates live and persists through the preferences/project contract. Automated checks pass; owner confirmation remains mandatory.

@@ -857,7 +857,7 @@
       overflow: hidden;
     }
     .measurement-magnifier.active { display: block; }
-    .measurement-magnifier canvas { width: 100%; height: 100%; display: block; }
+    .measurement-magnifier canvas { width: 100%; height: 100%; display: block; transform: scale(var(--loupe-magnification, 3)); transform-origin: center; }
     .measurement-magnifier::before,
     .measurement-magnifier::after {
       content: '';
@@ -1028,7 +1028,12 @@
       <div class="menu-group collapsed" id="toolsGroup">
         <div class="section-title">&#9654; Measurement Tools</div>
         <button class="menu-button" id="calibrateScaleTool" type="button">Calibrate Scale (2 Points)</button>
-        <button class="menu-button" id="measureDistanceTool" type="button">Measure Distance</button>
+<button class="menu-button" id="measureDistanceTool" type="button">Measure Distance</button>
+        <label class="preference-row preference-range" for="measurementMagnification">
+          <span>Loupe Magnification</span>
+          <input id="measurementMagnification" type="range" min="2" max="10" step="1" value="3">
+          <output id="measurementMagnificationValue" class="preference-output">3x</output>
+        </label>
         <button class="menu-button" id="cancelMeasurementTool" type="button">Cancel Active Tool</button>
         <button class="menu-button" id="clearMeasurements" type="button">Clear Measurements</button>
         <div class="measurement-status" id="measurementStatus">Select a tool. Measurements use project units (metres).</div>
@@ -1319,6 +1324,6 @@
   });
 </script>
 
-<script type="module" src="/static/viewer.js?v=930"></script>
+<script type="module" src="/static/viewer.js?v=931"></script>
 </body>
 </html>

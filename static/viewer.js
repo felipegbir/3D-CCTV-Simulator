@@ -121,6 +121,8 @@ const measureDistanceToolButton = document.getElementById('measureDistanceTool')
 const cancelMeasurementToolButton = document.getElementById('cancelMeasurementTool');
 const clearMeasurementsButton = document.getElementById('clearMeasurements');
 const measurementStatus = document.getElementById('measurementStatus');
+const measurementMagnificationControl = document.getElementById('measurementMagnification');
+const measurementMagnificationValue = document.getElementById('measurementMagnificationValue');
 
 const orbitControls = new OrbitControls(viewerCamera, renderer.domElement);
 orbitControls.enableDamping = false;
@@ -167,11 +169,11 @@ document.body.appendChild(measurementMagnifier);
 const measurementMagnifierRenderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 measurementMagnifierRenderer.setSize(180, 180, false);
 measurementMagnifier.appendChild(measurementMagnifierRenderer.domElement);
-const MEASUREMENT_MAGNIFICATION = 3;
+const DEFAULT_MEASUREMENT_MAGNIFICATION = 3;
 const measurementMagnifierCamera = new THREE.PerspectiveCamera(12, 1, 0.01, 10000);
 const measurementMagnifierBadge = document.createElement('span');
 measurementMagnifierBadge.className = 'measurement-magnifier-level';
-measurementMagnifierBadge.textContent = String(MEASUREMENT_MAGNIFICATION) + '\u00d7';
+measurementMagnifierBadge.textContent = String(DEFAULT_MEASUREMENT_MAGNIFICATION) + '\u00d7';
 measurementMagnifier.appendChild(measurementMagnifierBadge);
 let measurementMagnifierTarget = null;
 let measurementPointerStart = null;
@@ -188,7 +190,8 @@ const DEFAULT_PREFERENCES = Object.freeze({
   showAxes: true,
   coneOpacity: 0.15,
   fbxAutoScale: true,
-  modelImportPreset: 'hvdcMm'
+  modelImportPreset: 'hvdcMm',
+  loupeMagnification: 3
 });
 
 const preferenceControls = {
@@ -224,6 +227,11 @@ function sanitizePreferences(candidate) {
 
   for (const key of ['reversePan', 'reverseTilt', 'invertZoom', 'showGrid', 'showAxes', 'fbxAutoScale']) {
     if (typeof candidate[key] === 'boolean') safe[key] = candidate[key];
+  }
+
+  const loupeMagnification = Number.parseInt(candidate.loupeMagnification, 10);
+  if (Number.isFinite(loupeMagnification)) {
+    safe.loupeMagnification = Math.min(10, Math.max(2, loupeMagnification));
   }
 
   const coneOpacity = Number.parseFloat(candidate.coneOpacity);
@@ -290,6 +298,8 @@ function syncPreferenceControls() {
   preferenceControls.coneOpacityValue.textContent = `${Math.round(preferences.coneOpacity * 100)}%`;
   preferenceControls.fbxAutoScale.checked = preferences.fbxAutoScale;
   preferenceControls.modelImportPreset.value = preferences.modelImportPreset;
+  measurementMagnificationControl.value = String(preferences.loupeMagnification);
+  measurementMagnificationValue.textContent = String(preferences.loupeMagnification) + 'x';
 }
 
 function readPreferenceControls() {
@@ -303,7 +313,8 @@ function readPreferenceControls() {
     showAxes: preferenceControls.showAxes.checked,
     coneOpacity: preferenceControls.coneOpacity.value,
     fbxAutoScale: preferenceControls.fbxAutoScale.checked,
-    modelImportPreset: preferenceControls.modelImportPreset.value
+    modelImportPreset: preferenceControls.modelImportPreset.value,
+    loupeMagnification: measurementMagnificationControl.value
   });
 }
 
@@ -317,6 +328,8 @@ function applyPreferences({ persist = false } = {}) {
   popupVideoWallRecords.forEach(record => configureRendererQuality(record.renderer));
   configureRendererQuality(measurementMagnifierRenderer);
   measurementMagnifierRenderer.setSize(180, 180, false);
+  measurementMagnifier.style.setProperty('--loupe-magnification', String(preferences.loupeMagnification));
+  measurementMagnifierBadge.textContent = String(preferences.loupeMagnification) + '\u00d7';
 
   sceneObjects
     .filter(item => item.type === 'camera')
@@ -355,6 +368,7 @@ for (const control of [
 }
 
 preferenceControls.coneOpacity.addEventListener('input', updatePreferencesFromControls);
+measurementMagnificationControl.addEventListener('input', updatePreferencesFromControls);
 preferenceControls.reset.addEventListener('click', () => {
   preferences = { ...DEFAULT_PREFERENCES };
   applyPreferences({ persist: true });
@@ -2615,10 +2629,8 @@ function positionMeasurementMagnifier(event) {
 
 function renderMeasurementMagnifier() {
   if (!measurementMagnifier.classList.contains('active') || !measurementMagnifierTarget) return;
-  measurementMagnifierCamera.position.copy(viewerCamera.position).lerp(
-    measurementMagnifierTarget,
-    1 - (1 / MEASUREMENT_MAGNIFICATION)
-  );
+  measurementMagnifierCamera.position.copy(viewerCamera.position);
+
   measurementMagnifierCamera.up.copy(viewerCamera.up);
   measurementMagnifierCamera.fov = viewerCamera.fov;
   measurementMagnifierCamera.zoom = viewerCamera.zoom;

@@ -812,6 +812,47 @@
       font-size: 12px;
       line-height: 1.35;
     }
+
+    .video-wall-tile-controls {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.72);
+    }
+    .video-wall-tile-controls button,
+    .video-wall-tile-controls select {
+      width: auto;
+      min-width: 0;
+      height: 25px;
+      padding: 2px 6px;
+      border: 1px solid #5d7187;
+      border-radius: 3px;
+      background: #1d2a38;
+      color: #fff;
+      font-size: 11px;
+    }
+    .video-wall-tile-controls button.active { background: #006db3; border-color: #23b7ff; }
+    .video-wall-tile-controls button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .video-wall-tile.ptz-active canvas { cursor: crosshair; }
+    .measurement-magnifier {
+      position: fixed;
+      z-index: 7000;
+      width: 180px;
+      height: 180px;
+      display: none;
+      border: 3px solid #00e5ff;
+      border-radius: 50%;
+      background: #000;
+      box-shadow: 0 4px 18px rgba(0,0,0,.65);
+      pointer-events: none;
+    }
+    .measurement-magnifier.active { display: block; }
   </style>
 </head>
 
@@ -956,7 +997,7 @@
         <button class="menu-button" id="resetPreferences" type="button">Reset Preferences</button>
       </div>
       <div class="menu-group collapsed" id="toolsGroup">
-        <div class="section-title">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¶ Measurement Tools</div>
+        <div class="section-title">&#9654; Measurement Tools</div>
         <button class="menu-button" id="calibrateScaleTool" type="button">Calibrate Scale (2 Points)</button>
         <button class="menu-button" id="measureDistanceTool" type="button">Measure Distance</button>
         <button class="menu-button" id="cancelMeasurementTool" type="button">Cancel Active Tool</button>
@@ -964,14 +1005,14 @@
         <div class="measurement-status" id="measurementStatus">Select a tool. Measurements use project units (metres).</div>
       </div>
       <div class="menu-group collapsed" id="helpGroup">
-        <div class="section-title">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¶ Help</div>
+        <div class="section-title">&#9654; Help</div>
         <div class="about-card">
           <strong>User Manual</strong>
           <div>The manual link will be enabled when the documentation is published.</div>
         </div>
       </div>
       <div class="menu-group collapsed" id="aboutGroup">
-        <div class="section-title">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¶ About</div>
+        <div class="section-title">&#9654; About</div>
         <div class="about-card" id="aboutPanel">
           <strong>N.O.M.A.D. CCTV Digital Twin Simulator</strong>
           <div>Version <span id="aboutVersion">8e.7</span></div>
@@ -1243,12 +1284,12 @@
 
     title.addEventListener('click', () => {
       group.classList.toggle('collapsed');
-      const name = title.textContent.replace(/^▶ /, '').replace(/^▼ /, '');
-      title.textContent = group.classList.contains('collapsed') ? '▶ ' + name : '▼ ' + name;
+      const name = title.textContent.replace(/^[\u25B6\u25BC]\s*/, '');
+      title.textContent = group.classList.contains('collapsed') ? '\u25B6 ' + name : '\u25BC ' + name;
     });
   });
 </script>
 
-<script type="module" src="/static/viewer.js?v=924"></script>
+<script type="module" src="/static/viewer.js?v=925"></script>
 </body>
 </html>

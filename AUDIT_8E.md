@@ -227,3 +227,5 @@ Deployment validation passed on CCTV PID 929900 with cache 933, deployed 2x-20x 
 ### 8e.7 owner correction pass 10 - pending acceptance
 
 Measurement labels now honor point sequence in screen space: Point 1 left of Point 2 keeps normal text, while Point 1 right of Point 2 rotates text 180 degrees. Orientation is recalculated per rendering camera. Automated checks pass; final owner visual confirmation remains pending.
+
+Deployment validation passed on CCTV PID 935864 with cache 934, deployed sequence-orientation marker, and matching frontend hashes.

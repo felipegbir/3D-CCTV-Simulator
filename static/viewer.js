@@ -2385,9 +2385,16 @@ function orientMeasurementLabels(camera) {
     if (!label.userData.measurementLabel) return;
     const start = label.userData.start;
     const end = label.userData.end;
-    const xAxis = end.clone().sub(start).normalize();
+    camera.updateMatrixWorld();
+    const firstScreenX = start.clone().project(camera).x;
+    const secondScreenX = end.clone().project(camera).x;
+    const reverseForPointSequence = firstScreenX > secondScreenX;
+    const xAxis = reverseForPointSequence
+      ? start.clone().sub(end).normalize()
+      : end.clone().sub(start).normalize();
     const midpoint = start.clone().add(end).multiplyScalar(0.5);
-    const zAxis = camera.position.clone().sub(midpoint);
+    const cameraPosition = camera.getWorldPosition(new THREE.Vector3());
+    const zAxis = cameraPosition.sub(midpoint);
     zAxis.addScaledVector(xAxis, -zAxis.dot(xAxis));
     if (zAxis.lengthSq() < 1e-8) zAxis.set(0, 1, 0).addScaledVector(xAxis, -xAxis.y);
     zAxis.normalize();
@@ -3837,6 +3844,7 @@ function renderCameraView(targetRenderer, targetCamera) {
   const visibility = hidden.map(object => object ? object.visible : null);
   hidden.forEach(object => { if (object) object.visible = false; });
   try {
+    orientMeasurementLabels(targetCamera);
     targetRenderer.render(scene, targetCamera);
   } finally {
     hidden.forEach((object, index) => { if (object) object.visible = visibility[index]; });

@@ -233,3 +233,8 @@ Deployment validation passed on CCTV PID 935864 with cache 934, deployed sequenc
 ### 8e.7 accepted and sealed
 
 The owner confirmed all final QA issues resolved on 2026-07-24. Cache 934 is the accepted 8e.7 baseline. The sharp 2x-20x loupe, sequence-aware measurement labels, depth clipping, Video Wall lifecycle, camera rendering, measurement persistence, and all earlier 8e.7 scope are accepted. Future work must branch from this sealed baseline; PTZ preset management/animation, occlusion analysis, NAS persistence, coordinate-datum management, and formal reporting remain unimplemented.
+## 8e.7.1 - PTZ Presets (implementation complete; acceptance pending)
+
+Schema 4 adds fully persisted per-camera preset collections. The shared manager supports Add Current, metadata-only Save Details, Update Current, confirmed Delete, Recall, and Select Depth Surface from the inspector, floating Camera View, integrated Video Wall, and linked pop-out wall. Presets retain camera/lens identity, PTZ/optical/depth/palette state, installation transform, ROI inputs, footprint, pixel density, estimated ROI pixels, and 3x3/9x9 thermography classification.
+
+Recall is animated with cubic easing, shortest-path pan/roll, and a persisted 1-60 degrees/second speed preference (default 10). Manual PTZ/roll/zoom cancels recall. Completion applies exact target values and synchronizes the saved palette. Automated schema, persistence, normalization, animation, cancellation, renderer, wall, measurement, and legacy tests pass. Owner visual/interaction acceptance remains required.

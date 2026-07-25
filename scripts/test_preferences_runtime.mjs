@@ -35,6 +35,7 @@ const sanitized = JSON.parse(JSON.stringify(sandbox.sanitizePreferences({
   showAxes: false,
   coneOpacity: 99,
   fbxAutoScale: false,
+  ptzPresetSpeed: 99,
   unexpected: 'ignored'
 })));
 
@@ -44,15 +45,18 @@ assert.equal(sanitized.reversePan, true);
 assert.equal(sanitized.showGrid, false);
 assert.equal(sanitized.coneOpacity, 0.5);
 assert.equal(sanitized.fbxAutoScale, false);
+assert.equal(sanitized.ptzPresetSpeed, 60);
 assert.equal('unexpected' in sanitized, false);
 
 const invalidEnums = JSON.parse(JSON.stringify(sandbox.sanitizePreferences({
   theme: 'neon',
   rendererQuality: 'ultra',
-  coneOpacity: -5
+  coneOpacity: -5,
+  ptzPresetSpeed: 0
 })));
 assert.equal(invalidEnums.theme, 'dark');
 assert.equal(invalidEnums.rendererQuality, 'high');
 assert.equal(invalidEnums.coneOpacity, 0.05);
+assert.equal(invalidEnums.ptzPresetSpeed, 1);
 
-console.log('8e.4 preference sanitizer runtime tests passed');
+console.log('8e.7.1 preference sanitizer runtime tests passed');

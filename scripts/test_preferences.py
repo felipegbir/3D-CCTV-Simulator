@@ -7,6 +7,6 @@ ids = ("preferenceTheme","preferenceReversePan","preferenceReverseTilt","prefere
 for element_id in ids:
     assert f'id="{element_id}"' in HTML, f"Missing preference control: {element_id}"
     assert f"getElementById('{element_id}')" in JS, f"Unwired preference: {element_id}"
-markers = ("const PREFERENCES_STORAGE_KEY = 'nomadCctvPreferences.v1';","function sanitizePreferences(candidate)","function applyPreferences({ persist = false } = {})","theme: 'dark'","modelImportPreset: 'hvdcMm'","preferences.modelImportPreset === 'hvdcMm'","preferences: { ...preferences }","gridHelper.visible = preferences.showGrid","preferences.reversePan ? -1 : 1","preferences.reverseTilt ? -1 : 1","preferences.invertZoom ? -wheelDirection : wheelDirection")
+markers = ("const PREFERENCES_STORAGE_KEY = 'nomadCctvPreferences.v1';","function sanitizePreferences(candidate)","function applyPreferences({ persist = false } = {})","theme: 'dark'","modelImportPreset: 'hvdcMm'","preferences.modelImportPreset === 'hvdcMm'","preferences: { ...preferences }","gridHelper.visible = preferences.showGrid","preferences.reversePan ? -1 : 1","preferences.reverseTilt ? -1 : 1","preferences.invertZoom ? -wheelDirection : wheelDirection","ptzPresetSpeed: 10","Math.min(60, Math.max(1, ptzPresetSpeed))")
 for marker in markers: assert marker in JS, f"Missing preference behavior: {marker}"
-print("8e.7 preference source regression guard passed")
+print("8e.7.1 preference source regression guard passed")

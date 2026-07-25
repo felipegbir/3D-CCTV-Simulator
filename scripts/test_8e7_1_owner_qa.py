@@ -9,12 +9,15 @@ for marker in (
     'sceneTreeToggle',
     'body.scene-tree-collapsed #viewer',
     '#operationsFrame .menu-group.open',
+    '#operationsFrame .menu-group > .menu-dropdown',
+    "dropdown.className = 'menu-dropdown'",
+    "dropdown.setAttribute('role', 'menu')",
     "if (!event.target.closest('#operationsFrame .menu-group')) closeMenus();",
     "event.target.matches('select, input:not([type=\"range\"])')",
     '.camera-viewport.has-preset-dock .camera-viewport-body',
     '.ptz-preset-list option.limit-warning',
     'preset-depth-pick-banner',
-    '/static/viewer.js?v=941',
+    '/static/viewer.js?v=942',
 ):
     assert marker in HTML, f'Missing owner-QA layout marker: {marker}'
 

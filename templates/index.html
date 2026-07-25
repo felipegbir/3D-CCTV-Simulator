@@ -1004,11 +1004,39 @@
     }
     #operationsFrame .about-card { margin: 0; }
     #operationsFrame .menu-group.open {
-      height: auto;
-      max-height: calc(100vh - 8px);
-      overflow-y: auto;
-      box-shadow: 0 8px 18px rgba(0,0,0,.45);
+      height: 40px;
+      max-height: 40px;
+      overflow: visible;
+      box-shadow: none;
     }
+    #operationsFrame .menu-group > .menu-dropdown {
+      display: none;
+      position: absolute;
+      top: 40px;
+      left: 0;
+      z-index: 9200;
+      width: 280px;
+      max-height: calc(100vh - 52px);
+      overflow-x: hidden;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-top: 0;
+      border-radius: 0 0 5px 5px;
+      background: var(--panel-bg);
+      box-shadow: 0 10px 24px rgba(0,0,0,.48);
+    }
+    #operationsFrame .menu-group.open > .menu-dropdown { display: block; }
+    #operationsFrame .menu-dropdown > .menu-button,
+    #operationsFrame .menu-dropdown > .preference-row,
+    #operationsFrame .menu-dropdown > .about-card,
+    #operationsFrame .menu-dropdown > .measurement-status {
+      display: grid;
+      position: relative;
+      width: 100%;
+      margin: 0;
+      box-sizing: border-box;
+    }
+    #operationsFrame .menu-dropdown > input[type="file"] { display: none; }
     #appHeader, #sidebarSpacer { display: none; }
     #sidebar {
       top: 40px;
@@ -1554,6 +1582,11 @@
 
     groups.forEach(group => {
       const title = group.querySelector('.section-title');
+      const dropdown = document.createElement('div');
+      dropdown.className = 'menu-dropdown';
+      dropdown.setAttribute('role', 'menu');
+      [...group.children].filter(child => child !== title).forEach(child => dropdown.appendChild(child));
+      group.appendChild(dropdown);
       title.setAttribute('role', 'button');
       title.setAttribute('tabindex', '0');
       const toggle = event => {
@@ -1594,6 +1627,6 @@
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=941"></script>
+<script type="module" src="/static/viewer.js?v=942"></script>
 </body>
 </html>

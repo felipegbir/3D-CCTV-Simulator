@@ -229,3 +229,7 @@ Deployment validation passed on CCTV PID 929900 with cache 933, deployed 2x-20x 
 Measurement labels now honor point sequence in screen space: Point 1 left of Point 2 keeps normal text, while Point 1 right of Point 2 rotates text 180 degrees. Orientation is recalculated per rendering camera. Automated checks pass; final owner visual confirmation remains pending.
 
 Deployment validation passed on CCTV PID 935864 with cache 934, deployed sequence-orientation marker, and matching frontend hashes.
+
+### 8e.7 accepted and sealed
+
+The owner confirmed all final QA issues resolved on 2026-07-24. Cache 934 is the accepted 8e.7 baseline. The sharp 2x-20x loupe, sequence-aware measurement labels, depth clipping, Video Wall lifecycle, camera rendering, measurement persistence, and all earlier 8e.7 scope are accepted. Future work must branch from this sealed baseline; PTZ preset management/animation, occlusion analysis, NAS persistence, coordinate-datum management, and formal reporting remain unimplemented.

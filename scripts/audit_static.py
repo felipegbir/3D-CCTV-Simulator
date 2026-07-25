@@ -61,7 +61,7 @@ def main() -> int:
         "theme engine": "applyTheme",
         "customer preferences": "PREFERENCES_STORAGE_KEY",
         "viewport renderer parity": "configureRendererQuality(viewportRenderer)",
-        "viewport wall": "arrangeCameraViewports",
+        "video wall": "buildIntegratedVideoWall",
         "runtime version": "appVersionLabel",
     }
     missing_markers = [
@@ -88,7 +88,7 @@ def main() -> int:
     theme_contract_missing = (
         len(css_variables) < 20
         or 'body[data-theme="dark"]' not in html
-        or 'id="toggleTheme"' not in html
+        or 'id="preferenceTheme"' not in html
     )
     print(f"Theme contract missing: {int(theme_contract_missing)}")
 

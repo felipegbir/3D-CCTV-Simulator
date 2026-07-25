@@ -164,3 +164,11 @@ Numerous Operations commands remain disabled, and legacy `.camera-viewport-ptz` 
 Git could not create object files reliably in the original NAS workspace. This local NTFS working copy was created to provide the authoritative Git-backed development baseline. Use the NAS as a backup or deployment source rather than the live Git object database.
 
 
+
+### 8e.7 - Alternate Video Wall, scale calibration, and measurement
+
+Release 8e.7 preserves the accepted floating camera-window workflow and moves wall organization into a separate Planning Workspace / Video Wall mode. The wall includes a Planning Scene tile, all current cameras (up to 16), Auto and 1x1 through 5x5 layouts, drag/drop ordering, and a linked pop-out window for a second monitor. The pop-out shares the originating browser's in-memory scene; it is not an independently loaded project session.
+
+The redundant Operations > View theme control is removed, while Preferences remains authoritative. Help and About are separate collapsible groups. The default model-import preset now applies the owner-specified HVDC/mm transform (-90 degrees X, scale 0.01) to GLB/glTF and FBX; As Exported is available.
+
+Two-point raycast measurement and selected-model scale calibration are implemented. Project schema 3 persists preferences, wall layout/order, model calibration metadata, measurement records, and external reference-image transforms. External binaries remain unembedded and must be available/re-imported in a new browser session. Calibration uses uniform scaling and is not yet included in command-based undo/redo. Owner visual acceptance is pending.

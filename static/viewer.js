@@ -16,8 +16,12 @@ const toolbarLayFace = document.getElementById('toolbarLayFace');
 const toolbarCameraView = document.getElementById('toolbarCameraView');
 const cameraViewportsContainer = document.getElementById('cameraViewports');
 const openCameraViewports = [];
-const APP_VERSION = '8e.6';
-const PROJECT_SCHEMA_VERSION = 2;
+var videoWallRecords = [];
+var popupVideoWallRecords = [];
+var popupVideoWallWindow = null;
+let videoWallOrder = ['scene'];
+const APP_VERSION = '8e.7';
+const PROJECT_SCHEMA_VERSION = 3;
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
 const appVersionLabel = document.getElementById('appVersionLabel');
 const aboutVersion = document.getElementById('aboutVersion');
@@ -25,7 +29,6 @@ if (appVersionLabel) appVersionLabel.textContent = APP_VERSION;
 if (aboutVersion) aboutVersion.textContent = APP_VERSION;
 document.title = `N.O.M.A.D. CCTV Digital Twin Simulator ${APP_VERSION}`;
 const addCameraButton = document.getElementById('addCameraButton');
-const toggleThemeButton = document.getElementById('toggleTheme');
 let cameraCounter = 1;
 
 const scene = new THREE.Scene();
@@ -37,8 +40,6 @@ function applyTheme(theme) {
 
   document.body.dataset.theme = normalizedTheme;
   scene.background.set(isDark ? 0x11161c : 0xf2f2f2);
-  toggleThemeButton.textContent = isDark ? 'Light Mode' : 'Dark Mode';
-  toggleThemeButton.setAttribute('aria-pressed', String(isDark));
 }
 
 const viewerCamera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 10000);
@@ -107,7 +108,19 @@ const importModelFile = document.getElementById('importModelFile');
 const importReferenceImageButton = document.getElementById('importReferenceImage');
 const importReferenceImageFile = document.getElementById('importReferenceImageFile');
 const fitSelectedViewButton = document.getElementById('fitSelectedView');
-const arrangeCameraWallButton = document.getElementById('arrangeCameraWall');
+const openVideoWallButton = document.getElementById('openVideoWall');
+const popOutVideoWallButton = document.getElementById('popOutVideoWall');
+const videoWallOverlay = document.getElementById('videoWallOverlay');
+const videoWallGrid = document.getElementById('videoWallGrid');
+const videoWallLayout = document.getElementById('videoWallLayout');
+const closeVideoWallButton = document.getElementById('closeVideoWall');
+const refreshVideoWallButton = document.getElementById('refreshVideoWall');
+const popOutVideoWallOverlayButton = document.getElementById('popOutVideoWallOverlay');
+const calibrateScaleToolButton = document.getElementById('calibrateScaleTool');
+const measureDistanceToolButton = document.getElementById('measureDistanceTool');
+const cancelMeasurementToolButton = document.getElementById('cancelMeasurementTool');
+const clearMeasurementsButton = document.getElementById('clearMeasurements');
+const measurementStatus = document.getElementById('measurementStatus');
 
 const orbitControls = new OrbitControls(viewerCamera, renderer.domElement);
 orbitControls.enableDamping = false;
@@ -136,6 +149,12 @@ const axesHelper = new THREE.AxesHelper(10);
 scene.add(gridHelper);
 scene.add(axesHelper);
 const sceneObjects = [];
+const measurements = [];
+const measurementVisuals = new THREE.Group();
+measurementVisuals.name = 'NOMAD Measurements';
+scene.add(measurementVisuals);
+let measurementMode = null;
+let measurementPoints = [];
 let selectedId = null;
 const PREFERENCES_STORAGE_KEY = 'nomadCctvPreferences.v1';
 const DEFAULT_PREFERENCES = Object.freeze({
@@ -147,7 +166,8 @@ const DEFAULT_PREFERENCES = Object.freeze({
   showGrid: true,
   showAxes: true,
   coneOpacity: 0.15,
-  fbxAutoScale: true
+  fbxAutoScale: true,
+  modelImportPreset: 'hvdcMm'
 });
 
 const preferenceControls = {
@@ -161,6 +181,7 @@ const preferenceControls = {
   coneOpacity: document.getElementById('preferenceConeOpacity'),
   coneOpacityValue: document.getElementById('preferenceConeOpacityValue'),
   fbxAutoScale: document.getElementById('preferenceFbxAutoScale'),
+  modelImportPreset: document.getElementById('preferenceModelImportPreset'),
   reset: document.getElementById('resetPreferences')
 };
 
@@ -170,6 +191,10 @@ function sanitizePreferences(candidate) {
 
   if (candidate.theme === 'light' || candidate.theme === 'dark') {
     safe.theme = candidate.theme;
+  }
+
+  if (candidate.modelImportPreset === 'hvdcMm' || candidate.modelImportPreset === 'asExported') {
+    safe.modelImportPreset = candidate.modelImportPreset;
   }
 
   if (['performance', 'balanced', 'high'].includes(candidate.rendererQuality)) {
@@ -243,6 +268,7 @@ function syncPreferenceControls() {
   preferenceControls.coneOpacity.value = String(preferences.coneOpacity);
   preferenceControls.coneOpacityValue.textContent = `${Math.round(preferences.coneOpacity * 100)}%`;
   preferenceControls.fbxAutoScale.checked = preferences.fbxAutoScale;
+  preferenceControls.modelImportPreset.value = preferences.modelImportPreset;
 }
 
 function readPreferenceControls() {
@@ -255,7 +281,8 @@ function readPreferenceControls() {
     showGrid: preferenceControls.showGrid.checked,
     showAxes: preferenceControls.showAxes.checked,
     coneOpacity: preferenceControls.coneOpacity.value,
-    fbxAutoScale: preferenceControls.fbxAutoScale.checked
+    fbxAutoScale: preferenceControls.fbxAutoScale.checked,
+    modelImportPreset: preferenceControls.modelImportPreset.value
   });
 }
 
@@ -265,6 +292,8 @@ function applyPreferences({ persist = false } = {}) {
   axesHelper.visible = preferences.showAxes;
   configureRendererQuality(renderer);
   openCameraViewports.forEach(viewport => configureRendererQuality(viewport.renderer));
+  videoWallRecords.forEach(record => configureRendererQuality(record.renderer));
+  popupVideoWallRecords.forEach(record => configureRendererQuality(record.renderer));
 
   sceneObjects
     .filter(item => item.type === 'camera')
@@ -296,7 +325,8 @@ for (const control of [
   preferenceControls.rendererQuality,
   preferenceControls.showGrid,
   preferenceControls.showAxes,
-  preferenceControls.fbxAutoScale
+  preferenceControls.fbxAutoScale,
+  preferenceControls.modelImportPreset
 ]) {
   control.addEventListener('change', updatePreferencesFromControls);
 }
@@ -998,56 +1028,149 @@ function applyViewportPalette(viewportRenderer, paletteKey) {
 
 const MAX_CAMERA_VIEWPORTS = 16;
 let viewportZCounter = 30;
-let cameraWallLayoutActive = false;
 
 function focusCameraViewport(viewport) {
   if (!viewport) return;
-
   viewportZCounter += 1;
-  openCameraViewports.forEach(record => {
-    record.element.classList.toggle('active-viewport', record.element === viewport);
-  });
+  openCameraViewports.forEach(record => record.element.classList.toggle('active-viewport', record.element === viewport));
   viewport.style.zIndex = String(viewportZCounter);
 }
 
-function getCameraWallDimension(count) {
-  if (count <= 1) return 1;
-  if (count <= 4) return 2;
-  if (count <= 9) return 3;
-  return 4;
+function getVideoWallSources() {
+  const cameras = sceneObjects.filter(item => item.type === 'camera').slice(0, MAX_CAMERA_VIEWPORTS);
+  const available = new Map([['scene', { key: 'scene', label: 'Planning Scene', item: null }]]);
+  cameras.forEach(item => available.set(item.id, { key: item.id, label: item.name, item }));
+  videoWallOrder = videoWallOrder.filter(key => available.has(key));
+  available.forEach((value, key) => { if (!videoWallOrder.includes(key)) videoWallOrder.push(key); });
+  return videoWallOrder.map(key => available.get(key));
 }
 
-function arrangeCameraViewports() {
-  const count = openCameraViewports.length;
-  if (count === 0) {
-    cameraWallLayoutActive = false;
-    return;
-  }
+function disposeVideoWallRecords(records) {
+  records.forEach(record => record.renderer.dispose());
+  records.length = 0;
+}
 
-  const dimension = getCameraWallDimension(count);
-  const margin = 8;
-  const gap = 8;
-  const width = cameraViewportsContainer.clientWidth;
-  const height = cameraViewportsContainer.clientHeight;
-  const cellWidth = Math.max(1, Math.floor((width - margin * 2 - gap * (dimension - 1)) / dimension));
-  const cellHeight = Math.max(1, Math.floor((height - margin * 2 - gap * (dimension - 1)) / dimension));
+function getWallColumns(count, selection) {
+  if (selection !== 'auto') return Number(selection) || 1;
+  return Math.max(1, Math.min(5, Math.ceil(Math.sqrt(Math.max(1, count)))));
+}
 
-  cameraWallLayoutActive = true;
-  openCameraViewports.forEach((record, index) => {
-    const column = index % dimension;
-    const row = Math.floor(index / dimension);
-    record.applyWallLayout({
-      left: margin + column * (cellWidth + gap),
-      top: margin + row * (cellHeight + gap),
-      width: cellWidth,
-      height: cellHeight
-    });
-    record.element.style.zIndex = String(20 + index);
+function syncWallCamera(target, sourceItem) {
+  const source = sourceItem?.object?.userData?.renderCamera;
+  if (!source) return false;
+  target.position.copy(source.getWorldPosition(new THREE.Vector3()));
+  target.quaternion.copy(source.getWorldQuaternion(new THREE.Quaternion()));
+  target.fov = source.fov;
+  target.near = source.near;
+  target.far = source.far;
+  target.zoom = source.zoom;
+  target.updateProjectionMatrix();
+  return true;
+}
+
+function reorderVideoWall(draggedKey, targetKey) {
+  const from = videoWallOrder.indexOf(draggedKey);
+  const to = videoWallOrder.indexOf(targetKey);
+  if (from < 0 || to < 0 || from === to) return;
+  videoWallOrder.splice(to, 0, videoWallOrder.splice(from, 1)[0]);
+  buildIntegratedVideoWall();
+  if (popupVideoWallWindow && !popupVideoWallWindow.closed) buildPopupVideoWall();
+}
+
+function createWallTile(doc, host, source, records, onDrop) {
+  const tile = doc.createElement('div');
+  tile.className = 'video-wall-tile';
+  tile.dataset.sourceKey = source.key;
+  const label = doc.createElement('div');
+  label.className = 'video-wall-label';
+  label.textContent = source.label;
+  label.draggable = true;
+  label.addEventListener('dragstart', event => event.dataTransfer.setData('text/plain', source.key));
+  tile.addEventListener('dragover', event => { event.preventDefault(); tile.classList.add('drag-over'); });
+  tile.addEventListener('dragleave', () => tile.classList.remove('drag-over'));
+  tile.addEventListener('drop', event => {
+    event.preventDefault();
+    tile.classList.remove('drag-over');
+    onDrop(event.dataTransfer.getData('text/plain'), source.key);
   });
-
-  const selectedViewport = openCameraViewports.find(record => record.cameraId === selectedId);
-  focusCameraViewport(selectedViewport?.element || openCameraViewports[count - 1].element);
+  tile.appendChild(label);
+  host.appendChild(tile);
+  const wallRenderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  configureRendererQuality(wallRenderer);
+  tile.appendChild(wallRenderer.domElement);
+  const wallCamera = new THREE.PerspectiveCamera(60, 1, 0.1, 10000);
+  records.push({ sourceKey: source.key, item: source.item, renderer: wallRenderer, camera: wallCamera, host: tile });
 }
+
+function buildIntegratedVideoWall() {
+  disposeVideoWallRecords(videoWallRecords);
+  videoWallGrid.replaceChildren();
+  const sources = getVideoWallSources();
+  videoWallGrid.style.setProperty('--wall-columns', String(getWallColumns(sources.length, videoWallLayout.value)));
+  sources.forEach(source => createWallTile(document, videoWallGrid, source, videoWallRecords, reorderVideoWall));
+}
+
+function showVideoWall() {
+  buildIntegratedVideoWall();
+  videoWallOverlay.classList.remove('hidden');
+  videoWallOverlay.setAttribute('aria-hidden', 'false');
+}
+
+function hideVideoWall() {
+  videoWallOverlay.classList.add('hidden');
+  videoWallOverlay.setAttribute('aria-hidden', 'true');
+  disposeVideoWallRecords(videoWallRecords);
+}
+
+function ensurePopupVideoWall() {
+  if (popupVideoWallWindow && !popupVideoWallWindow.closed) return popupVideoWallWindow;
+  popupVideoWallWindow = window.open('', 'nomadVideoWall', 'width=1400,height=900,resizable=yes');
+  if (!popupVideoWallWindow) {
+    alert('The browser blocked the Video Wall window. Allow pop-ups for this simulator and try again.');
+    return null;
+  }
+  const doc = popupVideoWallWindow.document;
+  doc.open();
+  doc.write(`<!doctype html><html><head><title>N.O.M.A.D. Video Wall ${APP_VERSION}</title><style>
+    html,body{height:100%;margin:0;background:#080c11;color:#eef3f7;font-family:Arial,sans-serif;overflow:hidden}
+    .bar{height:48px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#111a24;border-bottom:1px solid #34465a}.bar strong{margin-right:auto}
+    button,select{padding:7px 10px;border:1px solid #52677d;border-radius:4px;background:#233244;color:#fff}
+    #grid{height:calc(100% - 48px);box-sizing:border-box;display:grid;grid-template-columns:repeat(var(--wall-columns,2),minmax(0,1fr));gap:6px;padding:6px}
+    .video-wall-tile{min-width:0;min-height:0;position:relative;overflow:hidden;background:#000;border:1px solid #40536a;border-radius:4px}.video-wall-tile.drag-over{outline:3px solid #00aaff}.video-wall-tile canvas{width:100%;height:100%;display:block}.video-wall-label{position:absolute;left:6px;top:6px;z-index:2;padding:4px 7px;border-radius:3px;background:rgba(0,0,0,.7);font-size:12px;cursor:grab;user-select:none}
+  </style></head><body><div class="bar"><strong>N.O.M.A.D. Video Wall</strong><label>Layout <select id="layout"><option value="auto">Auto</option><option value="1">1 x 1</option><option value="2">2 x 2</option><option value="3">3 x 3</option><option value="4">4 x 4</option><option value="5">5 x 5</option></select></label><button id="refresh">Refresh Sources</button></div><div id="grid"></div></body></html>`);
+  doc.close();
+  doc.querySelector('#layout').value = videoWallLayout.value;
+  doc.querySelector('#layout').addEventListener('change', buildPopupVideoWall);
+  doc.querySelector('#refresh').addEventListener('click', buildPopupVideoWall);
+  popupVideoWallWindow.addEventListener('beforeunload', () => { disposeVideoWallRecords(popupVideoWallRecords); popupVideoWallWindow = null; });
+  return popupVideoWallWindow;
+}
+
+function buildPopupVideoWall() {
+  const popup = ensurePopupVideoWall();
+  if (!popup) return;
+  disposeVideoWallRecords(popupVideoWallRecords);
+  const doc = popup.document;
+  const grid = doc.querySelector('#grid');
+  if (!grid) return;
+  grid.replaceChildren();
+  const sources = getVideoWallSources();
+  const layout = doc.querySelector('#layout').value;
+  grid.style.setProperty('--wall-columns', String(getWallColumns(sources.length, layout)));
+  sources.forEach(source => createWallTile(doc, grid, source, popupVideoWallRecords, reorderVideoWall));
+}
+
+function popOutVideoWall() {
+  buildPopupVideoWall();
+  popupVideoWallWindow?.focus();
+}
+
+openVideoWallButton.addEventListener('click', showVideoWall);
+popOutVideoWallButton.addEventListener('click', popOutVideoWall);
+popOutVideoWallOverlayButton.addEventListener('click', popOutVideoWall);
+closeVideoWallButton.addEventListener('click', hideVideoWall);
+refreshVideoWallButton.addEventListener('click', buildIntegratedVideoWall);
+videoWallLayout.addEventListener('change', buildIntegratedVideoWall);
 function openCameraViewport(cameraItem) {
   if (!cameraItem || cameraItem.type !== 'camera') return;
 
@@ -1103,14 +1226,11 @@ function openCameraViewport(cameraItem) {
   viewport.addEventListener('mousedown', () => focusCameraViewport(viewport), true);
   viewport.querySelector('.viewport-close').addEventListener('click', () => {
     viewport.remove();
-
-    const shouldRearrange = cameraWallLayoutActive;
     const index = openCameraViewports.findIndex(v => v.element === viewport);
     if (index !== -1) {
       openCameraViewports[index].renderer.dispose();
       openCameraViewports.splice(index, 1);
     }
-    if (shouldRearrange) requestAnimationFrame(arrangeCameraViewports);
   });
 
   const header = viewport.querySelector('.camera-viewport-header');
@@ -1129,8 +1249,6 @@ function openCameraViewport(cameraItem) {
   header.addEventListener('mousedown', (e) => {
     if (e.target.closest('.camera-viewport-controls')) return;
 
-    cameraWallLayoutActive = false;
-    viewport.classList.remove('wall-layout');
     isDragging = true;
 
     const rect = viewport.getBoundingClientRect();
@@ -1366,38 +1484,8 @@ function openCameraViewport(cameraItem) {
     left: viewport.style.left,
     top: viewport.style.top
   };
-  function applyWallLayout(rect) {
-    isDragging = false;
-    isMinimized = false;
-    isMaximized = false;
-    viewport.userDataBeforeMinimize = null;
-    viewport.classList.add('wall-layout');
-    body.style.display = 'block';
-    viewport.style.left = `${rect.left}px`;
-    viewport.style.top = `${rect.top}px`;
-    viewport.style.width = `${rect.width}px`;
-    viewport.style.height = `${rect.height}px`;
-    viewport.style.right = 'auto';
-    viewport.style.bottom = 'auto';
-    normalViewportState.left = viewport.style.left;
-    normalViewportState.top = viewport.style.top;
-    normalViewportState.width = viewport.style.width;
-    normalViewportState.height = viewport.style.height;
-    minimizeBtn.textContent = '—';
-    minimizeBtn.style.display = 'inline-block';
-    maximizeBtn.textContent = '□';
-    maximizeBtn.style.display = 'inline-block';
-    captureBtn.style.display = 'inline-block';
-    ptzToggleBtn.style.display = 'none';
-    if (paletteLabel) paletteLabel.style.display = 'none';
-    setViewportPtzEnabled(false);
-    applyViewportPalette(viewportRenderer, selectedViewportPalette);
-    requestAnimationFrame(resizeCameraViewportRenderer);
-  }
 
   minimizeBtn.addEventListener('click', () => {
-    cameraWallLayoutActive = false;
-    viewport.classList.remove('wall-layout');
     focusCameraViewport(viewport);
     isMinimized = !isMinimized;
 
@@ -1520,8 +1608,6 @@ function openCameraViewport(cameraItem) {
     });
 
   maximizeBtn.addEventListener('click', () => {
-    cameraWallLayoutActive = false;
-    viewport.classList.remove('wall-layout');
     focusCameraViewport(viewport);
     isMaximized = !isMaximized;
 
@@ -1606,15 +1692,9 @@ function openCameraViewport(cameraItem) {
     renderer: viewportRenderer,
     body: body,
     camera: viewportCamera,
-    applyWallLayout,
     isRenderable: () => !isMinimized
   });
-
-  if (cameraWallLayoutActive) {
-    requestAnimationFrame(arrangeCameraViewports);
-  } else {
-    focusCameraViewport(viewport);
-  }
+  focusCameraViewport(viewport);
 }
 
 function frameObject(object) {
@@ -2044,13 +2124,196 @@ toolbarDelete.addEventListener('click', () => {
   updateObjectInfoPanel();
 });
 
-toggleThemeButton.addEventListener('click', () => {
-  preferences.theme = preferences.theme === 'dark' ? 'light' : 'dark';
-  applyPreferences({ persist: true });
+
+
+
+function setMeasurementStatus(message) {
+  measurementStatus.textContent = message;
+}
+
+function disposeMeasurementVisuals() {
+  measurementVisuals.traverse(child => {
+    child.geometry?.dispose?.();
+    child.material?.dispose?.();
+  });
+  measurementVisuals.clear();
+}
+
+function addMeasurementVisual(record) {
+  const start = new THREE.Vector3(record.start.x, record.start.y, record.start.z);
+  const end = new THREE.Vector3(record.end.x, record.end.y, record.end.z);
+  const material = new THREE.LineBasicMaterial({ color: record.kind === 'calibration' ? 0xffb020 : 0x00e5ff });
+  const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+  const line = new THREE.Line(geometry, material);
+  line.userData.measurementId = record.id;
+  measurementVisuals.add(line);
+  const markerGeometry = new THREE.SphereGeometry(0.07, 12, 8);
+  [start, end].forEach(point => {
+    const marker = new THREE.Mesh(markerGeometry.clone(), new THREE.MeshBasicMaterial({ color: material.color }));
+    marker.position.copy(point);
+    marker.userData.measurementId = record.id;
+    measurementVisuals.add(marker);
+  });
+}
+
+function restoreMeasurements(records) {
+  measurements.length = 0;
+  disposeMeasurementVisuals();
+  if (!Array.isArray(records)) return;
+  records.forEach(record => {
+    if (!record?.start || !record?.end) return;
+    const safe = {
+      id: record.id || `measurement-${Date.now()}-${measurements.length}`,
+      kind: record.kind === 'calibration' ? 'calibration' : 'distance',
+      label: record.label || 'Measurement',
+      start: { ...record.start },
+      end: { ...record.end },
+      distance: Number(record.distance) || 0,
+      unit: record.unit || 'm',
+      targetId: record.targetId || null,
+      createdAt: record.createdAt || new Date().toISOString()
+    };
+    measurements.push(safe);
+    addMeasurementVisual(safe);
+  });
+}
+
+function cancelMeasurementTool(message = 'Measurement tool cancelled.') {
+  measurementMode = null;
+  measurementPoints = [];
+  orbitControls.enabled = true;
+  renderer.domElement.style.cursor = '';
+  setMeasurementStatus(message);
+}
+
+function beginMeasurementTool(mode) {
+  if (mode === 'calibration') {
+    const selected = sceneObjects.find(item => item.id === selectedId);
+    if (!selected || selected.type !== 'model') {
+      alert('Select the model to calibrate, then start Calibrate Scale.');
+      return;
+    }
+  }
+  measurementMode = mode;
+  measurementPoints = [];
+  orbitControls.enabled = false;
+  renderer.domElement.style.cursor = 'crosshair';
+  setMeasurementStatus(mode === 'calibration'
+    ? 'Calibration active: click two points on the selected model.'
+    : 'Distance tool active: click two surface points.');
+}
+
+function pickMeasurementPoint(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const pointer = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer, viewerCamera);
+  const selectedCalibrationTarget = measurementMode === 'calibration'
+    ? sceneObjects.find(item => item.id === selectedId && item.type === 'model')
+    : null;
+  const targets = selectedCalibrationTarget
+    ? [selectedCalibrationTarget.object]
+    : sceneObjects
+      .filter(item => item.type === 'model' || item.data?.referenceImage)
+      .map(item => item.object);
+  return raycaster.intersectObjects(targets, true)[0]?.point?.clone() || null;
+}
+
+function completeMeasurement() {
+  const [start, end] = measurementPoints;
+  const measuredDistance = start.distanceTo(end);
+  if (!(measuredDistance > 0)) {
+    cancelMeasurementTool('The two points must be different. Start the tool and try again.');
+    return;
+  }
+  if (measurementMode === 'calibration') {
+    const item = sceneObjects.find(entry => entry.id === selectedId && entry.type === 'model');
+    if (!item) return cancelMeasurementTool('The calibration target is no longer selected.');
+    const response = window.prompt(`Measured model distance: ${measuredDistance.toFixed(4)} project units.\nEnter the real-world distance in metres:`, measuredDistance.toFixed(3));
+    if (response === null) return cancelMeasurementTool();
+    const realDistance = Number(response);
+    if (!(realDistance > 0)) {
+      alert('Enter a positive real-world distance.');
+      return cancelMeasurementTool('Calibration was not applied.');
+    }
+    const localStart = item.object.worldToLocal(start.clone());
+    const localEnd = item.object.worldToLocal(end.clone());
+    const factor = realDistance / measuredDistance;
+    item.object.scale.multiplyScalar(factor);
+    item.object.updateMatrixWorld(true);
+    const calibratedStart = item.object.localToWorld(localStart);
+    const calibratedEnd = item.object.localToWorld(localEnd);
+    item.data = {
+      ...item.data,
+      calibration: {
+        method: 'two-point',
+        measuredDistance,
+        realDistance,
+        unit: 'm',
+        scaleFactor: factor,
+        calibratedAt: new Date().toISOString()
+      }
+    };
+    const record = {
+      id: `calibration-${Date.now()}`,
+      kind: 'calibration',
+      label: `${item.name}: ${realDistance.toFixed(3)} m calibration`,
+      start: { x: calibratedStart.x, y: calibratedStart.y, z: calibratedStart.z },
+      end: { x: calibratedEnd.x, y: calibratedEnd.y, z: calibratedEnd.z },
+      distance: realDistance,
+      unit: 'm',
+      targetId: item.id,
+      createdAt: new Date().toISOString()
+    };
+    measurements.push(record);
+    addMeasurementVisual(record);
+    updateObjectInfoPanel();
+    cancelMeasurementTool(`Scale calibrated: ${measuredDistance.toFixed(4)} project units = ${realDistance.toFixed(3)} m.`);
+    return;
+  }
+  const record = {
+    id: `measurement-${Date.now()}`,
+    kind: 'distance',
+    label: `${measuredDistance.toFixed(3)} m`,
+    start: { x: start.x, y: start.y, z: start.z },
+    end: { x: end.x, y: end.y, z: end.z },
+    distance: measuredDistance,
+    unit: 'm',
+    targetId: null,
+    createdAt: new Date().toISOString()
+  };
+  measurements.push(record);
+  addMeasurementVisual(record);
+  cancelMeasurementTool(`Distance: ${measuredDistance.toFixed(3)} m. Saved with the project.`);
+}
+
+renderer.domElement.addEventListener('click', event => {
+  if (!measurementMode || !videoWallOverlay.classList.contains('hidden')) return;
+  const point = pickMeasurementPoint(event);
+  if (!point) {
+    setMeasurementStatus('No model/reference surface was hit. Click directly on a visible surface.');
+    return;
+  }
+  measurementPoints.push(point);
+  if (measurementPoints.length === 1) {
+    setMeasurementStatus('First point captured. Click the second point.');
+  } else {
+    completeMeasurement();
+  }
+}, true);
+
+calibrateScaleToolButton.addEventListener('click', () => beginMeasurementTool('calibration'));
+measureDistanceToolButton.addEventListener('click', () => beginMeasurementTool('distance'));
+cancelMeasurementToolButton.addEventListener('click', () => cancelMeasurementTool());
+clearMeasurementsButton.addEventListener('click', () => {
+  if (measurements.length && !confirm('Clear all saved measurement and calibration lines? Model scale will not be reverted.')) return;
+  measurements.length = 0;
+  disposeMeasurementVisuals();
+  cancelMeasurementTool('All measurement lines were cleared.');
 });
-arrangeCameraWallButton.addEventListener('click', arrangeCameraViewports);
-
-
 fitSelectedViewButton.addEventListener('click', () => {
   if (!selectedId) return;
 
@@ -2463,17 +2726,19 @@ const maxDimensionBeforeScale = Math.max(
 );
 
 let importScale = 1;
-let scaleNote = 'No automatic scale adjustment applied.';
+let scaleNote = 'Imported as exported; no preset transform was applied.';
+let rotationNote = 'No preset rotation applied.';
 
-if (preferences.fbxAutoScale && sourceFormat === 'fbx' && maxDimensionBeforeScale > 100) {
+if (preferences.modelImportPreset === 'hvdcMm') {
   importScale = 0.01;
-  scaleNote = 'Auto-scaled FBX by 0.01 based on observed Autodesk/NOMAD import behavior.';
-}
-
-if (sourceFormat === 'fbx') {
   model.rotation.x = -Math.PI / 2;
-  model.userData.importRotationNote = 'Auto-rotated FBX by -90 degrees on X axis.';
+  scaleNote = 'HVDC / mm workflow preset applied: scale 0.01.';
+  rotationNote = 'HVDC / mm workflow preset applied: -90 degrees on X axis.';
+} else if (preferences.fbxAutoScale && sourceFormat === 'fbx' && maxDimensionBeforeScale > 100) {
+  importScale = 0.01;
+  scaleNote = 'Large FBX fallback applied: scale 0.01.';
 }
+model.userData.importRotationNote = rotationNote;
 
 model.scale.multiplyScalar(importScale);
 model.userData.importScale = importScale;
@@ -2498,7 +2763,9 @@ addSceneObject({
   data: {
     sourceFormat,
     importScale,
-    maxDimensionBeforeScale
+    maxDimensionBeforeScale,
+    importPreset: preferences.modelImportPreset,
+    importRotationX: model.rotation.x
   }
 });
 
@@ -2790,6 +3057,17 @@ function applyLoadedProject(project) {
     return;
   }
 
+  if (project.preferences && typeof project.preferences === 'object') {
+    preferences = sanitizePreferences({ ...preferences, ...project.preferences });
+    applyPreferences({ persist: true });
+  }
+  if (project.workspace?.videoWall) {
+    const savedOrder = project.workspace.videoWall.order;
+    if (Array.isArray(savedOrder)) videoWallOrder = [...savedOrder];
+    const savedLayout = String(project.workspace.videoWall.layout || 'auto');
+    if ([...videoWallLayout.options].some(option => option.value === savedLayout)) videoWallLayout.value = savedLayout;
+  }
+
   if (Array.isArray(project.models)) {
     project.models.forEach((modelData) => {
       const item = sceneObjects.find(o =>
@@ -2800,6 +3078,9 @@ function applyLoadedProject(project) {
       if (!item) return;
 
       item.name = modelData.name || item.name;
+      if (modelData.data && typeof modelData.data === 'object') {
+        item.data = { ...item.data, ...modelData.data };
+      }
 
       item.object.position.set(
         modelData.position?.x ?? item.object.position.x,
@@ -2820,6 +3101,19 @@ function applyLoadedProject(project) {
       );
     });
   }
+
+  if (Array.isArray(project.referenceImages)) {
+    project.referenceImages.forEach(imageData => {
+      const item = sceneObjects.find(entry => entry.data?.referenceImage && (entry.id === imageData.id || entry.name === imageData.name));
+      if (!item) return;
+      item.name = imageData.name || item.name;
+      item.object.position.set(imageData.position?.x ?? item.object.position.x, imageData.position?.y ?? item.object.position.y, imageData.position?.z ?? item.object.position.z);
+      item.object.rotation.set(imageData.rotation?.x ?? item.object.rotation.x, imageData.rotation?.y ?? item.object.rotation.y, imageData.rotation?.z ?? item.object.rotation.z);
+      item.object.scale.set(imageData.scale?.x ?? item.object.scale.x, imageData.scale?.y ?? item.object.scale.y, imageData.scale?.z ?? item.object.scale.z);
+    });
+  }
+
+  restoreMeasurements(project.measurements);
 
   project.cameras.forEach((cameraData, index) => {
     let item = sceneObjects.find(o => o.id === cameraData.id);
@@ -2927,6 +3221,11 @@ saveProjectButton.addEventListener('click', () => {
     appVersion: APP_VERSION,
     savedAt: new Date().toISOString(),
     assetManifest,
+    preferences: { ...preferences },
+    workspace: {
+      mode: videoWallOverlay.classList.contains('hidden') ? 'planning' : 'videoWall',
+      videoWall: { layout: videoWallLayout.value, order: [...videoWallOrder] }
+    },
 
     model: {
       file: loadedModelFile,
@@ -2952,8 +3251,25 @@ saveProjectButton.addEventListener('click', () => {
           x: item.object.scale.x,
           y: item.object.scale.y,
           z: item.object.scale.z
-        }
+        },
+        data: { ...item.data }
       })),
+
+    referenceImages: sceneObjects
+      .filter(item => item.data?.referenceImage)
+      .map(item => ({
+        id: item.id,
+        name: item.name,
+        fileName: item.data?.fileName || item.name,
+        position: { x: item.object.position.x, y: item.object.position.y, z: item.object.position.z },
+        rotation: { x: item.object.rotation.x, y: item.object.rotation.y, z: item.object.rotation.z },
+        scale: { x: item.object.scale.x, y: item.object.scale.y, z: item.object.scale.z }
+      })),
+    measurements: measurements.map(record => ({
+      ...record,
+      start: { ...record.start },
+      end: { ...record.end }
+    })),
 
     cameras: sceneObjects
       .filter(item => item.type === 'camera')
@@ -3020,6 +3336,33 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
+function renderVideoWallRecords(records) {
+  const helper = transformControls.getHelper ? transformControls.getHelper() : transformControls;
+  const previousVisible = helper.visible;
+  helper.visible = false;
+  records.forEach(record => {
+    if (!record.host?.isConnected) return;
+    const width = Math.max(1, record.host.clientWidth);
+    const height = Math.max(1, record.host.clientHeight);
+    if (record.renderer.domElement.width !== width || record.renderer.domElement.height !== height) {
+      record.renderer.setSize(width, height, false);
+    }
+    if (record.sourceKey === 'scene') {
+      record.camera.position.copy(viewerCamera.position);
+      record.camera.quaternion.copy(viewerCamera.quaternion);
+      record.camera.fov = viewerCamera.fov;
+      record.camera.near = viewerCamera.near;
+      record.camera.far = viewerCamera.far;
+      record.camera.zoom = viewerCamera.zoom;
+    } else if (!syncWallCamera(record.camera, record.item)) {
+      return;
+    }
+    record.camera.aspect = width / height;
+    record.camera.updateProjectionMatrix();
+    record.renderer.render(scene, record.camera);
+  });
+  helper.visible = previousVisible;
+}
 function animate() {
   requestAnimationFrame(animate);
   orbitControls.update();
@@ -3029,6 +3372,8 @@ function animate() {
   }
 
   renderer.render(scene, viewerCamera);
+  renderVideoWallRecords(videoWallRecords);
+  renderVideoWallRecords(popupVideoWallRecords);
   openCameraViewports.forEach((viewportRecord) => {
     if (viewportRecord.isRenderable && !viewportRecord.isRenderable()) return;
 
@@ -3083,5 +3428,4 @@ window.addEventListener('resize', () => {
   viewerCamera.aspect = container.clientWidth / container.clientHeight;
   viewerCamera.updateProjectionMatrix();
   renderer.setSize(container.clientWidth, container.clientHeight);
-  if (cameraWallLayoutActive) arrangeCameraViewports();
 });

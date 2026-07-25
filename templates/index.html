@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-  <title>N.O.M.A.D. CCTV Digital Twin Simulator 8e.6</title>
+  <title>N.O.M.A.D. CCTV Digital Twin Simulator 8e.7</title>
   <style>
     :root {
       color-scheme: light;
@@ -740,13 +740,85 @@
   color: var(--sensor-control-text);
 }
 
+
+    #videoWallOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 5000;
+      display: flex;
+      flex-direction: column;
+      background: #080c11;
+      color: #eef3f7;
+    }
+    #videoWallOverlay.hidden { display: none; }
+    .video-wall-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 48px;
+      padding: 7px 12px;
+      box-sizing: border-box;
+      background: #111a24;
+      border-bottom: 1px solid #34465a;
+    }
+    .video-wall-toolbar strong { margin-right: auto; }
+    .video-wall-toolbar button,
+    .video-wall-toolbar select {
+      padding: 7px 10px;
+      border: 1px solid #52677d;
+      border-radius: 4px;
+      background: #233244;
+      color: #f5f7fa;
+    }
+    .video-wall-grid {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(var(--wall-columns, 2), minmax(0, 1fr));
+      gap: 6px;
+      padding: 6px;
+    }
+    .video-wall-tile {
+      min-width: 0;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+      border: 1px solid #40536a;
+      border-radius: 4px;
+    }
+    .video-wall-tile.drag-over { outline: 3px solid #00aaff; }
+    .video-wall-tile canvas { width: 100%; height: 100%; display: block; }
+    .video-wall-label {
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      z-index: 2;
+      padding: 4px 7px;
+      border-radius: 3px;
+      background: rgba(0,0,0,.7);
+      color: #fff;
+      font-size: 12px;
+      cursor: grab;
+      user-select: none;
+    }
+    .measurement-status {
+      margin: 4px 0;
+      padding: 7px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--control-bg);
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
   </style>
 </head>
 
 <body data-theme="dark">
 <div id="sidebar">
   <div id="appHeader">
-    <h3>N.O.M.A.D. CCTV Simulator <span class="app-version">v<span id="appVersionLabel">8e.6</span></span></h3>
+    <h3>N.O.M.A.D. CCTV Simulator <span class="app-version">v<span id="appVersionLabel">8e.7</span></span></h3>
   </div>
 
   <div id="sceneFrame" class="panel-frame">
@@ -811,8 +883,8 @@
         <div class="section-title">▶ View</div>
         <button class="menu-button" id="resetView">Reset View</button>
         <button class="menu-button" id="fitSelectedView">Fit Selected</button>
-        <button class="menu-button" id="toggleTheme" type="button" aria-pressed="true">Light Mode</button>
-        <button class="menu-button" id="arrangeCameraWall" type="button" title="Arrange open camera viewports into a video wall">▦ Arrange Camera Wall</button>
+        <button class="menu-button" id="openVideoWall" type="button">Open Video Wall</button>
+        <button class="menu-button" id="popOutVideoWall" type="button">Pop Out Video Wall</button>
         <button class="menu-button disabled">Zoom Out</button>
         <button class="menu-button disabled">Fit Grid</button>
         <button class="menu-button disabled">Show / Hide Grid</button>
@@ -870,17 +942,39 @@
           <input id="preferenceConeOpacity" type="range" min="0.05" max="0.50" step="0.05">
           <output id="preferenceConeOpacityValue" class="preference-output">15%</output>
         </label>
+        <label class="preference-row" for="preferenceModelImportPreset">
+          <span>Model Import</span>
+          <select id="preferenceModelImportPreset" title="Default model transform applied at import">
+            <option value="hvdcMm">HVDC / mm (-90 X, 0.01)</option>
+            <option value="asExported">As Exported</option>
+          </select>
+        </label>
         <label class="preference-row" for="preferenceFbxAutoScale">
-          <span>FBX Auto-Scale</span>
+          <span>Large FBX Fallback</span>
           <input id="preferenceFbxAutoScale" type="checkbox">
         </label>
         <button class="menu-button" id="resetPreferences" type="button">Reset Preferences</button>
       </div>
+      <div class="menu-group collapsed" id="toolsGroup">
+        <div class="section-title">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¶ Measurement Tools</div>
+        <button class="menu-button" id="calibrateScaleTool" type="button">Calibrate Scale (2 Points)</button>
+        <button class="menu-button" id="measureDistanceTool" type="button">Measure Distance</button>
+        <button class="menu-button" id="cancelMeasurementTool" type="button">Cancel Active Tool</button>
+        <button class="menu-button" id="clearMeasurements" type="button">Clear Measurements</button>
+        <div class="measurement-status" id="measurementStatus">Select a tool. Measurements use project units (metres).</div>
+      </div>
       <div class="menu-group collapsed" id="helpGroup">
-        <div class="section-title">▶ Help / About</div>
+        <div class="section-title">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¶ Help</div>
+        <div class="about-card">
+          <strong>User Manual</strong>
+          <div>The manual link will be enabled when the documentation is published.</div>
+        </div>
+      </div>
+      <div class="menu-group collapsed" id="aboutGroup">
+        <div class="section-title">ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“Ãƒâ€šÃ‚Â¶ About</div>
         <div class="about-card" id="aboutPanel">
           <strong>N.O.M.A.D. CCTV Digital Twin Simulator</strong>
-          <div>Version <span id="aboutVersion">8e.6</span></div>
+          <div>Version <span id="aboutVersion">8e.7</span></div>
           <div>© 2026 Felipe Gomez. All rights reserved.</div>
           <div><a href="mailto:felipe.gomez@live.ca">felipe.gomez@live.ca</a></div>
           <div class="about-links" aria-label="Open-source packages">
@@ -1123,6 +1217,26 @@
   </div>
 </div>
 
+
+<div id="videoWallOverlay" class="hidden" aria-hidden="true">
+  <div class="video-wall-toolbar">
+    <strong>Video Wall</strong>
+    <label>Layout
+      <select id="videoWallLayout">
+        <option value="auto">Auto</option>
+        <option value="1">1 x 1</option>
+        <option value="2">2 x 2</option>
+        <option value="3">3 x 3</option>
+        <option value="4">4 x 4</option>
+        <option value="5">5 x 5</option>
+      </select>
+    </label>
+    <button id="refreshVideoWall" type="button">Refresh Sources</button>
+    <button id="popOutVideoWallOverlay" type="button">Pop Out</button>
+    <button id="closeVideoWall" type="button">Back to Planning Workspace</button>
+  </div>
+  <div id="videoWallGrid" class="video-wall-grid"></div>
+</div>
 <script>
   document.querySelectorAll('#operationsFrame .menu-group').forEach(group => {
     const title = group.querySelector('.section-title');
@@ -1135,6 +1249,6 @@
   });
 </script>
 
-<script type="module" src="/static/viewer.js?v=923"></script>
+<script type="module" src="/static/viewer.js?v=924"></script>
 </body>
 </html>

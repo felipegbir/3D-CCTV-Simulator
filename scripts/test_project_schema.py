@@ -1,4 +1,4 @@
-"""Regression guard for the N.O.M.A.D. project schema-2 contract."""
+"""Regression guard for the N.O.M.A.D. project schema-3 contract."""
 
 import re
 from pathlib import Path
@@ -8,7 +8,7 @@ root = Path(__file__).resolve().parents[1]
 source = (root / "static" / "viewer.js").read_text(encoding="utf-8")
 
 required_contract = (
-    "const PROJECT_SCHEMA_VERSION = 2;",
+    "const PROJECT_SCHEMA_VERSION = 3;",
     "const LEGACY_PROJECT_SCHEMA_VERSION = 1;",
     "function buildProjectAssetManifest()",
     "function validateProjectSchema(project)",
@@ -24,7 +24,7 @@ required_contract = (
 assert re.search(r"const APP_VERSION = '8e\.\d+';", source), "Missing app version"
 
 for marker in required_contract:
-    assert marker in source, f"Missing schema-2 contract marker: {marker}"
+    assert marker in source, f"Missing schema-3 contract marker: {marker}"
 
 load_start = source.index("loadProjectFile.addEventListener")
 load_end = source.index("saveProjectButton.addEventListener", load_start)
@@ -55,4 +55,4 @@ assert manifest_build < warning_prompt < project_build, (
 )
 assert "if (!shouldSave) return;" in save_block
 
-print("8e.2 project schema and asset warning regression guard passed")
+print("8e.7 project schema and asset warning regression guard passed")

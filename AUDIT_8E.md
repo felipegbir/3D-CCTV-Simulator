@@ -318,3 +318,6 @@ Project schema 5 adds safe workspace persistence for selected object, Planning/V
 
 Menu population inventory: File still requires Close Project, Save As, Export Project, and Upload; Edit requires Copy, Cut, Paste, Delete, Clone, and Add; View requires Zoom Out, Fit Grid, Show/Hide Grid, and Show/Hide Axes; Object requires Add Object, Define Object, Object Properties, and Lock/Unlock; Help requires the published manual link; About requires the published source repository link. Preferences, Measurement Tools, current camera/PTZ controls, and current Video Wall controls are populated.
 
+
+Cache 950 deployment passed on CCTV PID 3963296 at port 5010 with health status ok, camera API HTTP 200, exact local/deployed frontend hashes, and live cache/schema-5/sequential-name/single-line markers. NAS recovery snapshot: NOMAD_8e.7.1_CACHE950_SCHEMA5_UI_PERSISTENCE_20260727_125419; server rollback: deploy_backups/pre_cache_950_20260727_1255. Only the verified CCTV Simulator PID 3942527 was replaced; no independent service or container was restarted. Owner visual and schema-5 save/load confirmation remains pending.
+

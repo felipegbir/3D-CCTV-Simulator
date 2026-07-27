@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 html = (root / "templates" / "index.html").read_text(encoding="utf-8")
@@ -22,7 +22,7 @@ for marker in (
     assert marker in js, f"Missing cache 951 workflow marker: {marker}"
 
 for marker in (
-    "/static/viewer.js?v=955",
+    "/static/viewer.js?v=956",
     'accept=".nmd,.json,application/json"',
     'id="editCopy"',
     'id="viewFitGrid"',

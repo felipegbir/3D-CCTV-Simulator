@@ -828,13 +828,14 @@
     .video-wall-empty-slot { min-width: 0; min-height: 0; border: 1px dashed #33465a; border-radius: 4px; background: #0b1118; }
     .video-wall-render-pane { position: relative; flex: 1 1 100%; min-width: 0; min-height: 0; overflow: hidden; transition: flex-basis .18s ease; }
     .video-wall-tile.has-preset-dock .video-wall-render-pane { flex: 0 0 60%; width: 100%; height: 60%; }
-    .video-wall-tile.has-preset-dock.preset-dock-vertical { flex-direction: row; }
-    .video-wall-tile.has-preset-dock.preset-dock-vertical .video-wall-render-pane { flex: 1 1 auto; width: calc(100% - var(--preset-panel-percent, 20%) - 6px); height: 100%; }
+    .video-wall-tile.has-preset-dock.preset-dock-vertical { position: relative; display: block; }
+    .video-wall-tile.has-preset-dock.preset-dock-vertical .video-wall-render-pane { position: absolute; inset: 0; width: 100%; height: 100%; }
     .video-wall-tile canvas { width: 100%; height: 100%; display: block; }
     .video-wall-tile .ptz-preset-panel { position: relative; inset: auto; flex: 0 0 40%; width: 100%; max-width: 100%; height: 40%; max-height: 40%; transform: none; border: 0; border-top: 1px solid #40536a; border-radius: 0; box-shadow: none; padding: 10px; box-sizing: border-box; overflow: auto; }
-    .video-wall-tile.preset-dock-vertical .ptz-preset-panel { flex: 0 0 var(--preset-panel-percent, 20%); width: var(--preset-panel-percent, 20%); max-width: 50%; min-width: 15%; height: 100%; max-height: 100%; border-top: 0; border-left: 0; }
+    .video-wall-tile.preset-dock-vertical .ptz-preset-panel { position: absolute; z-index: 20; right: 0; top: 0; flex: none; width: var(--preset-panel-percent, 20%); max-width: 50%; min-width: 15%; height: 100%; max-height: 100%; border-top: 0; border-left: 1px solid #40536a; }
     .video-wall-preset-resizer { display: none; flex: 0 0 6px; width: 6px; background: #40536a; cursor: col-resize; touch-action: none; }
-    .video-wall-tile.has-preset-dock.preset-dock-vertical .video-wall-preset-resizer { display: block; }
+    .video-wall-tile.has-preset-dock.preset-dock-vertical .video-wall-preset-resizer { display: block; position: absolute; z-index: 21; top: 0; bottom: 0; right: var(--preset-panel-percent, 20%); height: 100%; }
+    .video-wall-tile.has-preset-dock.preset-dock-vertical .video-wall-tile-controls { right: calc(var(--preset-panel-percent, 20%) + 10px); }
     .video-wall-preset-resizer:hover, .video-wall-preset-resizer.dragging { background: #23b7ff; }
     .video-wall-label {
       position: absolute;
@@ -1192,7 +1193,7 @@
       background: transparent;
     }
     /* The preset manager is owned by and docked inside its maximized Camera View. */
-    .camera-viewport.has-preset-dock .camera-viewport-body { margin-right: 360px; }
+    .camera-viewport.has-preset-dock .camera-viewport-body { margin-right: 0; }
     .camera-viewport .ptz-preset-panel {
       position: absolute;
       inset: 29px 0 0 auto;
@@ -1232,6 +1233,8 @@
       box-sizing: border-box;
     }
     .preset-roi-svg{position:absolute;inset:0;width:100%;height:100%;z-index:13;pointer-events:none}.preset-roi-svg polygon{stroke-width:2;vector-effect:non-scaling-stroke}.preset-roi-svg text{fill:#fff;font:bold 12px sans-serif;paint-order:stroke;stroke:#000;stroke-width:3}.preset-roi-svg.editing{pointer-events:auto}.preset-roi-edge{stroke:transparent;stroke-width:14;cursor:copy}.preset-roi-node{fill:#00e5ff;stroke:#001820;stroke-width:2;cursor:move}.ptz-roi-analysis{white-space:pre-line;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}.ptz-roi-help{font-size:11px;color:var(--muted-text);margin-top:6px}
+    .ptz-live-analysis, .ptz-roi-analysis, .ptz-preset-details { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.35; font-weight: 400; white-space: pre-line; }
+    .ptz-roi-analysis { margin: 7px 0; padding: 7px; border: 1px solid var(--border); border-radius: 4px; background: var(--control-bg); }
     .preset-depth-pick-banner {
       position: fixed;
       top: 50px;
@@ -1757,6 +1760,6 @@
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=955"></script>
+<script type="module" src="/static/viewer.js?v=956"></script>
 </body>
 </html>

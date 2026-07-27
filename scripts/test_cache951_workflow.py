@@ -22,7 +22,7 @@ for marker in (
     assert marker in js, f"Missing cache 951 workflow marker: {marker}"
 
 for marker in (
-    "/static/viewer.js?v=953",
+    "/static/viewer.js?v=954",
     'accept=".nmd,.json,application/json"',
     'id="editCopy"',
     'id="viewFitGrid"',
@@ -36,4 +36,5 @@ assert "menu-button disabled" not in "\n".join(
     if any(label in line for label in ("Close Project", "Copy", "Zoom Out", "Add Object"))
 )
 print("cache 951 .nmd, menu, maximized-Presets, and ROI workflow guard passed")
+
 

@@ -48,7 +48,7 @@ assert.equal(sanitized.coneOpacity, 0.5);
 assert.equal(sanitized.fbxAutoScale, false);
 assert.equal(sanitized.ptzPresetSpeed, 60);
 assert.equal(sanitized.metricDecimals, 10);
-assert.equal(defaults.metricDecimals, 5);
+assert.equal(defaults.metricDecimals, 3);
 assert.equal('unexpected' in sanitized, false);
 
 const invalidEnums = JSON.parse(JSON.stringify(sandbox.sanitizePreferences({

@@ -21,6 +21,7 @@ var popupVideoWallRecords = [];
 var popupVideoWallWindow = null;
 const videoWallPtzEnabledBySource = new Map();
 let videoWallOrder = ['scene'];
+let videoWallPresetPanelPercent = 20;
 let selectedVideoWallTileIndex = 0;
 let selectedPopupVideoWallTileIndex = 0;
 const APP_VERSION = '8e.7.1';
@@ -201,7 +202,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
   modelImportPreset: 'hvdcMm',
   loupeMagnification: 3,
   ptzPresetSpeed: 10,
-  metricDecimals: 5
+  metricDecimals: 3
 });
 
 const preferenceControls = {
@@ -384,14 +385,14 @@ for (const control of [
   preferenceControls.showGrid,
   preferenceControls.showAxes,
   preferenceControls.fbxAutoScale,
-  preferenceControls.modelImportPreset,
-  preferenceControls.metricDecimals
+  preferenceControls.modelImportPreset
 ]) {
   control.addEventListener('change', updatePreferencesFromControls);
 }
 
 preferenceControls.coneOpacity.addEventListener('input', updatePreferencesFromControls);
 measurementMagnificationControl.addEventListener('input', updatePreferencesFromControls);
+preferenceControls.metricDecimals.addEventListener('change',()=>{preferences={...preferences,metricDecimals:Math.min(10,Math.max(0,Number.parseInt(preferenceControls.metricDecimals.value,10)||0))};savePreferences();syncPreferenceControls();if(selectedId)updateObjectInfoPanel();ptzPresetPanel?.refreshLive?.();if(measurements.length)restoreMeasurements(measurements.map(record=>({...record,start:{...record.start},end:{...record.end}}))) });
 preferenceControls.reset.addEventListener('click', () => {
   preferences = { ...DEFAULT_PREFERENCES };
   applyPreferences({ persist: true });
@@ -1271,10 +1272,11 @@ function getNextPtzPresetName(cameraItem) {
 }
 
 function normalizePresetRoi(roi,index=0){const safe=roi&&typeof roi==='object'?roi:{};let nodes=Array.isArray(safe.nodes)?safe.nodes.slice(0,15).map(n=>({x:THREE.MathUtils.clamp(Number(n?.x)||0,0,1),y:THREE.MathUtils.clamp(Number(n?.y)||0,0,1)})):[];if(nodes.length<3&&safe.normalized){const x=Number(safe.normalized.x)||0,y=Number(safe.normalized.y)||0,w=Number(safe.normalized.width)||0,h=Number(safe.normalized.height)||0;nodes=[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]}return{id:String(safe.id||`ptz-roi-${Date.now()}-${index}`),name:String(safe.name||`ROI ${String(index+1).padStart(3,'0')}`),notes:String(safe.notes||''),color:String(safe.color||'#00e5ff'),visible:safe.visible!==false,nodes,depthTarget:safe.depthTarget?{...safe.depthTarget}:null,projectionDistance:Math.max(.02,Number(safe.projectionDistance)||20),metrics:safe.metrics?{...safe.metrics}:{},createdAt:safe.createdAt||new Date().toISOString(),updatedAt:safe.updatedAt||new Date().toISOString()}}
+const normalizedPtzPresetObjects = new WeakSet();
 function normalizePtzPreset(preset, index = 0) {
   const safe = preset && typeof preset === 'object' ? preset : {};
   const legacy=safe.roi?.normalized?[normalizePresetRoi({...safe.roi,name:'ROI 001',depthTarget:safe.depthTarget,projectionDistance:safe.projectionDistance})]:[];const rois=(Array.isArray(safe.rois)?safe.rois:legacy).map(normalizePresetRoi);
-  return {
+  const normalized = {
     id: String(safe.id || `ptz-preset-${Date.now()}-${index}`),
     name: String(safe.name || `Preset ${String(index + 1).padStart(3, '0')}`),
     notes: String(safe.notes || ''),
@@ -1306,12 +1308,14 @@ function normalizePtzPreset(preset, index = 0) {
     createdAt: safe.createdAt || new Date().toISOString(),
     updatedAt: safe.updatedAt || new Date().toISOString()
   };
+  normalizedPtzPresetObjects.add(normalized);
+  return normalized;
 }
 
 function ensureCameraPtzPresets(cameraItem) {
   if (!cameraItem?.data) return [];
   const source = Array.isArray(cameraItem.data.ptzPresets) ? cameraItem.data.ptzPresets : [];
-  cameraItem.data.ptzPresets = source.map(normalizePtzPreset);
+  cameraItem.data.ptzPresets = source.map((preset,index) => normalizedPtzPresetObjects.has(preset) ? preset : normalizePtzPreset(preset,index));
   return cameraItem.data.ptzPresets;
 }
 
@@ -1828,14 +1832,13 @@ function endPresetDepthSelection() {
   document.body.classList.remove('preset-depth-pick-active');
 }
 
-function beginPresetRoiCreation(cameraItem,preset,dock){pendingPresetDepthCamera=cameraItem;pendingPresetDepthPresetId=preset.id;pendingPresetDepthDock=dock?.closest?.('.camera-viewport, .video-wall-tile')||dock;pendingPresetDepthStage='roi';pendingPresetRoiDraft={depthTarget:{...preset.depthTarget},projectionDistance:preset.projectionDistance};closePtzPresetPanel();const banner=ensurePresetDepthPickBanner();banner.textContent=`Add ROI for ${preset.name}: drag a rectangle in ${cameraItem.name} Camera View; Esc cancels.`;document.body.classList.add('preset-depth-pick-active');setMeasurementStatus(banner.textContent)}
+function beginPresetRoiCreation(cameraItem,preset,dock){pendingPresetDepthCamera=cameraItem;pendingPresetDepthPresetId=preset.id;pendingPresetDepthDock=dock?.closest?.('.camera-viewport, .video-wall-tile')||dock;pendingPresetDepthStage='roi';pendingPresetRoiDraft={depthTarget:{...preset.depthTarget},projectionDistance:preset.projectionDistance};const banner=ensurePresetDepthPickBanner();banner.textContent=`Add ROI for ${preset.name}: drag a rectangle in ${cameraItem.name} Camera View; Esc cancels.`;document.body.classList.add('preset-depth-pick-active');setMeasurementStatus(banner.textContent)}
 
 function beginPresetDepthSelection(cameraItem, preset, dock) {
   pendingPresetDepthCamera = cameraItem;
   pendingPresetDepthPresetId = preset.id;
   pendingPresetDepthDock = dock?.closest?.('.camera-viewport, .video-wall-tile') || dock;
   pendingPresetDepthStage = 'depth';
-  closePtzPresetPanel();
   const banner = ensurePresetDepthPickBanner();
   banner.textContent = `Depth selection armed for ${preset.name}. Click a visible model/reference surface inside ${cameraItem.name} Camera View; Esc cancels.`;
   document.body.classList.add('preset-depth-pick-active');
@@ -1977,6 +1980,8 @@ function createWallTile(doc, host, source, records, onDrop, options = {}) {
   const renderPane = doc.createElement('div');
   renderPane.className = 'video-wall-render-pane';
   tile.appendChild(renderPane);
+  tile.style.setProperty('--preset-panel-percent',`${videoWallPresetPanelPercent}%`);
+  const presetResizer=doc.createElement('div');presetResizer.className='video-wall-preset-resizer';presetResizer.title='Drag to resize PTZ Presets';tile.appendChild(presetResizer);presetResizer.addEventListener('pointerdown',event=>{event.preventDefault();event.stopPropagation();presetResizer.classList.add('dragging');presetResizer.setPointerCapture?.(event.pointerId);const move=moveEvent=>{const rect=tile.getBoundingClientRect();videoWallPresetPanelPercent=THREE.MathUtils.clamp((rect.right-moveEvent.clientX)/Math.max(1,rect.width)*100,15,50);tile.style.setProperty('--preset-panel-percent',`${videoWallPresetPanelPercent}%`);window.dispatchEvent(new Event('resize'))};const up=()=>{presetResizer.classList.remove('dragging');presetResizer.removeEventListener('pointermove',move)};presetResizer.addEventListener('pointermove',move);presetResizer.addEventListener('pointerup',up,{once:true})});
   const label = doc.createElement('div');
   label.className = 'video-wall-label';
   label.textContent = source.label;
@@ -4624,6 +4629,7 @@ function applyLoadedProject(project) {
     const savedLayout = String(project.workspace.videoWall.layout || 'auto');
     if ([...videoWallLayout.options].some(option => option.value === savedLayout)) videoWallLayout.value = savedLayout;
     selectedVideoWallTileIndex = Math.max(0, Number(project.workspace.videoWall.selectedTileIndex) || 0);
+    videoWallPresetPanelPercent=THREE.MathUtils.clamp(Number(project.workspace.videoWall.presetPanelPercent)||20,15,50);
     videoWallPtzEnabledBySource.clear();
     const savedPtzSources = project.workspace.videoWall.ptzEnabledSources;
     if (savedPtzSources && typeof savedPtzSources === 'object') {
@@ -4830,6 +4836,7 @@ saveProjectButton.addEventListener('click', () => {
         layout: videoWallLayout.value,
         order: [...videoWallOrder],
         selectedTileIndex: selectedVideoWallTileIndex,
+        presetPanelPercent: videoWallPresetPanelPercent,
         ptzEnabledSources: Object.fromEntries(videoWallPtzEnabledBySource)
       }
     },

@@ -10,9 +10,10 @@ function section(startMarker, endMarker) {
   return source.slice(start, end);
 }
 const executable = [
-  section('function normalizePresetRoi', 'function ensureCameraPtzPresets'),
+  section('function normalizePresetRoi', 'function getNextPresetRoiName'),
   section('function shortestAngleDelta', 'function applyAnimatedOpticalState'),
   'this.normalizePtzPreset = normalizePtzPreset;',
+  'this.ensureCameraPtzPresets = ensureCameraPtzPresets;',
   'this.shortestAngleDelta = shortestAngleDelta;'
 ].join('\n');
 const sandbox = {
@@ -34,6 +35,12 @@ assert.equal(normalized.viewportPalette, 'whiteHot');
 assert.equal(normalized.roi.width, 0.5);
 assert.equal(normalized.roi.height, 0.25);
 assert.deepEqual(normalized.rois, []);
+const camera={data:{ptzPresets:[{id:'stable',name:'Stable',rois:[{id:'roi-1',name:'ROI 001',nodes:[{x:0,y:0},{x:1,y:0},{x:1,y:1}]}]}]}};
+const first=sandbox.ensureCameraPtzPresets(camera)[0];
+const second=sandbox.ensureCameraPtzPresets(camera)[0];
+assert.equal(first,second,'Preset reference must remain stable across lookups');
+first.rois=[];
+assert.equal(sandbox.ensureCameraPtzPresets(camera)[0].rois.length,0,'ROI deletion must persist');
 assert.equal(sandbox.shortestAngleDelta(170, -170), 20);
 assert.equal(sandbox.shortestAngleDelta(-170, 170), -20);
 assert.match(source, /raw < 0\.5 \? 4 \* raw \* raw \* raw/);

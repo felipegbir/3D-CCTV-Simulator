@@ -550,7 +550,7 @@ function renderSceneTree() {
     const groupItems = sceneObjects.filter(item => item.type === type);
 
     const header = document.createElement('div');
-    header.className = 'section-title';
+    header.className = 'section-title scene-tree-section-title';
     header.textContent = `${group.collapsed ? '▶' : '▼'} ${group.label}`;
 
     header.addEventListener('click', () => {
@@ -765,8 +765,8 @@ function updateObjectInfoPanel() {
     }
 
     projectionDistanceSlider.value = distance;
-    projectionDistanceInput.value = distance;
-    projectionDistanceValue.textContent = distance;
+    projectionDistanceInput.value = Number(distance).toFixed(2);
+    projectionDistanceValue.textContent = Number(distance).toFixed(2);
 
     const distanceMeters =
       item.data?.projectionDistance ||
@@ -1368,7 +1368,7 @@ function formatLiveCameraAnalysis(cameraItem, roi = {}) {
   return [
     `Live PTZ: ${(Number(cameraItem.data.pan) || 0).toFixed(2)}° / ${(Number(cameraItem.data.tilt) || 0).toFixed(2)}° / ${(Number(cameraItem.data.roll) || 0).toFixed(2)}°`,
     `Zoom: ${(Number(cameraItem.data.zoom) || 1).toFixed(2)}x   HFOV: ${analysis.hfov.toFixed(2)}°`,
-    `Depth: ${analysis.depth.toFixed(3)} m${target ? ` — ${target.objectName || 'selected surface'}` : ' — no surface selected'}`,
+    `Depth: ${analysis.depth.toFixed(2)} m${target ? ` — ${target.objectName || 'selected surface'}` : ' — no surface selected'}`,
     `Footprint: ${analysis.footprintWidth.toFixed(2)} x ${analysis.footprintHeight.toFixed(2)} m`,
     `Pixel density: ${analysis.horizontalPixelDensity.toFixed(2)} x ${analysis.verticalPixelDensity.toFixed(2)} px/m`,
     analysis.roiPixelsX !== null && analysis.roiPixelsY !== null
@@ -1540,29 +1540,28 @@ function ensurePtzPresetPanel() {
   ptzPresetPanel.innerHTML = `
     <div class="ptz-preset-heading"><h3>PTZ Presets</h3><button class="ptz-preset-close" type="button" data-action="close" title="Close preset dock">×</button></div>
     <div class="ptz-preset-camera"></div>
-    <details class="ptz-preset-section" open><summary>Presets</summary>
-      <label>Existing presets<select class="ptz-preset-list" size="3"></select></label>
-      <div class="ptz-preset-actions"><button type="button" data-action="recall">Recall</button></div>
+    <details class="ptz-preset-section" open><summary>Preset Management</summary>
+      <div class="ptz-preset-actions">
+        <button type="button" data-action="add">Add Current</button>
+        <button type="button" data-action="update">Update Current</button>
+        <button type="button" data-action="save">Save Details</button>
+        <button type="button" data-action="delete">Delete</button>
+      </div>
     </details>
-    <details class="ptz-preset-section" open><summary>Name and Notes</summary>
+    <details class="ptz-preset-section" open><summary>Name</summary>
       <label>Name<input class="ptz-preset-name" type="text" maxlength="80"></label>
-      <label>Notes<textarea class="ptz-preset-notes" maxlength="1000"></textarea></label>
-      <div class="ptz-preset-actions"><button type="button" data-action="save">Save Details</button></div>
     </details>
     <details class="ptz-preset-section" open><summary>Target and Movement</summary>
       <div class="ptz-preset-speed"><span>Target ROI (m)</span><input class="ptz-preset-roi-width" type="number" min="0" step="0.001" placeholder="Width"><input class="ptz-preset-roi-height" type="number" min="0" step="0.001" placeholder="Height"></div>
       <label class="ptz-preset-speed">Movement speed<input class="ptz-preset-speed-input" type="range" min="1" max="60" step="1"><output class="ptz-preset-speed-value"></output></label>
       <div class="ptz-preset-actions"><button type="button" data-action="depth">Select Depth Surface</button></div>
     </details>
-    <details class="ptz-preset-section" open><summary>Live Pixel Density</summary><div class="ptz-live-analysis"></div></details>
-    <details class="ptz-preset-section"><summary>Preset Metadata</summary><div class="ptz-preset-details"></div></details>
-    <details class="ptz-preset-section"><summary>Preset Management</summary>
-      <div class="ptz-preset-actions">
-        <button type="button" data-action="add">Add Current</button>
-        <button type="button" data-action="update">Update Current</button>
-        <button type="button" data-action="delete">Delete</button>
-      </div>
+    <details class="ptz-preset-section" open><summary>Presets</summary>
+      <label>Existing presets<select class="ptz-preset-list" size="3"></select></label>
+      <div class="ptz-preset-actions"><button type="button" data-action="recall">Recall</button></div>
     </details>
+    <details class="ptz-preset-section" open><summary>Live Pixel Density</summary><div class="ptz-live-analysis"></div><div class="ptz-preset-details"></div></details>
+    <details class="ptz-preset-section"><summary>Notes</summary><label>Notes<textarea class="ptz-preset-notes" maxlength="1000"></textarea></label></details>
     <div class="ptz-preset-status"></div>`;
   document.body.appendChild(ptzPresetPanel);
   const list = ptzPresetPanel.querySelector('.ptz-preset-list');
@@ -3771,8 +3770,8 @@ projectionDistanceSlider.addEventListener('input', () => {
 
   const distance = Number(projectionDistanceSlider.value);
 
-  projectionDistanceInput.value = distance;
-  projectionDistanceValue.textContent = distance;
+  projectionDistanceInput.value = distance.toFixed(2);
+  projectionDistanceValue.textContent = distance.toFixed(2);
 
   updateProjectionDistance(item, distance);
 });
@@ -3885,9 +3884,9 @@ projectionDistanceInput.addEventListener('change', () => {
 
   const distance = Math.max(1, Number(projectionDistanceInput.value || 20));
 
-  projectionDistanceInput.value = distance;
+  projectionDistanceInput.value = distance.toFixed(2);
   projectionDistanceSlider.value = Math.min(distance, 120);
-  projectionDistanceValue.textContent = distance;
+  projectionDistanceValue.textContent = distance.toFixed(2);
 
   updateProjectionDistance(item, distance);
 });

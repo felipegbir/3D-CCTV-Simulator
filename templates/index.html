@@ -265,6 +265,19 @@
       color: var(--section-text);
     }
 
+    #sceneTree .scene-tree-section-title {
+      margin: 5px 0;
+      padding: 7px 8px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--panel-title-bg);
+      color: var(--text);
+    }
+
+    #sceneTree .scene-tree-section-title:hover {
+      background: var(--hover-bg);
+    }
+
     .tree-item {
       padding: 6px;
       cursor: pointer;
@@ -482,6 +495,8 @@
      width: 100%;
      height: 100%;
      pointer-events: none;
+     z-index: 100;
+     isolation: isolate;
    }
 
    .camera-viewport {
@@ -794,6 +809,7 @@
       min-width: 0;
       min-height: 0;
       display: flex;
+      flex-direction: column;
       overflow: hidden;
       background: #000;
       border: 2px solid #40536a;
@@ -807,9 +823,9 @@
     .video-wall-tile.drag-over { outline: 3px solid #00aaff; }
     .video-wall-empty-slot { min-width: 0; min-height: 0; border: 1px dashed #33465a; border-radius: 4px; background: #0b1118; }
     .video-wall-render-pane { position: relative; flex: 1 1 100%; min-width: 0; min-height: 0; overflow: hidden; transition: flex-basis .18s ease; }
-    .video-wall-tile.has-preset-dock .video-wall-render-pane { flex-basis: 70%; }
+    .video-wall-tile.has-preset-dock .video-wall-render-pane { flex: 0 0 70%; width: 100%; height: 70%; }
     .video-wall-tile canvas { width: 100%; height: 100%; display: block; }
-    .video-wall-tile .ptz-preset-panel { position: relative; inset: auto; flex: 0 0 30%; width: 30%; max-width: 30%; height: 100%; max-height: none; transform: none; border: 0; border-left: 1px solid #40536a; border-radius: 0; box-shadow: none; padding: 10px; box-sizing: border-box; }
+    .video-wall-tile .ptz-preset-panel { position: relative; inset: auto; flex: 0 0 30%; width: 100%; max-width: 100%; height: 30%; max-height: 30%; transform: none; border: 0; border-top: 1px solid #40536a; border-radius: 0; box-shadow: none; padding: 10px; box-sizing: border-box; overflow: auto; }
     .video-wall-label {
       position: absolute;
       left: 6px;
@@ -933,8 +949,11 @@
     .ptz-live-analysis { white-space: pre-wrap; padding: 8px; border: 1px solid var(--panel-border); border-radius: 5px; background: var(--input-bg); font-size: 12px; }
     .ptz-preset-speed { display: grid; grid-template-columns: 1fr 150px 64px; align-items: center; gap: 6px; margin: 8px 0; }
     .ptz-preset-status { position: sticky; bottom: 0; min-height: 18px; padding: 5px 0 2px; color: var(--accent-color); background: var(--panel-bg); font-size: 12px; }
-    .ptz-preset-section { margin: 5px 0; border: 1px solid var(--panel-border); border-radius: 5px; }
-    .ptz-preset-section > summary { cursor: pointer; padding: 6px 8px; color: var(--text-color); background: var(--section-bg); font-weight: 700; user-select: none; }
+    .ptz-preset-section { margin: 5px 0; border: 1px solid var(--panel-border); border-radius: 6px; overflow: hidden; }
+    .ptz-preset-section > summary { cursor: pointer; list-style: none; padding: 7px 8px; color: var(--text-color); background: var(--panel-title-bg); font-weight: 700; user-select: none; }
+    .ptz-preset-section > summary::-webkit-details-marker { display: none; }
+    .ptz-preset-section > summary::before { content: '\25B6'; display: inline-block; width: 14px; }
+    .ptz-preset-section[open] > summary::before { content: '\25BC'; }
     .ptz-preset-section[open] > summary { border-bottom: 1px solid var(--panel-border); }
     .ptz-preset-section > :not(summary) { margin-left: 7px; margin-right: 7px; }
 
@@ -946,7 +965,7 @@
       height: 40px;
       min-height: 40px;
       max-height: 40px;
-      z-index: 30000;
+      z-index: 2147483000;
       display: flex;
       flex-direction: row;
       align-items: stretch;
@@ -1042,7 +1061,7 @@
       position: absolute;
       top: 40px;
       left: 0;
-      z-index: 30100;
+      z-index: 2147483100;
       width: 280px;
       max-height: calc(100vh - 52px);
       overflow-x: hidden;
@@ -1702,6 +1721,6 @@
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=947"></script>
+<script type="module" src="/static/viewer.js?v=948"></script>
 </body>
 </html>

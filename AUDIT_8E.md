@@ -293,3 +293,8 @@ Remaining roadmap after cache 947:
 - Final save/load consolidation for theme, camera visualization modes, Video Wall assignments, depth targets, external-asset transforms/references, and all accumulated UI state.
 
 Cache 947 deployment passed on CCTV PID 3891423 at port 5010 with health `ok`, exact local/deployed frontend hashes, and live cache/source-selector/surface-raycast/live-analysis markers. NAS recovery snapshot: `NOMAD_8e.7.1_CACHE947_VIDEO_WALL_PTZ_UI_20260727_112701`; server rollback: `deploy_backups/pre_cache_947_20260727_1127`. No independent service or container was restarted. Owner visual and interaction QA remains pending.
+
+### 8e.7.1 cache-948 UI QA correction - deployment pending
+
+Owner QA found Camera Viewports still escaping above top-menu dropdowns, the integrated Video Wall preset dock splitting vertically, PTZ Preset sections out of the requested order, excessive depth display precision, and inconsistent Scene Tree section styling. Cache 948 bounds Camera Viewports in their own stacking context, promotes the traditional menu layer, changes Video Wall camera/preset tiles to a horizontal 70/30 top/bottom split, and reorganizes the dock into six Inspector-style collapsible sections in this order: Preset Management, Name, Target and Movement, Presets, Live Pixel Density, Notes. Depth displays are rounded to two decimals without reducing internal calculation precision. Scene Tree section headers now use the same accent treatment as the Inspector. Working camera-view surface selection is preserved. Static, syntax, and targeted marker/order checks pass; owner visual and interaction validation remains pending.
+

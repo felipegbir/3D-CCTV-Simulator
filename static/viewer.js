@@ -420,6 +420,7 @@ function animateSceneView(direction, up = new THREE.Vector3(0, 1, 0)) {
   const startUp = viewerCamera.up.clone();
   const startedAt = performance.now();
   const duration = 320;
+  orbitControls.enabled = false;
   function step(now) {
     const raw = THREE.MathUtils.clamp((now - startedAt) / duration, 0, 1);
     const t = raw < 0.5 ? 2 * raw * raw : 1 - Math.pow(-2 * raw + 2, 2) / 2;
@@ -427,8 +428,15 @@ function animateSceneView(direction, up = new THREE.Vector3(0, 1, 0)) {
     viewerCamera.up.lerpVectors(startUp, up, t).normalize();
     viewerCamera.lookAt(target);
     viewerCamera.updateMatrixWorld(true);
+    orbitControls.target.copy(target);
     if (raw < 1) requestAnimationFrame(step);
-    else orbitControls.update();
+    else {
+      viewerCamera.position.copy(endPosition);
+      viewerCamera.up.copy(up).normalize();
+      viewerCamera.lookAt(target);
+      orbitControls.enabled = true;
+      orbitControls.update();
+    }
   }
   requestAnimationFrame(step);
 }
@@ -448,11 +456,14 @@ function initializeSceneNavigationOverlays() {
     top: [new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1)],
     bottom: [new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, 1)]
   };
-  sceneNavigationCube.addEventListener('click', event => {
-    const face = event.target.closest('[data-view]');
-    if (!face || sceneNavigationCube.dataset.dragged === 'true') return;
-    const [direction, up] = views[face.dataset.view];
-    animateSceneView(direction, up);
+  sceneNavigationCube.querySelectorAll('[data-view]').forEach(face => {
+    face.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (sceneNavigationCube.dataset.dragged === 'true') return;
+      const [direction, up] = views[face.dataset.view];
+      animateSceneView(direction, up);
+    });
   });
   let drag = null;
   cubeCore.addEventListener('pointerdown', event => {
@@ -471,7 +482,7 @@ function initializeSceneNavigationOverlays() {
     const offset = viewerCamera.position.clone().sub(target);
     const spherical = new THREE.Spherical().setFromVector3(offset);
     spherical.theta -= dx * 0.01;
-    spherical.phi = THREE.MathUtils.clamp(spherical.phi + dy * 0.01, 0.02, Math.PI - 0.02);
+    spherical.phi = THREE.MathUtils.clamp(spherical.phi - dy * 0.01, 0.02, Math.PI - 0.02);
     viewerCamera.position.copy(target).add(new THREE.Vector3().setFromSpherical(spherical));
     viewerCamera.up.set(0, 1, 0);
     viewerCamera.lookAt(target);
@@ -501,7 +512,7 @@ function updateSceneNavigationOverlays() {
     const yaw = Math.atan2(direction.x, direction.z) * 180 / Math.PI;
     const pitch = Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1)) * 180 / Math.PI;
     const core = sceneNavigationCube.querySelector('.nav-cube-core');
-    if (core && !core.classList.contains('dragging')) core.style.transform = `rotateX(${pitch - 18}deg) rotateY(${-yaw + 35}deg)`;
+    if (core && !core.classList.contains('dragging')) core.style.transform = `rotateX(${-pitch - 18}deg) rotateY(${-yaw + 35}deg)`;
   }
   if (sceneScaleIndicator && !sceneScaleIndicator.classList.contains('hidden')) {
     const height = Math.max(1, container.clientHeight);
@@ -1597,6 +1608,7 @@ function refreshCameraPresetDerivedData(cameraItem) {
 function invalidateActivePtzPreset(cameraItem, message = 'Manual camera movement: no preset is active.') {
   if (!cameraItem?.data) return;
   cameraItem.data.activePtzPresetId = null;
+  cameraItem.data.userConfigured = true;
   editingPresetRoiId = null;
   refreshPresetRoiOverlays(cameraItem);
   if (ptzPresetPanel && activePresetCamera?.id === cameraItem.id) {
@@ -1662,6 +1674,8 @@ function recallPtzPreset(cameraItem, preset) {
   );
   const speed = THREE.MathUtils.clamp(Number(preferences.ptzPresetSpeed) || 10, 1, 60);
   const durationMs = calculatePtzRecallDurationMs(angularTravel, speed, Math.abs((preset.zoom || 1) - (cameraItem.data.zoom || 1)));
+  cameraItem.data.activePtzPresetId = null;
+  refreshPresetRoiOverlays(cameraItem);
   activePtzPresetAnimations.set(cameraItem.id, {
     cameraItem,
     preset,
@@ -1674,10 +1688,11 @@ function recallPtzPreset(cameraItem, preset) {
       focal: Number(cameraItem.data.currentFocalLengthMm) || null,
       zoom: Number(cameraItem.data.zoom) || 1,
       hfov: Number(cameraItem.data.hfov) || 90,
-      depth: Number(cameraItem.data.projectionDistance) || 20
+      depth: Number(cameraItem.data.projectionDistance) || 20,
+      position: cameraItem.object.position.clone(),
+      quaternion: cameraItem.object.quaternion.clone()
     }
   });
-  cameraItem.data.activePtzPresetId = preset.id;
   if (ptzPresetPanel) ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `Recalling ${preset.name} at ${speed.toFixed(0)}°/s (${formatMetric(durationMs / 1000)} s)…`;
 }
 
@@ -1693,6 +1708,11 @@ function updatePtzPresetAnimations(now) {
     const focal = Number.isFinite(start.focal) && Number.isFinite(targetFocal) ? THREE.MathUtils.lerp(start.focal, targetFocal, t) : null;
     applyAnimatedOpticalState(cameraItem, focal, THREE.MathUtils.lerp(start.zoom, preset.zoom, t), THREE.MathUtils.lerp(start.hfov, preset.hfov, t));
     updateProjectionDistance(cameraItem, THREE.MathUtils.lerp(start.depth, preset.projectionDistance, t));
+    if (preset.cameraPosition) cameraItem.object.position.lerpVectors(start.position, new THREE.Vector3(Number(preset.cameraPosition.x) || 0, Number(preset.cameraPosition.y) || 0, Number(preset.cameraPosition.z) || 0), t);
+    if (preset.cameraRotation) {
+      const targetQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(Number(preset.cameraRotation.x) || 0, Number(preset.cameraRotation.y) || 0, Number(preset.cameraRotation.z) || 0, cameraItem.object.rotation.order));
+      cameraItem.object.quaternion.slerpQuaternions(start.quaternion, targetQuaternion, t);
+    }
     applyCameraPtzRig(cameraItem);
     if (activePresetCamera?.id === cameraId && !ptzPresetPanel?.classList.contains('hidden')) ptzPresetPanel.refreshLive?.();
     if (raw >= 1) {
@@ -1706,6 +1726,7 @@ function updatePtzPresetAnimations(now) {
       cameraItem.data.activePtzPresetId = preset.id;
       refreshCameraPresetDerivedData(cameraItem);
       activePtzPresetAnimations.delete(cameraId);
+      requestAnimationFrame(() => requestAnimationFrame(() => refreshPresetRoiOverlays(cameraItem)));
       if (ptzPresetPanel && activePresetCamera?.id === cameraId) ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `${preset.name} recalled.`;
     }
   });
@@ -2313,7 +2334,7 @@ function ensurePopupVideoWall() {
     .bar{height:48px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#111a24;border-bottom:1px solid #34465a}.bar strong{margin-right:auto}
     button,select{padding:7px 10px;border:1px solid #52677d;border-radius:4px;background:#233244;color:#fff}
     #grid{height:calc(100% - 48px);box-sizing:border-box;display:grid;grid-template-columns:repeat(var(--wall-columns,2),minmax(0,1fr));grid-template-rows:repeat(var(--wall-rows,1),minmax(0,1fr));gap:6px;padding:6px}
-    .video-wall-empty-slot{min-width:0;min-height:0;border:1px dashed #33465a;border-radius:4px;background:#0b1118}.video-wall-tile{min-width:0;min-height:0;display:flex;overflow:hidden;background:#000;border:2px solid #40536a;border-radius:6px}.video-wall-tile.selected{border-color:#23b7ff;box-shadow:0 0 0 2px rgba(35,183,255,.28)}.video-wall-tile.drag-over{outline:3px solid #00aaff}.video-wall-render-pane{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden}.video-wall-tile canvas{width:100%;height:100%;display:block}.video-wall-label{position:absolute;left:6px;top:6px;z-index:2;padding:4px 7px;border-radius:3px;background:rgba(0,0,0,.7);font-size:12px;cursor:grab;user-select:none}.video-wall-tile-controls{position:absolute;top:5px;right:5px;z-index:3;display:flex;gap:4px;padding:3px;border-radius:4px;background:rgba(0,0,0,.72)}.video-wall-tile-controls button,.video-wall-tile-controls select{height:25px;padding:2px 6px;border:1px solid #5d7187;border-radius:3px;background:#1d2a38;color:#fff;font-size:11px}.video-wall-tile-controls button.active{background:#006db3}.video-wall-tile-controls button:disabled{opacity:.55}.video-wall-tile.ptz-active canvas{cursor:crosshair}
+    .video-wall-empty-slot{min-width:0;min-height:0;border:1px dashed #33465a;border-radius:4px;background:#0b1118}.video-wall-tile{position:relative;min-width:0;min-height:0;display:flex;overflow:hidden;background:#000;border:2px solid #40536a;border-radius:6px}.video-wall-tile.selected{border-color:#23b7ff;box-shadow:0 0 0 2px rgba(35,183,255,.28)}.video-wall-tile.drag-over{outline:3px solid #00aaff}.video-wall-render-pane{position:absolute;inset:0;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden}.video-wall-tile canvas{width:100%;height:100%;display:block}.video-wall-label{position:absolute;left:6px;top:6px;z-index:2;padding:4px 7px;border-radius:3px;background:rgba(0,0,0,.7);font-size:12px;cursor:grab;user-select:none}.video-wall-tile-controls{position:absolute;top:5px;right:5px;z-index:3;display:flex;gap:4px;padding:3px;border-radius:4px;background:rgba(0,0,0,.72)}.video-wall-tile-controls button,.video-wall-tile-controls select{height:25px;padding:2px 6px;border:1px solid #5d7187;border-radius:3px;background:#1d2a38;color:#fff;font-size:11px}.video-wall-tile-controls button.active{background:#006db3}.video-wall-tile-controls button:disabled{opacity:.55}.video-wall-tile.ptz-active canvas{cursor:crosshair}
   </style></head><body><div class="bar"><strong>N.O.M.A.D. Video Wall</strong><label>Layout <select id="layout"><option value="auto">Auto</option><option value="1">1 x 1</option><option value="1x2">1 x 2</option><option value="2">2 x 2</option><option value="3">3 x 3</option><option value="4">4 x 4</option><option value="5">5 x 5</option></select></label><label>Source <select id="source"></select></label><button id="refresh">Refresh Sources</button></div><div id="grid"></div></body></html>`);
   doc.close();
   doc.querySelector('#layout').value = videoWallLayout.value;
@@ -2558,6 +2579,7 @@ function openCameraViewport(cameraItem) {
   }
 
   resizeCameraViewportRenderer();
+  new ResizeObserver(resizeCameraViewportRenderer).observe(body);
 
     function setViewportPtzEnabled(enabled) {
       viewportPtzEnabled = enabled;
@@ -2698,19 +2720,7 @@ function openCameraViewport(cameraItem) {
 
   viewport.setPresetDockOpen = open => {
     presetsBtn.classList.toggle('active', Boolean(open));
-    if (open) {
-      if (!viewport.dataset.prePresetDockWidth) viewport.dataset.prePresetDockWidth = viewport.style.width;
-      const baseWidth = Number.parseFloat(viewport.dataset.prePresetDockWidth) || viewport.getBoundingClientRect().width;
-      const availableWidth = Math.max(320, container.getBoundingClientRect().width - 48);
-      viewport.style.width = `${Math.min(availableWidth, baseWidth + 360)}px`;
-      viewport.classList.add('has-preset-dock');
-    } else {
-      viewport.classList.remove('has-preset-dock');
-      if (viewport.dataset.prePresetDockWidth) {
-        viewport.style.width = viewport.dataset.prePresetDockWidth;
-        delete viewport.dataset.prePresetDockWidth;
-      }
-    }
+    viewport.classList.toggle('has-preset-dock', Boolean(open));
     requestAnimationFrame(resizeCameraViewportRenderer);
   };
 
@@ -3437,8 +3447,63 @@ function openReportConfiguration(){document.querySelector('.report-config-backdr
 function editReportSettings(){openReportConfiguration()}
 function captureReportSceneViews(){const savedPosition=viewerCamera.position.clone(),savedQuaternion=viewerCamera.quaternion.clone(),target=orbitControls.target.clone();const capture=()=>{renderer.render(scene,viewerCamera);try{return renderer.domElement.toDataURL('image/jpeg',Math.min(1,Math.max(.4,Number(reportSettingsState.imageQuality||85)/100)))}catch{return''}};const primary=capture();const offset=savedPosition.clone().sub(target);viewerCamera.position.copy(target.clone().sub(offset));viewerCamera.lookAt(target);viewerCamera.updateMatrixWorld(true);const opposite=capture();viewerCamera.position.copy(savedPosition);viewerCamera.quaternion.copy(savedQuaternion);viewerCamera.updateMatrixWorld(true);renderer.render(scene,viewerCamera);return{primary,opposite}}
 function captureReportCameraContexts(cameras){const images=new Map(),savedPosition=viewerCamera.position.clone(),savedQuaternion=viewerCamera.quaternion.clone(),savedTarget=orbitControls.target.clone();for(const cameraItem of cameras){const cameraPosition=cameraItem.object.getWorldPosition(new THREE.Vector3()),preset=ensureCameraPtzPresets(cameraItem)[0],point=preset?.depthTarget?.point;let target=point?new THREE.Vector3(Number(point.x)||0,Number(point.y)||0,Number(point.z)||0):cameraPosition.clone().add(new THREE.Vector3(0,0,-Math.max(2,Number(cameraItem.data?.projectionDistance)||10)));const midpoint=cameraPosition.clone().lerp(target,.5),span=Math.max(2,cameraPosition.distanceTo(target));let side=new THREE.Vector3().subVectors(target,cameraPosition).cross(new THREE.Vector3(0,1,0));if(side.lengthSq()<.001)side.set(1,0,0);side.normalize();viewerCamera.position.copy(midpoint).addScaledVector(side,span*.85).add(new THREE.Vector3(0,span*.35,0));viewerCamera.lookAt(midpoint);viewerCamera.updateMatrixWorld(true);renderer.render(scene,viewerCamera);try{images.set(cameraItem.id,renderer.domElement.toDataURL('image/jpeg',Math.min(1,Math.max(.4,Number(reportSettingsState.imageQuality||85)/100))))}catch{images.set(cameraItem.id,'')}}viewerCamera.position.copy(savedPosition);viewerCamera.quaternion.copy(savedQuaternion);orbitControls.target.copy(savedTarget);viewerCamera.updateMatrixWorld(true);renderer.render(scene,viewerCamera);return images}
-function captureReportPresetViews(cameras){const images=new Map(),reportRenderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});reportRenderer.setSize(960,540,false);configureRendererQuality(reportRenderer);for(const cameraItem of cameras){const source=cameraItem.object.userData.renderCamera;if(!source)continue;const saved={pan:cameraItem.data.pan,tilt:cameraItem.data.tilt,roll:cameraItem.data.roll,zoom:cameraItem.data.zoom,hfov:cameraItem.data.hfov,projectionDistance:cameraItem.data.projectionDistance};for(const preset of ensureCameraPtzPresets(cameraItem)){cameraItem.data.pan=preset.pan;cameraItem.data.tilt=preset.tilt;cameraItem.data.roll=preset.roll;cameraItem.data.zoom=preset.zoom;cameraItem.data.hfov=preset.hfov;cameraItem.data.projectionDistance=preset.projectionDistance;applyCameraPtzRig(cameraItem);updateCameraProjection(cameraItem);cameraItem.object.updateMatrixWorld(true);const reportCamera=new THREE.PerspectiveCamera(source.fov,16/9,source.near,source.far);reportCamera.position.copy(source.getWorldPosition(new THREE.Vector3()));reportCamera.quaternion.copy(source.getWorldQuaternion(new THREE.Quaternion()));reportCamera.zoom=source.zoom;reportCamera.updateProjectionMatrix();renderCameraView(reportRenderer,reportCamera);try{images.set(`${cameraItem.id}:${preset.id}`,reportRenderer.domElement.toDataURL('image/jpeg',Math.min(1,Math.max(.4,Number(reportSettingsState.imageQuality||85)/100))))}catch{images.set(`${cameraItem.id}:${preset.id}`,'')}}Object.assign(cameraItem.data,saved);applyCameraPtzRig(cameraItem);updateCameraProjection(cameraItem);cameraItem.object.updateMatrixWorld(true)}reportRenderer.dispose();return images}
-function generateNomadReport(){const sceneViews=captureReportSceneViews(),cameras=sceneObjects.filter(item=>item.type==='camera'),presetViews=captureReportPresetViews(cameras),cameraContexts=reportSettingsState.includeCameraContext?captureReportCameraContexts(cameras):new Map(),escape=value=>String(value??'').replace(/[&<>"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char]));const rows=cameras.map(camera=>`<tr><td>${escape(camera.name)}</td><td>${escape(camera.data?.make)}</td><td>${escape(camera.data?.model)}</td><td>${escape(camera.data?.lens)}</td><td>${camera.object.position.toArray().map(v=>formatMetric(v)).join(', ')}</td><td>${ensureCameraPtzPresets(camera).length}</td><td>${ensureCameraPtzPresets(camera).reduce((n,p)=>n+(p.rois?.length||0),0)}</td></tr>`).join('');const details=cameras.flatMap(camera=>ensureCameraPtzPresets(camera).map((preset,presetIndex)=>`<section>${presetIndex===0&&cameraContexts.get(camera.id)?`<h3>${escape(camera.name)} - Scene Context</h3><img style="width:100%" src="${cameraContexts.get(camera.id)}">`:``}<h3>${escape(camera.name)} - ${escape(preset.name)}</h3>${presetViews.get(`${camera.id}:${preset.id}`)?`<img style="width:100%" src="${presetViews.get(`${camera.id}:${preset.id}`)}">`:``}<p>PTZ: ${formatMetric(preset.pan)} deg / ${formatMetric(preset.tilt)} deg / ${formatMetric(preset.roll)} deg; depth ${formatMetric(preset.projectionDistance)} m</p>${(reportSettingsState.includeRois?(preset.rois||[]):[]).map(roi=>`<p><b>${escape(roi.name)}</b>: ${formatPresetRoiAnalysis(roi).replaceAll('\n','<br>')}</p>`).join('')}</section>`)).join('');const win=window.open('','nomad-report');if(!win)return alert('Allow pop-ups to generate the report.');win.document.write(`<!doctype html><title>${escape(reportSettingsState.projectTitle)}</title><style>@page{size:${reportSettingsState.pageSize||'letter'} ${reportSettingsState.orientation||'portrait'};margin:.65in}body{font:11pt Arial;color:#17202a}h1{color:#17324d}table{border-collapse:collapse;width:100%}th,td{border:1px solid #789;padding:5px;text-align:left}section{break-inside:avoid}footer{margin-top:24px;color:#667}@media print{button{display:none}}</style><button onclick="print()">Print / Save PDF</button><h1>${escape(reportSettingsState.projectTitle)}</h1><p>${escape(reportSettingsState.companyName)}${reportSettingsState.website?` - ${escape(reportSettingsState.website)}`:''}<br>Subject: ${escape(reportSettingsState.subject)}<br>Version: ${escape(reportSettingsState.versionNumber)}</p>${reportSettingsState.includeDescription&&reportSettingsState.description?`<h2>Project Description</h2><p>${escape(reportSettingsState.description).replaceAll('\n','<br>')}</p>`:''}${reportSettingsState.includeSceneOverview&&sceneViews.primary?`<h2>Scene Context</h2><img style="width:100%" src="${sceneViews.primary}">`:''}${reportSettingsState.includeOppositeView&&sceneViews.opposite?`<img style="width:100%;margin-top:10px" src="${sceneViews.opposite}">`:''}<p>Client: ${escape(reportSettingsState.client)}<br>Location: ${escape(reportSettingsState.location)}<br>Prepared by: ${escape(reportSettingsState.preparedBy)}<br>Generated: ${new Date().toLocaleString()}</p>${reportSettingsState.includeBom?`<h2>Camera BOM</h2><table><tr><th>Camera</th><th>Make</th><th>Model</th><th>Lens</th><th>Position XYZ</th><th>Presets</th><th>ROIs</th></tr>${rows}</table>`:''}${reportSettingsState.includePresets?`<h2>Preset Analysis</h2>${details}`:''}<footer>${reportSettingsState.watermark?`${escape(reportSettingsState.watermark)} - `:''}N.O.M.A.D. CCTV Digital Twin Simulator - All rights reserved.</footer>`);win.document.close()}
+function captureReportFrameWithRois(sourceCanvas, preset, quality) {
+  const output = document.createElement('canvas');
+  output.width = sourceCanvas.width;
+  output.height = sourceCanvas.height;
+  const ctx = output.getContext('2d');
+  ctx.drawImage(sourceCanvas, 0, 0, output.width, output.height);
+  if (reportSettingsState.includeRois) {
+    ctx.font = `${Math.max(16, Math.round(output.height / 32))}px Arial`;
+    ctx.lineWidth = Math.max(3, Math.round(output.height / 180));
+    for (const roi of (preset.rois || []).filter(entry => entry.visible !== false && entry.nodes?.length >= 3)) {
+      ctx.beginPath();
+      roi.nodes.forEach((node, index) => {
+        const x = THREE.MathUtils.clamp(Number(node.x) || 0, 0, 1) * output.width;
+        const y = THREE.MathUtils.clamp(Number(node.y) || 0, 0, 1) * output.height;
+        if (index === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.strokeStyle = roi.color || '#00e5ff';
+      ctx.fillStyle = `${roi.color || '#00e5ff'}28`;
+      ctx.fill(); ctx.stroke();
+      const first = roi.nodes[0];
+      ctx.fillStyle = roi.color || '#00e5ff';
+      ctx.fillText(roi.name || 'ROI', first.x * output.width + 8, Math.max(22, first.y * output.height - 8));
+    }
+  }
+  return output.toDataURL('image/jpeg', quality);
+}
+function captureReportPresetViews(cameras) {
+  const images = new Map();
+  const reportRenderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  reportRenderer.setSize(960, 540, false);
+  configureRendererQuality(reportRenderer);
+  const quality = Math.min(1, Math.max(.4, Number(reportSettingsState.imageQuality || 85) / 100));
+  for (const cameraItem of cameras) {
+    const source = cameraItem.object.userData.renderCamera;
+    if (!source) continue;
+    const saved = { pan: cameraItem.data.pan, tilt: cameraItem.data.tilt, roll: cameraItem.data.roll, zoom: cameraItem.data.zoom, hfov: cameraItem.data.hfov, projectionDistance: cameraItem.data.projectionDistance, position: cameraItem.object.position.clone(), quaternion: cameraItem.object.quaternion.clone() };
+    for (const preset of ensureCameraPtzPresets(cameraItem)) {
+      Object.assign(cameraItem.data, { pan: preset.pan, tilt: preset.tilt, roll: preset.roll, zoom: preset.zoom, hfov: preset.hfov, projectionDistance: preset.projectionDistance });
+      if (preset.cameraPosition) cameraItem.object.position.set(Number(preset.cameraPosition.x) || 0, Number(preset.cameraPosition.y) || 0, Number(preset.cameraPosition.z) || 0);
+      if (preset.cameraRotation) cameraItem.object.rotation.set(Number(preset.cameraRotation.x) || 0, Number(preset.cameraRotation.y) || 0, Number(preset.cameraRotation.z) || 0);
+      applyCameraPtzRig(cameraItem); updateCameraProjection(cameraItem); cameraItem.object.updateMatrixWorld(true);
+      const reportCamera = new THREE.PerspectiveCamera(source.fov, 16 / 9, source.near, source.far);
+      reportCamera.position.copy(source.getWorldPosition(new THREE.Vector3()));
+      reportCamera.quaternion.copy(source.getWorldQuaternion(new THREE.Quaternion()));
+      reportCamera.zoom = source.zoom; reportCamera.updateProjectionMatrix();
+      renderCameraView(reportRenderer, reportCamera);
+      try { images.set(`${cameraItem.id}:${preset.id}`, captureReportFrameWithRois(reportRenderer.domElement, preset, quality)); }
+      catch { images.set(`${cameraItem.id}:${preset.id}`, ''); }
+    }
+    Object.assign(cameraItem.data, saved);
+    cameraItem.object.position.copy(saved.position); cameraItem.object.quaternion.copy(saved.quaternion);
+    applyCameraPtzRig(cameraItem); updateCameraProjection(cameraItem); cameraItem.object.updateMatrixWorld(true);
+  }
+  reportRenderer.dispose();
+  return images;
+}function generateNomadReport(){const sceneViews=captureReportSceneViews(),cameras=sceneObjects.filter(item=>item.type==='camera'),presetViews=captureReportPresetViews(cameras),cameraContexts=reportSettingsState.includeCameraContext?captureReportCameraContexts(cameras):new Map(),escape=value=>String(value??'').replace(/[&<>"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char]));const rows=cameras.map(camera=>`<tr><td>${escape(camera.name)}</td><td>${escape(camera.data?.make)}</td><td>${escape(camera.data?.model)}</td><td>${escape(camera.data?.lens)}</td><td>${camera.object.position.toArray().map(v=>formatMetric(v)).join(', ')}</td><td>${ensureCameraPtzPresets(camera).length}</td><td>${ensureCameraPtzPresets(camera).reduce((n,p)=>n+(p.rois?.length||0),0)}</td></tr>`).join('');const details=cameras.flatMap(camera=>ensureCameraPtzPresets(camera).map((preset,presetIndex)=>`<section>${presetIndex===0&&cameraContexts.get(camera.id)?`<h3>${escape(camera.name)} - Scene Context</h3><img style="width:100%" src="${cameraContexts.get(camera.id)}">`:``}<h3>${escape(camera.name)} - ${escape(preset.name)}</h3>${presetViews.get(`${camera.id}:${preset.id}`)?`<img style="width:100%" src="${presetViews.get(`${camera.id}:${preset.id}`)}">`:``}<p>PTZ: ${formatMetric(preset.pan)} deg / ${formatMetric(preset.tilt)} deg / ${formatMetric(preset.roll)} deg; depth ${formatMetric(preset.projectionDistance)} m</p>${(reportSettingsState.includeRois?(preset.rois||[]):[]).map(roi=>`<p><b>${escape(roi.name)}</b>: ${formatPresetRoiAnalysis(roi).replaceAll('\n','<br>')}</p>`).join('')}</section>`)).join('');const win=window.open('','nomad-report');if(!win)return alert('Allow pop-ups to generate the report.');win.document.write(`<!doctype html><title>${escape(reportSettingsState.projectTitle)}</title><style>@page{size:${reportSettingsState.pageSize||'letter'} ${reportSettingsState.orientation||'portrait'};margin:.65in}body{font:11pt Arial;color:#17202a}h1{color:#17324d}table{border-collapse:collapse;width:100%}th,td{border:1px solid #789;padding:5px;text-align:left}section{break-inside:avoid}footer{margin-top:24px;color:#667}@media print{button{display:none}}</style><button onclick="print()">Print / Save PDF</button><h1>${escape(reportSettingsState.projectTitle)}</h1><p>${escape(reportSettingsState.companyName)}${reportSettingsState.website?` - ${escape(reportSettingsState.website)}`:''}<br>Subject: ${escape(reportSettingsState.subject)}<br>Version: ${escape(reportSettingsState.versionNumber)}</p>${reportSettingsState.includeDescription&&reportSettingsState.description?`<h2>Project Description</h2><p>${escape(reportSettingsState.description).replaceAll('\n','<br>')}</p>`:''}${reportSettingsState.includeSceneOverview&&sceneViews.primary?`<h2>Scene Context</h2><img style="width:100%" src="${sceneViews.primary}">`:''}${reportSettingsState.includeOppositeView&&sceneViews.opposite?`<img style="width:100%;margin-top:10px" src="${sceneViews.opposite}">`:''}<p>Client: ${escape(reportSettingsState.client)}<br>Location: ${escape(reportSettingsState.location)}<br>Prepared by: ${escape(reportSettingsState.preparedBy)}<br>Generated: ${new Date().toLocaleString()}</p>${reportSettingsState.includeBom?`<h2>Camera BOM</h2><table><tr><th>Camera</th><th>Make</th><th>Model</th><th>Lens</th><th>Position XYZ</th><th>Presets</th><th>ROIs</th></tr>${rows}</table>`:''}${reportSettingsState.includePresets?`<h2>Preset Analysis</h2>${details}`:''}<footer>${reportSettingsState.watermark?`${escape(reportSettingsState.watermark)} - `:''}N.O.M.A.D. CCTV Digital Twin Simulator - All rights reserved.</footer>`);win.document.close()}
 document.getElementById('generateReport')?.addEventListener('click',generateNomadReport);document.getElementById('reportSettings')?.addEventListener('click',editReportSettings);document.getElementById('openReportOptions')?.addEventListener('click',openReportConfiguration);
 document.getElementById('editCopy')?.addEventListener('click', copySelectedObject);
 document.getElementById('editCut')?.addEventListener('click', () => { if (copySelectedObject()) toolbarDelete.click(); });
@@ -4195,13 +4260,7 @@ projectionDistanceSlider.addEventListener('input', () => {
 
 function cameraHasDependentConfiguration(cameraItem) {
   const data = cameraItem?.data || {};
-  return ensureCameraPtzPresets(cameraItem).length > 0
-    || Boolean(data.depthTarget)
-    || Math.abs(Number(data.pan) || 0) > 0.001
-    || Math.abs(Number(data.tilt) || 0) > 0.001
-    || Math.abs(Number(data.roll) || 0) > 0.001
-    || Math.abs((Number(data.zoom) || 1) - 1) > 0.001
-    || Math.abs((Number(data.projectionDistance) || 20) - 20) > 0.001;
+  return ensureCameraPtzPresets(cameraItem).length > 0 || Boolean(data.depthTarget) || Boolean(data.userConfigured);
 }
 
 function requestConfiguredCameraChange(cameraItem, nextModel) {
@@ -4211,7 +4270,8 @@ function requestConfiguredCameraChange(cameraItem, nextModel) {
     const roiCount = ensureCameraPtzPresets(cameraItem).reduce((total, preset) => total + (preset.rois?.length || 0), 0);
     const backdrop = document.createElement('div');
     backdrop.className = 'camera-change-backdrop';
-    backdrop.innerHTML = `<div class="camera-change-dialog"><h3>Change configured camera?</h3><p><strong>${cameraItem.name}</strong> contains ${presetCount} PTZ preset(s) and ${roiCount} ROI(s), or other camera-specific analysis.</p><p>Changing from <strong>${cameraItem.data?.model || 'current model'}</strong> to <strong>${nextModel}</strong> can invalidate optical limits and pixel-density results. Clone the camera to compare models without altering this configured instance.</p><div class="camera-change-actions"><button data-choice="cancel">Cancel</button><button data-choice="replace">Replace and Clear Configuration</button><button data-choice="clone">Clone and Apply New Model</button></div></div>`;
+    const configured = [presetCount ? `${presetCount} PTZ preset(s)` : '', roiCount ? `${roiCount} ROI(s)` : '', cameraItem.data?.userConfigured ? 'camera-specific analysis' : ''].filter(Boolean).join(', ');
+    backdrop.innerHTML = `<div class="camera-change-dialog"><h3>Change configured camera?</h3><p><strong>${cameraItem.name}</strong> contains ${configured}.</p><p>Changing from <strong>${cameraItem.data?.model || 'current model'}</strong> to <strong>${nextModel}</strong> can invalidate optical limits and pixel-density results. Clone the camera to compare models without altering this configured instance.</p><div class="camera-change-actions"><button data-choice="cancel">Cancel</button><button data-choice="replace">Replace and Clear Configuration</button><button data-choice="clone">Clone and Apply New Model</button></div></div>`;
     document.body.appendChild(backdrop);
     const finish = choice => { backdrop.remove(); resolve(choice); };
     backdrop.addEventListener('click', event => {
@@ -4235,6 +4295,7 @@ cameraModelSelect.addEventListener('change', async () => {
   const record = cameraDatabaseByModel[selectedModel];
 
   if (!record) return;
+  if (selectedModel === item.data?.model) return;
 
   let clearConfiguration = false;
   if (cameraHasDependentConfiguration(item)) {
@@ -4246,10 +4307,11 @@ cameraModelSelect.addEventListener('change', async () => {
     clearConfiguration = true;
     if (decision === 'clone') {
       const original = item;
-      createCameraObject(`${original.name} - ${selectedModel}`, original.object.position.clone());
-      item = sceneObjects.find(entry => entry.id === selectedId);
+      const clonedRoot = createCameraObject(`${original.name} - ${selectedModel}`, original.object.position.clone());
+      item = sceneObjects.find(entry => entry.object === clonedRoot);
       if (!item) return;
       item.object.rotation.copy(original.object.rotation);
+      item.object.scale.copy(original.object.scale);
       item.object.updateMatrixWorld(true);
       closePtzPresetPanel();
     }
@@ -5264,8 +5326,19 @@ window.nomadDebug = {
   updateCameraProjection
 };
 
-window.addEventListener('resize', () => {
-  viewerCamera.aspect = container.clientWidth / container.clientHeight;
+function resizePlanningRenderer() {
+  const width = Math.max(1, container.clientWidth), height = Math.max(1, container.clientHeight);
+  viewerCamera.aspect = width / height;
   viewerCamera.updateProjectionMatrix();
-  renderer.setSize(container.clientWidth, container.clientHeight);
-});
+  renderer.setSize(width, height, false);
+  renderer.domElement.style.width = `${width}px`;
+  renderer.domElement.style.height = `${height}px`;
+}
+function settleAllRendererSizes() {
+  resizePlanningRenderer();
+  requestAnimationFrame(() => requestAnimationFrame(resizePlanningRenderer));
+}
+window.addEventListener('resize', settleAllRendererSizes);
+window.visualViewport?.addEventListener('resize', settleAllRendererSizes);
+new ResizeObserver(settleAllRendererSizes).observe(container);
+window.addEventListener('pageshow', settleAllRendererSizes);

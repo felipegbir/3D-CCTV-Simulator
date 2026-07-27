@@ -35,7 +35,6 @@ for marker in (
     'ptzPresetPanel.refreshDerived',
     "ptzPresetPanel.querySelector('.ptz-preset-camera')",
     'viewport.setPresetDockOpen = open =>',
-    'baseWidth + 360',
     "containerRect.width * 0.68",
     'const updateMetadataPreview = () =>',
     'function requestConfiguredCameraChange',
@@ -47,6 +46,7 @@ for marker in (
     assert marker in JS, f'Missing owner-QA behavior marker: {marker}'
 
 assert 'item.data = newData;' not in JS
+assert 'baseWidth + 360' not in JS
 assert 'Math.max(400, angularTravel / speed' not in JS
 assert "panel.querySelector('.ptz-preset-camera').textContent = `${activePresetCamera.name}" not in JS
 print('8e.7.1 owner-QA layout/persistence/preset lifecycle guard passed')

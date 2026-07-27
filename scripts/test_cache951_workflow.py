@@ -22,7 +22,7 @@ for marker in (
     assert marker in js, f"Missing cache 951 workflow marker: {marker}"
 
 for marker in (
-    "/static/viewer.js?v=957",
+    "/static/viewer.js?v=958",
     'accept=".nmd,.json,application/json"',
     'id="editCopy"',
     'id="viewFitGrid"',

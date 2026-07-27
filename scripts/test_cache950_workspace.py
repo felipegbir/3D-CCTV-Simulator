@@ -25,8 +25,8 @@ for marker in (
     "#operationsFrame::after",
     "z-index: 30001",
     "isolation: isolate",
-    "flex: 0 0 60%",
-    "flex: 0 0 40%",
+    ".video-wall-render-pane { position: absolute; inset: 0;",
+    "height: 40%; max-height: 40%;",
     "#sceneFrame .panel-content",
 ):
     assert marker in html, f"Missing cache 950 UI marker: {marker}"

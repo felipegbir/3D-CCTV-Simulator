@@ -1,4 +1,4 @@
-"""8e.7.1 owner-QA regression guard for layout, persistence, and preset lifecycle."""
+﻿"""8e.7.1 owner-QA regression guard for layout, persistence, and preset lifecycle."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,7 +28,7 @@ for marker in (
     'function calculatePtzRecallDurationMs',
     'function refreshCameraPresetDerivedData',
     'function invalidateActivePtzPreset',
-    'activePtzPresetId = null',
+    'selected preset and ROIs are retained for comparison',
     'function beginPresetDepthSelection',
     'preset.depthTarget = { ...depthTarget }',
     'preset.projectionDistance = distance',
@@ -50,3 +50,5 @@ assert 'item.data = newData;' not in JS
 assert 'Math.max(400, angularTravel / speed' not in JS
 assert "panel.querySelector('.ptz-preset-camera').textContent = `${activePresetCamera.name}" not in JS
 print('8e.7.1 owner-QA layout/persistence/preset lifecycle guard passed')
+
+

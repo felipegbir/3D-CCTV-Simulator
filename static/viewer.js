@@ -1471,10 +1471,9 @@ function refreshCameraPresetDerivedData(cameraItem) {
 
 function invalidateActivePtzPreset(cameraItem, message = 'Manual camera movement: no preset is active.') {
   if (!cameraItem?.data) return;
-  cameraItem.data.activePtzPresetId = null;
   if (ptzPresetPanel && activePresetCamera?.id === cameraItem.id) {
-    ptzPresetPanel.refresh?.(null, { clearSelection: true });
-    ptzPresetPanel.querySelector('.ptz-preset-status').textContent = message;
+    ptzPresetPanel.refreshDerived?.();
+    ptzPresetPanel.querySelector('.ptz-preset-status').textContent = 'Camera moved; selected preset and ROIs are retained for comparison.';
   }
 }
 
@@ -1648,8 +1647,8 @@ function ensurePtzPresetPanel() {
     roiList.replaceChildren(...(preset?.rois||[]).map(roi=>{const option=document.createElement('option');option.value=roi.id;option.textContent=roi.name;return option}));if(preset?.activeRoiId)roiList.value=preset.activeRoiId;const roiItem=selectedRoi();ptzPresetPanel.querySelector('.ptz-roi-name').value=roiItem?.name||'';ptzPresetPanel.querySelector('.ptz-roi-notes').value=roiItem?.notes||'';
     ptzPresetPanel.querySelector('.ptz-preset-name').value = preset?.name || '';
     ptzPresetPanel.querySelector('.ptz-preset-notes').value = preset?.notes || '';
-    ptzPresetPanel.querySelector('.ptz-preset-roi-width').value = preset?.roi?.width || '';
-    ptzPresetPanel.querySelector('.ptz-preset-roi-height').value = preset?.roi?.height || '';
+    ptzPresetPanel.querySelector('.ptz-preset-roi-width').value = preset?.roi?.width ? formatMetric(preset.roi.width) : '';
+    ptzPresetPanel.querySelector('.ptz-preset-roi-height').value = preset?.roi?.height ? formatMetric(preset.roi.height) : '';
     const details = ptzPresetPanel.querySelector('.ptz-preset-details');
     details.textContent = formatPtzPresetDetails(preset);
     details.classList.toggle('ptz-preset-limit-warning', Boolean(preset?.limitIssues?.length));
@@ -1736,7 +1735,7 @@ function ensurePtzPresetPanel() {
       beginPresetDepthSelection(activePresetCamera, preset, ptzPresetPanel.parentElement);
     }
     if(action==='roi-add'){if(!preset?.depthTarget){ptzPresetPanel.querySelector('.ptz-preset-status').textContent='Select a depth surface first.'}else beginPresetRoiCreation(activePresetCamera,preset,ptzPresetPanel.parentElement)}
-    if(action==='roi-edit'){editingPresetRoiId=selectedRoi()?.id||null;refreshLive()}
+    if(action==='roi-edit'){const roi=selectedRoi();editingPresetRoiId=editingPresetRoiId===roi?.id?null:(roi?.id||null);refreshLive();const button=ptzPresetPanel.querySelector('[data-action=\"roi-edit\"]');if(button)button.textContent=editingPresetRoiId?'Finish Editing':'Edit ROI'}
     if(action==='roi-toggle'&&selectedRoi()){selectedRoi().visible=!selectedRoi().visible;refreshLive()}
     if(action==='roi-delete'&&preset&&selectedRoi()&&confirm(`Delete ROI "${selectedRoi().name}"?`)){const id=selectedRoi().id;preset.rois=preset.rois.filter(r=>r.id!==id);preset.activeRoiId=preset.rois[0]?.id||null;editingPresetRoiId=null;refresh(preset.id)}
     if (action === 'delete' && preset && confirm(`Delete PTZ preset "${preset.name}"?`)) {
@@ -1888,7 +1887,7 @@ function completePresetDepthSelection(cameraItem, pick) {
   const dock=pendingPresetDepthDock; cameraItem.data.activePtzPresetId=preset?.id||cameraItem.data.activePtzPresetId; const message=`Depth set to ${formatMetric(distance)} m. Use Add ROI to draw one or more regions on this surface.`; endPresetDepthSelection(); setMeasurementStatus(message); openPtzPresetPanel(cameraItem,dock); const status=ptzPresetPanel?.querySelector('.ptz-preset-status'); if(status)status.textContent=message;
 }
 
-function refreshPresetRoiOverlays(cameraItem=null){for(let i=presetRoiOverlayContexts.length-1;i>=0;i--){const c=presetRoiOverlayContexts[i];if(!c.host.isConnected){presetRoiOverlayContexts.splice(i,1);continue}if(cameraItem&&c.cameraItem.id!==cameraItem.id)continue;c.svg?.remove();const selectedId=activePresetCamera?.id===c.cameraItem.id?ptzPresetPanel?.querySelector('.ptz-preset-list')?.value:null;const preset=ensureCameraPtzPresets(c.cameraItem).find(p=>p.id===(selectedId||c.cameraItem.data?.activePtzPresetId));if(!preset?.rois?.length)continue;const rect=c.canvas.getBoundingClientRect(),svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('preset-roi-svg');svg.setAttribute('viewBox',`0 0 ${rect.width} ${rect.height}`);c.host.appendChild(svg);c.svg=svg;for(const roi of preset.rois.filter(r=>r.visible!==false&&r.nodes?.length>=3)){const poly=document.createElementNS(svg.namespaceURI,'polygon');poly.setAttribute('points',roi.nodes.map(n=>`${n.x*rect.width},${n.y*rect.height}`).join(' '));poly.setAttribute('stroke',roi.color);poly.setAttribute('fill',roi.color+'22');svg.appendChild(poly);const label=document.createElementNS(svg.namespaceURI,'text');label.textContent=roi.name;label.setAttribute('x',roi.nodes[0].x*rect.width+5);label.setAttribute('y',roi.nodes[0].y*rect.height-5);svg.appendChild(label);if(editingPresetRoiId!==roi.id)continue;svg.classList.add('editing');roi.nodes.forEach((node,index)=>{const next=roi.nodes[(index+1)%roi.nodes.length],edge=document.createElementNS(svg.namespaceURI,'line');edge.setAttribute('x1',node.x*rect.width);edge.setAttribute('y1',node.y*rect.height);edge.setAttribute('x2',next.x*rect.width);edge.setAttribute('y2',next.y*rect.height);edge.classList.add('preset-roi-edge');edge.onclick=e=>{if(roi.nodes.length>=15)return;const r=c.canvas.getBoundingClientRect();roi.nodes.splice(index+1,0,{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height});updateEditableRoiMetrics(c.cameraItem,preset,roi)};svg.appendChild(edge);const h=document.createElementNS(svg.namespaceURI,'circle');h.setAttribute('cx',node.x*rect.width);h.setAttribute('cy',node.y*rect.height);h.setAttribute('r',6);h.classList.add('preset-roi-node');h.oncontextmenu=e=>{e.preventDefault();if(roi.nodes.length>3){roi.nodes.splice(index,1);updateEditableRoiMetrics(c.cameraItem,preset,roi)}};h.onpointerdown=e=>{e.stopPropagation();const move=v=>{const r=c.canvas.getBoundingClientRect();node.x=THREE.MathUtils.clamp((v.clientX-r.left)/r.width,0,1);node.y=THREE.MathUtils.clamp((v.clientY-r.top)/r.height,0,1);refreshPresetRoiOverlays(c.cameraItem)};h.onpointermove=move;h.onpointerup=()=>{h.onpointermove=null;updateEditableRoiMetrics(c.cameraItem,preset,roi)}};svg.appendChild(h)})}}}
+function refreshPresetRoiOverlays(cameraItem=null){for(let i=presetRoiOverlayContexts.length-1;i>=0;i--){const c=presetRoiOverlayContexts[i];if(!c.host.isConnected){presetRoiOverlayContexts.splice(i,1);continue}if(cameraItem&&c.cameraItem.id!==cameraItem.id)continue;c.svg?.remove();const selectedId=activePresetCamera?.id===c.cameraItem.id?ptzPresetPanel?.querySelector('.ptz-preset-list')?.value:null;const preset=ensureCameraPtzPresets(c.cameraItem).find(p=>p.id===(selectedId||c.cameraItem.data?.activePtzPresetId));if(!preset?.rois?.length)continue;const rect=c.canvas.getBoundingClientRect(),svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('preset-roi-svg');svg.setAttribute('viewBox',`0 0 ${rect.width} ${rect.height}`);c.host.appendChild(svg);c.svg=svg;for(const roi of preset.rois.filter(r=>r.visible!==false&&r.nodes?.length>=3)){const poly=document.createElementNS(svg.namespaceURI,'polygon');poly.setAttribute('points',roi.nodes.map(n=>`${n.x*rect.width},${n.y*rect.height}`).join(' '));poly.setAttribute('stroke',roi.color);poly.setAttribute('fill',roi.color+'22');svg.appendChild(poly);const label=document.createElementNS(svg.namespaceURI,'text');label.textContent=roi.name;label.setAttribute('x',roi.nodes[0].x*rect.width+5);label.setAttribute('y',roi.nodes[0].y*rect.height-5);svg.appendChild(label);if(editingPresetRoiId!==roi.id)continue;svg.classList.add('editing');roi.nodes.forEach((node,index)=>{const next=roi.nodes[(index+1)%roi.nodes.length],edge=document.createElementNS(svg.namespaceURI,'line');edge.setAttribute('x1',node.x*rect.width);edge.setAttribute('y1',node.y*rect.height);edge.setAttribute('x2',next.x*rect.width);edge.setAttribute('y2',next.y*rect.height);edge.classList.add('preset-roi-edge');edge.onclick=e=>{if(roi.nodes.length>=15)return;const r=c.canvas.getBoundingClientRect();roi.nodes.splice(index+1,0,{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height});updateEditableRoiMetrics(c.cameraItem,preset,roi)};svg.appendChild(edge);const h=document.createElementNS(svg.namespaceURI,'circle');h.setAttribute('cx',node.x*rect.width);h.setAttribute('cy',node.y*rect.height);h.setAttribute('r',6);h.classList.add('preset-roi-node');h.oncontextmenu=e=>{e.preventDefault();if(roi.nodes.length>3){roi.nodes.splice(index,1);updateEditableRoiMetrics(c.cameraItem,preset,roi)}};h.onpointerdown=e=>{e.preventDefault();e.stopPropagation();const move=v=>{const r=c.canvas.getBoundingClientRect();node.x=THREE.MathUtils.clamp((v.clientX-r.left)/r.width,0,1);node.y=THREE.MathUtils.clamp((v.clientY-r.top)/r.height,0,1);h.setAttribute('cx',node.x*r.width);h.setAttribute('cy',node.y*r.height);poly.setAttribute('points',roi.nodes.map(n=>`${n.x*r.width},${n.y*r.height}`).join(' '));if(index===0){label.setAttribute('x',node.x*r.width+5);label.setAttribute('y',node.y*r.height-5)}};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);updateEditableRoiMetrics(c.cameraItem,preset,roi)};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up)};svg.appendChild(h)})}}}
 function updateEditableRoiMetrics(cameraItem,preset,roi){roi.metrics=calculatePolygonRoiMetrics(cameraItem,roi,{projectionDistance:roi.projectionDistance,hfov:preset.hfov});roi.updatedAt=new Date().toISOString();preset.updatedAt=roi.updatedAt;ptzPresetPanel?.refreshLive?.()}
 
 function attachPresetRoiDrawing(host, canvas, cameraItem) {
@@ -2426,7 +2425,7 @@ function openCameraViewport(cameraItem) {
     );
 
     if (viewportCamera && height > 0) {
-      viewportCamera.aspect = width / height;
+      viewportCamera.aspect = (Number(cameraItem.data?.resolutionWidth) || 1920) / (Number(cameraItem.data?.resolutionHeight) || 1080);
       viewportCamera.updateProjectionMatrix();
     }
   }
@@ -4924,6 +4923,7 @@ saveProjectButton.addEventListener('click', () => {
 });
 
 window.addEventListener('keydown', (event) => {
+  if(event.key==='Escape'&&editingPresetRoiId){editingPresetRoiId=null;ptzPresetPanel?.refreshLive?.();const button=ptzPresetPanel?.querySelector('[data-action=\"roi-edit\"]');if(button)button.textContent='Edit ROI';return}
   if (event.key === 'Escape' && pendingPresetDepthCamera) {
     const cameraItem = pendingPresetDepthCamera;
     const dock = pendingPresetDepthDock;
@@ -5000,7 +5000,7 @@ function renderVideoWallRecords(records) {
     } else if (!syncWallCamera(record.camera, record.item)) {
       return;
     }
-    record.camera.aspect = width / height;
+    record.camera.aspect = record.sourceKey === 'scene' ? width / height : (Number(record.item?.data?.resolutionWidth) || 1920) / (Number(record.item?.data?.resolutionHeight) || 1080);
     record.camera.updateProjectionMatrix();
     renderCameraView(record.renderer, record.camera);
   });

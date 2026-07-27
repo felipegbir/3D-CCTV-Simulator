@@ -345,3 +345,5 @@ Cache 952 deployment passed on CCTV PID 4059845 at port 5010 with health status 
 ### 8e.7.1 cache-953 detached ROI workflow, adaptive Video Wall dock, and metric precision - deployment pending
 
 Surface selection now ends after saving preset depth. Add ROI independently arms drawing and can be repeated for multiple ROI children; Edit ROI and Delete ROI operate on the selected child. Integrated Video Wall 1 x 1 uses a vertical Camera View-style preset dock, while 1 x 2 retains the horizontal 60/40 dock. A saved global Metric Decimals preference accepts 0-10 and defaults to 5; displayed engineering metrics use the shared formatter and the preference persists locally and in .nmd project preferences.
+
+Cache 953 deployment passed on CCTV PID 4076820 at port 5010 with health status ok, exact local/deployed frontend SHA-256 hashes, and live cache/detached-ROI/metric-precision markers. NAS baseline: NOMAD_8e.7.1_CACHE952_PRE_953_20260727_150452; server rollback: deploy_backups/pre_cache_953_20260727_1515. Only verified CCTV PID 4059845 was replaced; no independent service or container was restarted. Owner QA remains pending.

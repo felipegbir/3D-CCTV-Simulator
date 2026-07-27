@@ -309,3 +309,12 @@ Cache 949 addresses owner UI and workflow QA after cache 948. The top-bar divide
 
 Cache 949 deployment passed on CCTV PID 3942527 at port 5010 with health status ok, camera API HTTP 200, exact local/deployed frontend hashes, and live cache/PTZ-state/preset-toggle markers. NAS recovery snapshot: NOMAD_8e.7.1_CACHE949_VIDEO_WALL_PTZ_TOGGLE_20260727_122900; server rollback: deploy_backups/pre_cache_949_20260727_1230. Only the verified CCTV Simulator PID 3913479 was replaced; no independent service or container was restarted. Owner visual and interaction confirmation remains pending.
 
+
+### 8e.7.1 cache-950 UI precision, preset naming, and schema-5 workspace persistence - deployment pending
+
+Cache 950 makes the left Scene Tree rail use the same sidebar background as the right Inspector, changes the integrated Video Wall camera/preset split to 60/40, and replaces competing top-border declarations with one full-width pseudo-element line. The viewer is now an isolated base stacking context and the menu/dropdowns use stable higher layers so Camera Viewports cannot cover menus. Missing preset names are assigned the next per-camera padded sequential name (Preset 001, Preset 002, and so on) during add/capture, update, detail save, and depth selection.
+
+Project schema 5 adds safe workspace persistence for selected object, Planning/Video Wall mode, Scene Tree rail collapse, Inspector collapse, individual Scene Tree group collapse, selected Video Wall tile, and per-camera Video Wall PTZ enablement. Existing camera/PTZ preset/palette/depth/model/reference/measurement/preferences persistence remains intact. The proposed future .nomad container is deferred pending a versioned package design; JSON remains readable and backward-compatible. Static, syntax, complete regression, and dedicated cache-950 workspace guards pass. Owner visual/save-load confirmation remains pending.
+
+Menu population inventory: File still requires Close Project, Save As, Export Project, and Upload; Edit requires Copy, Cut, Paste, Delete, Clone, and Add; View requires Zoom Out, Fit Grid, Show/Hide Grid, and Show/Hide Axes; Object requires Add Object, Define Object, Object Properties, and Lock/Unlock; Help requires the published manual link; About requires the published source repository link. Preferences, Measurement Tools, current camera/PTZ controls, and current Video Wall controls are populated.
+

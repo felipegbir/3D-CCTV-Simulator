@@ -24,7 +24,7 @@ let videoWallOrder = ['scene'];
 let selectedVideoWallTileIndex = 0;
 let selectedPopupVideoWallTileIndex = 0;
 const APP_VERSION = '8e.7.1';
-const PROJECT_SCHEMA_VERSION = 4;
+const PROJECT_SCHEMA_VERSION = 5;
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
 const appVersionLabel = document.getElementById('appVersionLabel');
 const aboutVersion = document.getElementById('aboutVersion');
@@ -1237,11 +1237,21 @@ let pendingPresetDepthPresetId = null;
 let pendingPresetDepthDock = null;
 let presetDepthPickBanner = null;
 
+function getNextPtzPresetName(cameraItem) {
+  const usedNumbers = ensureCameraPtzPresets(cameraItem)
+    .map(preset => /^Preset\s+(\d+)$/i.exec(String(preset.name || '').trim()))
+    .filter(Boolean)
+    .map(match => Number(match[1]))
+    .filter(Number.isFinite);
+  const nextNumber = usedNumbers.length ? Math.max(...usedNumbers) + 1 : 1;
+  return `Preset ${String(nextNumber).padStart(3, '0')}`;
+}
+
 function normalizePtzPreset(preset, index = 0) {
   const safe = preset && typeof preset === 'object' ? preset : {};
   return {
     id: String(safe.id || `ptz-preset-${Date.now()}-${index}`),
-    name: String(safe.name || `Preset ${index + 1}`),
+    name: String(safe.name || `Preset ${String(index + 1).padStart(3, '0')}`),
     notes: String(safe.notes || ''),
     pan: Number.parseFloat(safe.pan) || 0,
     tilt: THREE.MathUtils.clamp(Number.parseFloat(safe.tilt) || 0, -90, 90),
@@ -1317,7 +1327,7 @@ function captureCameraPreset(cameraItem, existing = {}) {
   return normalizePtzPreset({
     ...existing,
     id: existing.id || (crypto.randomUUID?.() ? `ptz-${crypto.randomUUID()}` : `ptz-${Date.now()}`),
-    name: existing.name || `Preset ${ensureCameraPtzPresets(cameraItem).length + 1}`,
+    name: existing.name || getNextPtzPresetName(cameraItem),
     notes: existing.notes || '',
     pan: cameraItem.data?.pan,
     tilt: cameraItem.data?.tilt,
@@ -1650,14 +1660,14 @@ function ensurePtzPresetPanel() {
       ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `${created.name} added from the current camera view.`;
     }
     if (action === 'update' && preset) {
-      const updated = captureCameraPreset(activePresetCamera, { ...preset, name: nameField.value.trim() || preset.name, notes: notesField.value.trim(), roi });
+      const updated = captureCameraPreset(activePresetCamera, { ...preset, name: nameField.value.trim() || getNextPtzPresetName(activePresetCamera), notes: notesField.value.trim(), roi });
       const index = activePresetCamera.data.ptzPresets.findIndex(entry => entry.id === preset.id);
       activePresetCamera.data.ptzPresets[index] = updated;
       refresh(updated.id);
       ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `${updated.name} updated from the current camera view.`;
     }
     if (action === 'save' && preset) {
-      preset.name = nameField.value.trim() || preset.name;
+      preset.name = nameField.value.trim() || getNextPtzPresetName(activePresetCamera);
       preset.notes = notesField.value.trim();
       preset.roi = roi;
       preset.analysis = calculatePresetAnalysis(activePresetCamera, roi);
@@ -1669,6 +1679,11 @@ function ensurePtzPresetPanel() {
       if (!preset) {
         ptzPresetPanel.querySelector('.ptz-preset-status').textContent = 'Select a preset before choosing its depth surface.';
         return;
+      }
+      if (!nameField.value.trim()) {
+        preset.name = getNextPtzPresetName(activePresetCamera);
+        preset.updatedAt = new Date().toISOString();
+        nameField.value = preset.name;
       }
       beginPresetDepthSelection(activePresetCamera, preset, ptzPresetPanel.parentElement);
     }
@@ -4378,6 +4393,34 @@ function applyLoadedProject(project) {
     if (Array.isArray(savedOrder)) videoWallOrder = [...savedOrder];
     const savedLayout = String(project.workspace.videoWall.layout || 'auto');
     if ([...videoWallLayout.options].some(option => option.value === savedLayout)) videoWallLayout.value = savedLayout;
+    selectedVideoWallTileIndex = Math.max(0, Number(project.workspace.videoWall.selectedTileIndex) || 0);
+    videoWallPtzEnabledBySource.clear();
+    const savedPtzSources = project.workspace.videoWall.ptzEnabledSources;
+    if (savedPtzSources && typeof savedPtzSources === 'object') {
+      Object.entries(savedPtzSources).forEach(([sourceKey, enabled]) => videoWallPtzEnabledBySource.set(sourceKey, Boolean(enabled)));
+    }
+  }
+  if (project.workspace?.panels) {
+    document.body.classList.toggle('scene-tree-collapsed', Boolean(project.workspace.panels.sceneTreeCollapsed));
+    document.body.classList.toggle('object-inspector-collapsed', Boolean(project.workspace.panels.objectInspectorCollapsed));
+    const savedGroups = project.workspace.panels.sceneTreeGroups;
+    if (savedGroups && typeof savedGroups === 'object') {
+      Object.entries(savedGroups).forEach(([type, collapsed]) => {
+        if (sceneTreeGroups[type]) sceneTreeGroups[type].collapsed = Boolean(collapsed);
+      });
+    }
+    const sceneToggle = document.getElementById('sceneTreeToggle');
+    const inspectorToggle = document.getElementById('objectInspectorToggle');
+    if (sceneToggle) {
+      const collapsed = document.body.classList.contains('scene-tree-collapsed');
+      sceneToggle.textContent = collapsed ? 'â–¶' : 'â—€';
+      sceneToggle.setAttribute('aria-expanded', String(!collapsed));
+    }
+    if (inspectorToggle) {
+      const collapsed = document.body.classList.contains('object-inspector-collapsed');
+      inspectorToggle.textContent = collapsed ? 'â—€' : 'â–¶';
+      inspectorToggle.setAttribute('aria-expanded', String(!collapsed));
+    }
   }
 
   if (Array.isArray(project.models)) {
@@ -4486,8 +4529,14 @@ function applyLoadedProject(project) {
   });
 
   renderSceneTree();
-  updateSelectedToolbar();
-  updateObjectInfoPanel();
+  const savedSelectedId = String(project.workspace?.selectedObjectId || '');
+  if (savedSelectedId && sceneObjects.some(item => item.id === savedSelectedId)) selectObject(savedSelectedId);
+  else {
+    updateSelectedToolbar();
+    updateObjectInfoPanel();
+  }
+  if (project.workspace?.mode === 'videoWall') showVideoWall();
+  else hideVideoWall();
 
 }
 
@@ -4537,7 +4586,18 @@ saveProjectButton.addEventListener('click', () => {
     preferences: { ...preferences },
     workspace: {
       mode: videoWallOverlay.classList.contains('hidden') ? 'planning' : 'videoWall',
-      videoWall: { layout: videoWallLayout.value, order: [...videoWallOrder] }
+      selectedObjectId: selectedId,
+      panels: {
+        sceneTreeCollapsed: document.body.classList.contains('scene-tree-collapsed'),
+        objectInspectorCollapsed: document.body.classList.contains('object-inspector-collapsed'),
+        sceneTreeGroups: Object.fromEntries(Object.entries(sceneTreeGroups).map(([type, group]) => [type, Boolean(group.collapsed)]))
+      },
+      videoWall: {
+        layout: videoWallLayout.value,
+        order: [...videoWallOrder],
+        selectedTileIndex: selectedVideoWallTileIndex,
+        ptzEnabledSources: Object.fromEntries(videoWallPtzEnabledBySource)
+      }
     },
 
     model: {

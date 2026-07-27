@@ -7,7 +7,7 @@ for marker in ('N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.1','ptz-preset-panel
     assert marker in HTML, f'Missing 8e.7.1 preset UI marker: {marker}'
 for marker in (
     "const APP_VERSION = '8e.7.1';",
-    'const PROJECT_SCHEMA_VERSION = 4;',
+    'const PROJECT_SCHEMA_VERSION = 5;',
     'ptzPresetSpeed: 10',
     'Math.min(60, Math.max(1, ptzPresetSpeed))',
     'function normalizePtzPreset(preset, index = 0)',

@@ -332,6 +332,8 @@
       top: 0;
       width: calc(100vw - 320px);
       height: 100vh;
+      z-index: 0;
+      isolation: isolate;
     }
 
     #selectedToolbar {
@@ -825,9 +827,9 @@
     .video-wall-tile.drag-over { outline: 3px solid #00aaff; }
     .video-wall-empty-slot { min-width: 0; min-height: 0; border: 1px dashed #33465a; border-radius: 4px; background: #0b1118; }
     .video-wall-render-pane { position: relative; flex: 1 1 100%; min-width: 0; min-height: 0; overflow: hidden; transition: flex-basis .18s ease; }
-    .video-wall-tile.has-preset-dock .video-wall-render-pane { flex: 0 0 70%; width: 100%; height: 70%; }
+    .video-wall-tile.has-preset-dock .video-wall-render-pane { flex: 0 0 60%; width: 100%; height: 60%; }
     .video-wall-tile canvas { width: 100%; height: 100%; display: block; }
-    .video-wall-tile .ptz-preset-panel { position: relative; inset: auto; flex: 0 0 30%; width: 100%; max-width: 100%; height: 30%; max-height: 30%; transform: none; border: 0; border-top: 1px solid #40536a; border-radius: 0; box-shadow: none; padding: 10px; box-sizing: border-box; overflow: auto; }
+    .video-wall-tile .ptz-preset-panel { position: relative; inset: auto; flex: 0 0 40%; width: 100%; max-width: 100%; height: 40%; max-height: 40%; transform: none; border: 0; border-top: 1px solid #40536a; border-radius: 0; box-shadow: none; padding: 10px; box-sizing: border-box; overflow: auto; }
     .video-wall-label {
       position: absolute;
       left: 6px;
@@ -967,16 +969,26 @@
       height: 40px;
       min-height: 40px;
       max-height: 40px;
-      z-index: 2147483000;
+      z-index: 30000;
       display: flex;
       flex-direction: row;
       align-items: stretch;
       overflow: visible;
       border: 0;
-      border-bottom: 1px solid var(--border-strong);
       border-radius: 0;
       background: var(--header-bg);
-      box-shadow: inset 0 -1px 0 var(--border-strong), 0 2px 8px rgba(0,0,0,.35);
+      box-shadow: 0 2px 8px rgba(0,0,0,.35);
+    }
+    #operationsFrame::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 1px;
+      z-index: 30002;
+      background: var(--border-strong);
+      pointer-events: none;
     }
     #operationsFrame > .panel-title {
       display: flex;
@@ -1013,7 +1025,6 @@
       display: flex;
       align-items: center;
       border: 0;
-      border-bottom: 1px solid var(--border-strong);
       color: var(--header-text);
       font-size: 13px;
       font-weight: normal;
@@ -1064,7 +1075,7 @@
       position: absolute;
       top: 40px;
       left: 0;
-      z-index: 2147483100;
+      z-index: 30001;
       width: 280px;
       max-height: calc(100vh - 52px);
       overflow-x: hidden;
@@ -1105,6 +1116,10 @@
       width: 100%;
       max-height: none;
       min-height: 0;
+      background: var(--sidebar-bg);
+    }
+    #sceneFrame .panel-content {
+      background: var(--sidebar-bg);
     }
     #sceneFrame .panel-title {
       display: flex;
@@ -1724,6 +1739,6 @@
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=949"></script>
+<script type="module" src="/static/viewer.js?v=950"></script>
 </body>
 </html>

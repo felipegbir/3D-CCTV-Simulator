@@ -291,3 +291,5 @@ Remaining roadmap after cache 947:
 - 8e.8 NAS-backed persistence and reporting.
 - Report coordinate-origin workflow, BOM, current camera captures, PTZ preset captures, and pixel-density pages.
 - Final save/load consolidation for theme, camera visualization modes, Video Wall assignments, depth targets, external-asset transforms/references, and all accumulated UI state.
+
+Cache 947 deployment passed on CCTV PID 3891423 at port 5010 with health `ok`, exact local/deployed frontend hashes, and live cache/source-selector/surface-raycast/live-analysis markers. NAS recovery snapshot: `NOMAD_8e.7.1_CACHE947_VIDEO_WALL_PTZ_UI_20260727_112701`; server rollback: `deploy_backups/pre_cache_947_20260727_1127`. No independent service or container was restarted. Owner visual and interaction QA remains pending.

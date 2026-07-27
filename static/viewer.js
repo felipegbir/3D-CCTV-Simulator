@@ -19,6 +19,7 @@ const openCameraViewports = [];
 var videoWallRecords = [];
 var popupVideoWallRecords = [];
 var popupVideoWallWindow = null;
+const videoWallPtzEnabledBySource = new Map();
 let videoWallOrder = ['scene'];
 let selectedVideoWallTileIndex = 0;
 let selectedPopupVideoWallTileIndex = 0;
@@ -1538,29 +1539,28 @@ function ensurePtzPresetPanel() {
   ptzPresetPanel = document.createElement('div');
   ptzPresetPanel.className = 'ptz-preset-panel hidden';
   ptzPresetPanel.innerHTML = `
-    <div class="ptz-preset-heading"><h3>PTZ Presets</h3><button class="ptz-preset-close" type="button" data-action="close" title="Close preset dock">×</button></div>
+    <div class="ptz-preset-heading"><h3>PTZ Presets</h3></div>
     <div class="ptz-preset-camera"></div>
     <details class="ptz-preset-section" open><summary>Preset Management</summary>
       <div class="ptz-preset-actions">
         <button type="button" data-action="add">Add Current</button>
         <button type="button" data-action="update">Update Current</button>
         <button type="button" data-action="save">Save Details</button>
-        <button type="button" data-action="delete">Delete</button>
       </div>
     </details>
-    <details class="ptz-preset-section" open><summary>Name</summary>
+    <details class="ptz-preset-section"><summary>Name</summary>
       <label>Name<input class="ptz-preset-name" type="text" maxlength="80"></label>
     </details>
-    <details class="ptz-preset-section" open><summary>Target and Movement</summary>
+    <details class="ptz-preset-section"><summary>Target and Movement</summary>
       <div class="ptz-preset-speed"><span>Target ROI (m)</span><input class="ptz-preset-roi-width" type="number" min="0" step="0.001" placeholder="Width"><input class="ptz-preset-roi-height" type="number" min="0" step="0.001" placeholder="Height"></div>
       <label class="ptz-preset-speed">Movement speed<input class="ptz-preset-speed-input" type="range" min="1" max="60" step="1"><output class="ptz-preset-speed-value"></output></label>
       <div class="ptz-preset-actions"><button type="button" data-action="depth">Select Depth Surface</button></div>
     </details>
-    <details class="ptz-preset-section" open><summary>Presets</summary>
+    <details class="ptz-preset-section"><summary>Presets</summary>
       <label>Existing presets<select class="ptz-preset-list" size="3"></select></label>
-      <div class="ptz-preset-actions"><button type="button" data-action="recall">Recall</button></div>
+      <div class="ptz-preset-actions"><button type="button" data-action="recall">Recall</button><button type="button" data-action="delete">Delete</button></div>
     </details>
-    <details class="ptz-preset-section" open><summary>Live Pixel Density</summary><div class="ptz-live-analysis"></div><div class="ptz-preset-details"></div></details>
+    <details class="ptz-preset-section"><summary>Live Pixel Density</summary><div class="ptz-live-analysis"></div><div class="ptz-preset-details"></div></details>
     <details class="ptz-preset-section"><summary>Notes</summary><label>Notes<textarea class="ptz-preset-notes" maxlength="1000"></textarea></label></details>
     <div class="ptz-preset-status"></div>`;
   document.body.appendChild(ptzPresetPanel);
@@ -1635,7 +1635,6 @@ function ensurePtzPresetPanel() {
   ptzPresetPanel.addEventListener('click', event => {
     const action = event.target.dataset.action;
     if (!action || !activePresetCamera) return;
-    if (action === 'close') return closePtzPresetPanel();
     const preset = selectedPreset();
     if (action === 'recall') {
       if (preset) recallPtzPreset(activePresetCamera, preset);
@@ -1702,6 +1701,21 @@ function closePtzPresetPanel() {
   ptzPresetPanel.classList.add('hidden');
   const owner = ptzPresetPanel.parentElement;
   owner?.setPresetDockOpen?.(false);
+}
+
+function togglePtzPresetPanel(cameraItem, viewportElement = null) {
+  if (!cameraItem || cameraItem.type !== 'camera') return false;
+  const requestedOwner = viewportElement?.closest?.('.video-wall-tile') || viewportElement;
+  const isSameOpenPanel = ptzPresetPanel &&
+    !ptzPresetPanel.classList.contains('hidden') &&
+    activePresetCamera?.id === cameraItem.id &&
+    (!requestedOwner || ptzPresetPanel.parentElement === requestedOwner);
+  if (isSameOpenPanel) {
+    closePtzPresetPanel();
+    return false;
+  }
+  openPtzPresetPanel(cameraItem, viewportElement);
+  return true;
 }
 
 function openPtzPresetPanel(cameraItem, viewportElement = null) {
@@ -1854,13 +1868,15 @@ function createWallTile(doc, host, source, records, onDrop, options = {}) {
     hostTile: tile,
     tileIndex: Number(tile.dataset.tileIndex),
     palette: source.item?.data?.viewportPalette || (source.item ? getDefaultViewportPalette(source.item) : 'visible'),
-    ptzEnabled: false,
+    ptzEnabled: Boolean(videoWallPtzEnabledBySource.get(source.key)),
     ptzDragging: false,
     lastX: 0,
     lastY: 0
   };
+  let presetToggleButton = null;
   tile.setPresetDockOpen = open => {
     tile.classList.toggle('has-preset-dock', Boolean(open));
+    presetToggleButton?.classList.toggle('active', Boolean(open));
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
   };
   records.push(record);
@@ -1902,10 +1918,14 @@ function createWallTile(doc, host, source, records, onDrop, options = {}) {
     ptz.addEventListener('click', event => {
       event.stopPropagation();
       record.ptzEnabled = !record.ptzEnabled;
+      videoWallPtzEnabledBySource.set(source.key, record.ptzEnabled);
       ptz.classList.toggle('active', record.ptzEnabled);
       ptz.textContent = record.ptzEnabled ? 'PTZ ON' : 'PTZ';
       tile.classList.toggle('ptz-active', record.ptzEnabled);
     });
+    ptz.classList.toggle('active', record.ptzEnabled);
+    ptz.textContent = record.ptzEnabled ? 'PTZ ON' : 'PTZ';
+    tile.classList.toggle('ptz-active', record.ptzEnabled);
     controls.appendChild(ptz);
 
     const presets = doc.createElement('button');
@@ -1913,9 +1933,10 @@ function createWallTile(doc, host, source, records, onDrop, options = {}) {
     presets.textContent = 'Presets';
     presets.title = 'Manage and recall PTZ presets';
     presets.disabled = !options.allowPresetDock;
+    presetToggleButton = presets;
     presets.addEventListener('click', event => {
       event.stopPropagation();
-      if (options.allowPresetDock) openPtzPresetPanel(source.item, tile);
+      if (options.allowPresetDock) togglePtzPresetPanel(source.item, tile);
     });
     controls.appendChild(presets);
 
@@ -1957,6 +1978,12 @@ function createWallTile(doc, host, source, records, onDrop, options = {}) {
   tile.classList.toggle('selected', Boolean(options.selected));
 }
 function buildIntegratedVideoWall() {
+  const dockCameraId = ptzPresetPanel &&
+    !ptzPresetPanel.classList.contains('hidden') &&
+    videoWallGrid.contains(ptzPresetPanel)
+      ? activePresetCamera?.id
+      : null;
+  if (dockCameraId) closePtzPresetPanel();
   disposeVideoWallRecords(videoWallRecords);
   videoWallGrid.replaceChildren();
   const sources = getVideoWallSources();
@@ -1974,6 +2001,10 @@ function buildIntegratedVideoWall() {
   }));
   appendVideoWallEmptySlots(document, videoWallGrid, layout.capacity - visibleSources.length);
   populateVideoWallSourceSelect(videoWallSource, selectedVideoWallTileIndex);
+  if (dockCameraId && videoWallSupportsPresetDock(layout)) {
+    const owner = videoWallRecords.find(record => record.item?.id === dockCameraId);
+    if (owner) openPtzPresetPanel(owner.item, owner.hostTile);
+  }
 }
 
 function showVideoWall() {
@@ -2392,6 +2423,7 @@ function openCameraViewport(cameraItem) {
   };
 
   viewport.setPresetDockOpen = open => {
+    presetsBtn.classList.toggle('active', Boolean(open));
     if (open) {
       if (!viewport.dataset.prePresetDockWidth) viewport.dataset.prePresetDockWidth = viewport.style.width;
       const baseWidth = Number.parseFloat(viewport.dataset.prePresetDockWidth) || viewport.getBoundingClientRect().width;
@@ -2524,7 +2556,7 @@ function openCameraViewport(cameraItem) {
     link.click();
   });
 
-    presetsBtn.addEventListener('click', () => openPtzPresetPanel(cameraItem, viewport));
+    presetsBtn.addEventListener('click', () => togglePtzPresetPanel(cameraItem, viewport));
 
     ptzToggleBtn.addEventListener('click', () => {
       if (!isMaximized) return;
@@ -3028,7 +3060,7 @@ ptzZoomOut.addEventListener('click', () => {
 
 ptzPresetsInspectorButton.addEventListener('click', () => {
   const item = sceneObjects.find(entry => entry.id === selectedId && entry.type === 'camera');
-  if (item) openPtzPresetPanel(item);
+  if (item) togglePtzPresetPanel(item);
 });
 
 toolbarCameraView.addEventListener('click', () => {

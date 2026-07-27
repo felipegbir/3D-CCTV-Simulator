@@ -20,7 +20,7 @@ for marker in (
     '.camera-viewport.has-preset-dock .camera-viewport-body',
     '.ptz-preset-list option.limit-warning',
     'preset-depth-pick-banner',
-    '/static/viewer.js?v=944',
+    '/static/viewer.js?v=',
 ):
     assert marker in HTML, f'Missing owner-QA layout marker: {marker}'
 

@@ -301,3 +301,8 @@ Owner QA found Camera Viewports still escaping above top-menu dropdowns, the int
 
 Cache 948 deployment passed on CCTV PID 3913479 at port 5010 with health status ok, camera API HTTP 200, exact local/deployed frontend hashes, and live cache/menu-layer/preset-management markers. NAS recovery snapshot: NOMAD_8e.7.1_CACHE948_UI_QA_20260727_115345; server rollback: deploy_backups/pre_cache_948_20260727_1155. Only the verified CCTV Simulator PID 3891423 was replaced; no independent service or container was restarted. Owner visual and interaction confirmation remains pending.
 
+
+### 8e.7.1 cache-949 Video Wall/PTZ toggle QA correction - deployment pending
+
+Cache 949 addresses owner UI and workflow QA after cache 948. The top-bar divider is continuous beneath menu labels, Scene Tree entries use subtle Inspector-consistent row dividers, and the PTZ Preset manager initially opens only Preset Management while the other five sections remain collapsed. Delete now sits beside Recall. The internal preset close button is removed: every Presets button is a true on/off toggle with an active visual state. Integrated Video Wall rebuild/source refresh now preserves per-camera PTZ enablement and restores an open preset dock when its camera remains visible in a supported 1 x 1 or 1 x 2 layout. Static, JavaScript syntax, targeted lifecycle/DOM assertions, and the full Python regression suite pass. Browser visual automation remains blocked by the current Windows process-launch restriction; owner visual/interaction validation remains pending.
+

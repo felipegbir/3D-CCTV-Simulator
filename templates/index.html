@@ -1216,6 +1216,15 @@
     }
     .ptz-preset-list option.limit-warning { color: #ff3b3b; font-weight: bold; }
     .ptz-preset-limit-warning { color: #ff5252; font-weight: bold; }
+    .preset-roi-overlay {
+      position: absolute;
+      z-index: 12;
+      border: 2px solid #00e5ff;
+      background: rgba(0, 229, 255, .14);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, .75);
+      pointer-events: none;
+      box-sizing: border-box;
+    }
     .preset-depth-pick-banner {
       position: fixed;
       top: 50px;
@@ -1263,13 +1272,13 @@
         <input
           id="loadProjectFile"
           type="file"
-          accept="application/json"
+          accept=".nmd,.json,application/json"
           style="display: none;"
         >
 
-        <button class="menu-button disabled">Close Project</button>
+        <button class="menu-button" id="closeProject" type="button">Close Project</button>
         <button class="menu-button" id="saveProject">Save Project</button>
-        <button class="menu-button disabled">Save As</button>
+        <button class="menu-button" id="saveAsProject" type="button">Save As</button>
         <button class="menu-button" id="importModel">Import Model</button>
 
         <input
@@ -1288,18 +1297,18 @@
           style="display: none;"
         >
 
-        <button class="menu-button disabled">Export Project</button>
-        <button class="menu-button disabled">Upload</button>
+        <button class="menu-button" id="exportProject" type="button">Export JSON</button>
+        <button class="menu-button" id="uploadProject" type="button">Open Project File</button>
       </div>
 
       <div class="menu-group collapsed">
         <div class="section-title">Edit</div>
-        <button class="menu-button disabled">Copy</button>
-        <button class="menu-button disabled">Cut</button>
-        <button class="menu-button disabled">Paste</button>
-        <button class="menu-button disabled">Delete</button>
-        <button class="menu-button disabled">Clone</button>
-        <button class="menu-button disabled">Add</button>
+        <button class="menu-button" id="editCopy" type="button">Copy</button>
+        <button class="menu-button" id="editCut" type="button">Cut</button>
+        <button class="menu-button" id="editPaste" type="button">Paste</button>
+        <button class="menu-button" id="editDelete" type="button">Delete</button>
+        <button class="menu-button" id="editClone" type="button">Clone</button>
+        <button class="menu-button" id="editAdd" type="button">Add Box</button>
       </div>
 
       <div class="menu-group collapsed">
@@ -1308,19 +1317,19 @@
         <button class="menu-button" id="fitSelectedView">Fit Selected</button>
         <button class="menu-button" id="openVideoWall" type="button">Open Video Wall</button>
         <button class="menu-button" id="popOutVideoWall" type="button">Pop Out Video Wall</button>
-        <button class="menu-button disabled">Zoom Out</button>
-        <button class="menu-button disabled">Fit Grid</button>
-        <button class="menu-button disabled">Show / Hide Grid</button>
-        <button class="menu-button disabled">Show / Hide Axes</button>
+        <button class="menu-button" id="viewZoomOut" type="button">Zoom Out</button>
+        <button class="menu-button" id="viewFitGrid" type="button">Fit Grid</button>
+        <button class="menu-button" id="viewToggleGrid" type="button">Show / Hide Grid</button>
+        <button class="menu-button" id="viewToggleAxes" type="button">Show / Hide Axes</button>
       </div>
 
       <div class="menu-group collapsed">
         <div class="section-title">Object</div>
         <button class="menu-button" id="addCameraButton">Add Camera</button>
-        <button class="menu-button disabled">Add Object</button>
-        <button class="menu-button disabled">Define Object</button>
-        <button class="menu-button disabled">Object Properties</button>
-        <button class="menu-button disabled">Lock / Unlock</button>
+        <button class="menu-button" id="objectAdd" type="button">Add Box Object</button>
+        <button class="menu-button" id="objectDefine" type="button">Rename / Define</button>
+        <button class="menu-button" id="objectProperties" type="button">Object Properties</button>
+        <button class="menu-button" id="objectLock" type="button">Lock / Unlock</button>
       </div>
 
       <div class="menu-group collapsed" id="preferencesGroup">
@@ -1739,6 +1748,6 @@
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=950"></script>
+<script type="module" src="/static/viewer.js?v=951"></script>
 </body>
 </html>

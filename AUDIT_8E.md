@@ -321,3 +321,12 @@ Menu population inventory: File still requires Close Project, Save As, Export Pr
 
 Cache 950 deployment passed on CCTV PID 3963296 at port 5010 with health status ok, camera API HTTP 200, exact local/deployed frontend hashes, and live cache/schema-5/sequential-name/single-line markers. NAS recovery snapshot: NOMAD_8e.7.1_CACHE950_SCHEMA5_UI_PERSISTENCE_20260727_125419; server rollback: deploy_backups/pre_cache_950_20260727_1255. Only the verified CCTV Simulator PID 3942527 was replaced; no independent service or container was restarted. Owner visual and schema-5 save/load confirmation remains pending.
 
+
+### 8e.7.1 cache-951 .nmd projects, populated menus, and drawable preset ROI - deployment pending
+
+Cache 951 hides the Camera View Presets button until the viewport is maximized, while retaining Presets in supported integrated Video Wall layouts. Project schema 6 uses the .nmd extension for the normal human-readable JSON project format and accepts both .nmd and legacy .json; Export JSON remains available for compatibility. ZIP packaging is intentionally deferred to a later container-format revision.
+
+All formerly disabled top-menu commands are populated: File provides Close, Save As, JSON export, and Open Project File; Edit provides Copy, Cut, Paste, Delete, Clone, and Add Box; View provides Zoom Out, Fit Grid, and Grid/Axes toggles; Object provides Add Box Object, Rename/Define, Object Properties, and Lock/Unlock. Clipboard cloning preserves transforms and camera data; locked state persists in object data.
+
+Preset depth selection is now followed by a drag-to-draw ROI inside the Camera View or supported Video Wall camera tile. The preset stores normalized ROI bounds, physical width/height, exact sensor-image pixel width/height, and the classification: below 3 x 3, minimum 3 x 3, or preferred 9 x 9 and greater. The result is shown explicitly as N x M pixels, so pixels per metre is no longer the sole metric. Static, JavaScript syntax, complete regression, and dedicated cache-951 workflow guards pass. Owner interaction and save/load confirmation remain pending.
+

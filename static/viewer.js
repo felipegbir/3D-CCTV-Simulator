@@ -24,7 +24,8 @@ let videoWallOrder = ['scene'];
 let selectedVideoWallTileIndex = 0;
 let selectedPopupVideoWallTileIndex = 0;
 const APP_VERSION = '8e.7.1';
-const PROJECT_SCHEMA_VERSION = 5;
+const PROJECT_SCHEMA_VERSION = 6;
+let projectDownloadExtension = 'nmd';
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
 const appVersionLabel = document.getElementById('appVersionLabel');
 const aboutVersion = document.getElementById('aboutVersion');
@@ -881,9 +882,15 @@ function selectObject(id) {
   if (!item || !item.selectable) return;
 
   selectedId = id;
-  transformControls.attach(item.object);
-  transformControls.visible = true;
-  transformControls.enabled = true;
+  if (item.data?.locked) {
+    transformControls.detach();
+    transformControls.visible = false;
+    transformControls.enabled = false;
+  } else {
+    transformControls.attach(item.object);
+    transformControls.visible = true;
+    transformControls.enabled = true;
+  }
   renderSceneTree();
   updateSelectedToolbar();
   updateObjectInfoPanel();
@@ -1236,6 +1243,8 @@ let pendingPresetDepthCamera = null;
 let pendingPresetDepthPresetId = null;
 let pendingPresetDepthDock = null;
 let presetDepthPickBanner = null;
+let pendingPresetDepthStage = null;
+let pendingPresetRoiDrawing = null;
 
 function getNextPtzPresetName(cameraItem) {
   const usedNumbers = ensureCameraPtzPresets(cameraItem)
@@ -1268,7 +1277,13 @@ function normalizePtzPreset(preset, index = 0) {
       ? { ...safe.capturedCameraIdentity }
       : (safe.cameraIdentity && typeof safe.cameraIdentity === 'object' ? { ...safe.cameraIdentity } : {}),
     limitIssues: Array.isArray(safe.limitIssues) ? safe.limitIssues.map(String) : [],
-    roi: { width: Number(safe.roi?.width) || null, height: Number(safe.roi?.height) || null },
+    roi: {
+      width: Number(safe.roi?.width) || null,
+      height: Number(safe.roi?.height) || null,
+      pixelWidth: Number(safe.roi?.pixelWidth) || null,
+      pixelHeight: Number(safe.roi?.pixelHeight) || null,
+      normalized: safe.roi?.normalized && typeof safe.roi.normalized === 'object' ? { ...safe.roi.normalized } : null
+    },
     depthTarget: safe.depthTarget && typeof safe.depthTarget === 'object' ? { ...safe.depthTarget } : null,
     analysis: safe.analysis && typeof safe.analysis === 'object' ? { ...safe.analysis } : {},
     createdAt: safe.createdAt || new Date().toISOString(),
@@ -1771,6 +1786,9 @@ function endPresetDepthSelection() {
   pendingPresetDepthCamera = null;
   pendingPresetDepthPresetId = null;
   pendingPresetDepthDock = null;
+  pendingPresetDepthStage = null;
+  pendingPresetRoiDrawing?.overlay?.remove();
+  pendingPresetRoiDrawing = null;
   presetDepthPickBanner?.remove();
   presetDepthPickBanner = null;
   document.body.classList.remove('preset-depth-pick-active');
@@ -1780,6 +1798,7 @@ function beginPresetDepthSelection(cameraItem, preset, dock) {
   pendingPresetDepthCamera = cameraItem;
   pendingPresetDepthPresetId = preset.id;
   pendingPresetDepthDock = dock?.closest?.('.camera-viewport, .video-wall-tile') || dock;
+  pendingPresetDepthStage = 'depth';
   closePtzPresetPanel();
   const banner = ensurePresetDepthPickBanner();
   banner.textContent = `Depth selection armed for ${preset.name}. Click a visible model/reference surface inside ${cameraItem.name} Camera View; Esc cancels.`;
@@ -1826,14 +1845,94 @@ function completePresetDepthSelection(cameraItem, pick) {
     preset.analysis = calculatePresetAnalysis(cameraItem, preset.roi, { projectionDistance: distance, hfov: preset.hfov });
     preset.updatedAt = new Date().toISOString();
   }
-  const dock = pendingPresetDepthDock;
-  endPresetDepthSelection();
-  setMeasurementStatus(`Depth set from ${cameraItem.name} to ${targetItem?.name || 'selected surface'}: ${distance.toFixed(3)} m.`);
-  openPtzPresetPanel(cameraItem, dock);
+  pendingPresetDepthStage = 'roi';
+  const message = `Depth set to ${distance.toFixed(2)} m. Drag a rectangle in ${cameraItem.name} Camera View around the target ROI; Esc cancels.`;
+  setMeasurementStatus(message);
+  if (presetDepthPickBanner) presetDepthPickBanner.textContent = message;
+}
+
+function attachPresetRoiDrawing(host, canvas, cameraItem) {
+  host.addEventListener('pointerdown', event => {
+    if (pendingPresetDepthStage !== 'roi' || pendingPresetDepthCamera?.id !== cameraItem.id) return;
+    const rect = canvas.getBoundingClientRect();
+    const startX = THREE.MathUtils.clamp(event.clientX - rect.left, 0, rect.width);
+    const startY = THREE.MathUtils.clamp(event.clientY - rect.top, 0, rect.height);
+    const overlay = document.createElement('div');
+    overlay.className = 'preset-roi-overlay';
+    host.appendChild(overlay);
+    pendingPresetRoiDrawing = { host, canvas, cameraItem, startX, startY, currentX: startX, currentY: startY, overlay };
+    overlay.style.left = `${startX}px`;
+    overlay.style.top = `${startY}px`;
+    overlay.style.width = '1px';
+    overlay.style.height = '1px';
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+  host.addEventListener('pointermove', event => {
+    const drawing = pendingPresetRoiDrawing;
+    if (!drawing || drawing.host !== host) return;
+    const rect = canvas.getBoundingClientRect();
+    drawing.currentX = THREE.MathUtils.clamp(event.clientX - rect.left, 0, rect.width);
+    drawing.currentY = THREE.MathUtils.clamp(event.clientY - rect.top, 0, rect.height);
+    const left = Math.min(drawing.startX, drawing.currentX);
+    const top = Math.min(drawing.startY, drawing.currentY);
+    drawing.overlay.style.left = `${left}px`;
+    drawing.overlay.style.top = `${top}px`;
+    drawing.overlay.style.width = `${Math.abs(drawing.currentX - drawing.startX)}px`;
+    drawing.overlay.style.height = `${Math.abs(drawing.currentY - drawing.startY)}px`;
+    event.preventDefault();
+  }, true);
+  host.addEventListener('pointerup', event => {
+    const drawing = pendingPresetRoiDrawing;
+    if (!drawing || drawing.host !== host) return;
+    const rect = canvas.getBoundingClientRect();
+    const pixelWidthOnCanvas = Math.abs(drawing.currentX - drawing.startX);
+    const pixelHeightOnCanvas = Math.abs(drawing.currentY - drawing.startY);
+    if (pixelWidthOnCanvas < 4 || pixelHeightOnCanvas < 4) {
+      drawing.overlay.remove();
+      pendingPresetRoiDrawing = null;
+      setMeasurementStatus('ROI is too small. Drag a rectangle at least 4 screen pixels wide and high.');
+      return;
+    }
+    const preset = ensureCameraPtzPresets(cameraItem).find(entry => entry.id === pendingPresetDepthPresetId);
+    if (!preset) return endPresetDepthSelection();
+    const analysis = calculatePresetAnalysis(cameraItem, {}, { projectionDistance: preset.projectionDistance, hfov: preset.hfov });
+    const normalizedWidth = pixelWidthOnCanvas / Math.max(1, rect.width);
+    const normalizedHeight = pixelHeightOnCanvas / Math.max(1, rect.height);
+    const roi = {
+      width: analysis.footprintWidth * normalizedWidth,
+      height: analysis.footprintHeight * normalizedHeight,
+      pixelWidth: Math.max(1, Math.round(analysis.resolutionWidth * normalizedWidth)),
+      pixelHeight: Math.max(1, Math.round(analysis.resolutionHeight * normalizedHeight)),
+      normalized: {
+        x: Math.min(drawing.startX, drawing.currentX) / Math.max(1, rect.width),
+        y: Math.min(drawing.startY, drawing.currentY) / Math.max(1, rect.height),
+        width: normalizedWidth,
+        height: normalizedHeight
+      }
+    };
+    preset.roi = roi;
+    preset.analysis = calculatePresetAnalysis(cameraItem, roi, { projectionDistance: preset.projectionDistance, hfov: preset.hfov });
+    preset.analysis.roiPixelsX = roi.pixelWidth;
+    preset.analysis.roiPixelsY = roi.pixelHeight;
+    preset.analysis.thermographyClass = roi.pixelWidth >= 9 && roi.pixelHeight >= 9
+      ? 'Preferred/enhanced 9 x 9 or greater'
+      : (roi.pixelWidth >= 3 && roi.pixelHeight >= 3 ? 'Minimum detection 3 x 3' : 'Below minimum 3 x 3');
+    preset.updatedAt = new Date().toISOString();
+    const dock = pendingPresetDepthDock;
+    const result = `${preset.name} ROI: ${roi.pixelWidth} x ${roi.pixelHeight} pixels â€” ${preset.analysis.thermographyClass}.`;
+    endPresetDepthSelection();
+    setMeasurementStatus(result);
+    openPtzPresetPanel(cameraItem, dock);
+    const status = ptzPresetPanel?.querySelector('.ptz-preset-status');
+    if (status) status.textContent = result;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
 }
 
 renderer.domElement.addEventListener('click', event => {
-  if (!pendingPresetDepthCamera) return;
+  if (!pendingPresetDepthCamera || pendingPresetDepthStage !== 'depth') return;
   const cameraItem = pendingPresetDepthCamera;
   const pick = pickMeasurementPoint(event);
   if (!pick) {
@@ -1957,13 +2056,14 @@ function createWallTile(doc, host, source, records, onDrop, options = {}) {
 
     const canvas = wallRenderer.domElement;
     canvas.addEventListener('click', event => {
-      if (pendingPresetDepthCamera?.id !== source.item.id) return;
+      if (pendingPresetDepthStage !== 'depth' || pendingPresetDepthCamera?.id !== source.item.id) return;
       const pick = pickCameraViewportSurface(event, wallCamera, canvas);
       if (!pick) return;
       completePresetDepthSelection(source.item, pick);
       event.preventDefault();
       event.stopImmediatePropagation();
     }, true);
+    attachPresetRoiDrawing(renderPane, canvas, source.item);
     canvas.addEventListener('pointerdown', event => {
       if (!record.ptzEnabled) return;
       record.ptzDragging = true;
@@ -2221,6 +2321,7 @@ function openCameraViewport(cameraItem) {
   let viewportPtzEnabled = false;
 
   ptzToggleBtn.style.display = 'none';
+  presetsBtn.style.display = 'none';
 
   const viewportRenderer = new THREE.WebGLRenderer({
     antialias: true,
@@ -2264,7 +2365,7 @@ function openCameraViewport(cameraItem) {
     : new THREE.PerspectiveCamera(90, 16 / 9, 0.1, 1000);
 
   body.addEventListener('click', event => {
-    if (pendingPresetDepthCamera?.id !== cameraItem.id) return;
+    if (pendingPresetDepthStage !== 'depth' || pendingPresetDepthCamera?.id !== cameraItem.id) return;
     const pick = pickCameraViewportSurface(event, viewportCamera, viewportRenderer.domElement);
     if (!pick) {
       const message = `No visible model/reference surface was hit in ${cameraItem.name} Camera View. Try another point or press Esc to cancel.`;
@@ -2278,6 +2379,7 @@ function openCameraViewport(cameraItem) {
     event.preventDefault();
     event.stopImmediatePropagation();
   }, true);
+  attachPresetRoiDrawing(body, viewportRenderer.domElement, cameraItem);
 
   function resizeCameraViewportRenderer() {
     const width = Math.max(1, body.clientWidth);
@@ -2610,6 +2712,7 @@ function openCameraViewport(cameraItem) {
 
       // In maximized mode, expose advanced camera-view controls.
       ptzToggleBtn.style.display = 'inline-block';
+      presetsBtn.style.display = 'inline-block';
 
       if (paletteLabel) {
         paletteLabel.style.display = 'inline-flex';
@@ -2648,6 +2751,7 @@ function openCameraViewport(cameraItem) {
       // In normal/restored mode, hide advanced controls to keep the header clean.
       // The selected palette is preserved and still applied to the viewport.
       ptzToggleBtn.style.display = 'none';
+      presetsBtn.style.display = 'none';
 
       if (paletteLabel) {
         paletteLabel.style.display = 'none';
@@ -3119,8 +3223,104 @@ toolbarDelete.addEventListener('click', () => {
   updateObjectInfoPanel();
 });
 
-
-
+let sceneClipboard = null;
+function deepCloneData(value) {
+  return value == null ? value : JSON.parse(JSON.stringify(value));
+}
+function addBoxObject() {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0x4daeff, roughness: 0.65 })
+  );
+  mesh.position.set(0, 0.5, 0);
+  const id = `object-${Date.now()}`;
+  scene.add(mesh);
+  addSceneObject({ id, name: `Object ${sceneObjects.filter(item => item.type === 'object').length + 1}`, type: 'object', object: mesh, data: { primitive: 'box', locked: false } });
+  selectObject(id);
+}
+function copySelectedObject() {
+  const item = sceneObjects.find(entry => entry.id === selectedId);
+  if (!item) return false;
+  sceneClipboard = {
+    type: item.type,
+    name: item.name,
+    data: deepCloneData(item.data),
+    object: item.type === 'camera' ? null : item.object.clone(true),
+    position: { x: item.object.position.x, y: item.object.position.y, z: item.object.position.z },
+    rotation: { x: item.object.rotation.x, y: item.object.rotation.y, z: item.object.rotation.z }
+  };
+  return true;
+}
+function pasteSceneObject() {
+  if (!sceneClipboard) return;
+  if (sceneClipboard.type === 'camera') {
+    createCameraObject(`${sceneClipboard.name} Copy`, new THREE.Vector3(sceneClipboard.position.x + 1, sceneClipboard.position.y, sceneClipboard.position.z + 1));
+    const item = sceneObjects.find(entry => entry.id === selectedId);
+    item.object.rotation.set(sceneClipboard.rotation.x, sceneClipboard.rotation.y, sceneClipboard.rotation.z);
+    item.data = deepCloneData(sceneClipboard.data);
+    applyCameraPtzRig(item);
+    updateCameraProjection(item);
+    return;
+  }
+  const object = sceneClipboard.object.clone(true);
+  object.position.x += 1;
+  object.position.z += 1;
+  const id = `${sceneClipboard.type}-${Date.now()}`;
+  scene.add(object);
+  addSceneObject({ id, name: `${sceneClipboard.name} Copy`, type: sceneClipboard.type, object, data: deepCloneData(sceneClipboard.data) });
+  selectObject(id);
+}
+document.getElementById('closeProject')?.addEventListener('click', () => {
+  if (confirm('Close the current project and clear unsaved changes?')) window.location.reload();
+});
+document.getElementById('saveAsProject')?.addEventListener('click', () => saveProjectButton.click());
+document.getElementById('exportProject')?.addEventListener('click', () => { projectDownloadExtension = 'json'; saveProjectButton.click(); });
+document.getElementById('uploadProject')?.addEventListener('click', () => loadProjectFile.click());
+document.getElementById('editCopy')?.addEventListener('click', copySelectedObject);
+document.getElementById('editCut')?.addEventListener('click', () => { if (copySelectedObject()) toolbarDelete.click(); });
+document.getElementById('editPaste')?.addEventListener('click', pasteSceneObject);
+document.getElementById('editDelete')?.addEventListener('click', () => toolbarDelete.click());
+document.getElementById('editClone')?.addEventListener('click', () => { if (copySelectedObject()) pasteSceneObject(); });
+document.getElementById('editAdd')?.addEventListener('click', addBoxObject);
+document.getElementById('viewZoomOut')?.addEventListener('click', () => {
+  viewerCamera.position.copy(orbitControls.target.clone().add(viewerCamera.position.clone().sub(orbitControls.target).multiplyScalar(1.25)));
+  orbitControls.update();
+});
+document.getElementById('viewFitGrid')?.addEventListener('click', () => {
+  orbitControls.target.set(0, 0, 0);
+  viewerCamera.position.set(18, 18, 18);
+  viewerCamera.lookAt(0, 0, 0);
+  orbitControls.update();
+});
+document.getElementById('viewToggleGrid')?.addEventListener('click', () => {
+  preferences.showGrid = !preferences.showGrid;
+  applyPreferences({ persist: true });
+});
+document.getElementById('viewToggleAxes')?.addEventListener('click', () => {
+  preferences.showAxes = !preferences.showAxes;
+  applyPreferences({ persist: true });
+});
+document.getElementById('objectAdd')?.addEventListener('click', addBoxObject);
+document.getElementById('objectDefine')?.addEventListener('click', () => {
+  const item = sceneObjects.find(entry => entry.id === selectedId);
+  if (!item) return alert('Select an object first.');
+  const name = prompt('Object name:', item.name);
+  if (name?.trim()) { item.name = name.trim(); renderSceneTree(); updateObjectInfoPanel(); }
+});
+document.getElementById('objectProperties')?.addEventListener('click', () => {
+  if (!selectedId) return alert('Select an object first.');
+  document.body.classList.remove('object-inspector-collapsed');
+  updateObjectInfoPanel();
+});
+document.getElementById('objectLock')?.addEventListener('click', () => {
+  const item = sceneObjects.find(entry => entry.id === selectedId);
+  if (!item) return alert('Select an object first.');
+  item.data = item.data || {};
+  item.data.locked = !item.data.locked;
+  if (item.data.locked) { transformControls.detach(); transformControls.visible = false; transformControls.enabled = false; }
+  else selectObject(item.id);
+  setMeasurementStatus(`${item.name} is now ${item.data.locked ? 'locked' : 'unlocked'}.`);
+});
 
 function setMeasurementStatus(message) {
   measurementStatus.textContent = message;
@@ -4575,7 +4775,10 @@ saveProjectButton.addEventListener('click', () => {
       '\n\nSave the project anyway?'
     );
 
-    if (!shouldSave) return;
+    if (!shouldSave) {
+      projectDownloadExtension = 'nmd';
+      return;
+    }
   }
 
   const project = {
@@ -4672,13 +4875,14 @@ saveProjectButton.addEventListener('click', () => {
 
   const a = document.createElement('a');
   a.href = url;
-  a.download = `nomad_project_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+  a.download = `nomad_project_${new Date().toISOString().replace(/[:.]/g, '-')}.${projectDownloadExtension}`;
   document.body.appendChild(a);
   a.click();
   a.remove();
 
   // Firefox and managed Chromium need the object URL to survive the click task.
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+  projectDownloadExtension = 'nmd';
 });
 
 window.addEventListener('keydown', (event) => {

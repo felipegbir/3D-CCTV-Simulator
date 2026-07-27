@@ -5,7 +5,7 @@ html = (root / "templates" / "index.html").read_text(encoding="utf-8")
 js = (root / "static" / "viewer.js").read_text(encoding="utf-8")
 
 for marker in (
-    "const PROJECT_SCHEMA_VERSION = 5;",
+    "const PROJECT_SCHEMA_VERSION = 6;",
     "selectedObjectId: selectedId",
     "sceneTreeCollapsed:",
     "objectInspectorCollapsed:",
@@ -21,7 +21,7 @@ for marker in (
     assert marker in js, f"Missing cache 950 workspace/preset marker: {marker}"
 
 for marker in (
-    "/static/viewer.js?v=950",
+    "/static/viewer.js?v=",
     "#operationsFrame::after",
     "z-index: 30001",
     "isolation: isolate",

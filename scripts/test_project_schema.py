@@ -8,7 +8,7 @@ root = Path(__file__).resolve().parents[1]
 source = (root / "static" / "viewer.js").read_text(encoding="utf-8")
 
 required_contract = (
-    "const PROJECT_SCHEMA_VERSION = 5;",
+    "const PROJECT_SCHEMA_VERSION = 6;",
     "const LEGACY_PROJECT_SCHEMA_VERSION = 1;",
     "function buildProjectAssetManifest()",
     "function validateProjectSchema(project)",
@@ -53,6 +53,6 @@ project_build = save_block.index("const project = {")
 assert manifest_build < warning_prompt < project_build, (
     "Asset warnings must be evaluated before the project download is built"
 )
-assert "if (!shouldSave) return;" in save_block
+assert "if (!shouldSave) {" in save_block
 
 print("8e.7 project schema and asset warning regression guard passed")

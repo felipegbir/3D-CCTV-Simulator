@@ -13,7 +13,7 @@ function section(startMarker, endMarker) {
 }
 
 const executable = [
-  "const PROJECT_SCHEMA_VERSION = 5;",
+  "const PROJECT_SCHEMA_VERSION = 6;",
   "const LEGACY_PROJECT_SCHEMA_VERSION = 1;",
   section('function buildProjectAssetManifest()', 'function formatAssetWarningMessage'),
   section('function formatAssetWarningMessage', 'function validateProjectSchema'),

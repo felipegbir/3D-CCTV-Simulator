@@ -200,7 +200,8 @@ const DEFAULT_PREFERENCES = Object.freeze({
   fbxAutoScale: true,
   modelImportPreset: 'hvdcMm',
   loupeMagnification: 3,
-  ptzPresetSpeed: 10
+  ptzPresetSpeed: 10,
+  metricDecimals: 5
 });
 
 const preferenceControls = {
@@ -215,6 +216,7 @@ const preferenceControls = {
   coneOpacityValue: document.getElementById('preferenceConeOpacityValue'),
   fbxAutoScale: document.getElementById('preferenceFbxAutoScale'),
   modelImportPreset: document.getElementById('preferenceModelImportPreset'),
+  metricDecimals: document.getElementById('preferenceMetricDecimals'),
   reset: document.getElementById('resetPreferences')
 };
 
@@ -242,6 +244,9 @@ function sanitizePreferences(candidate) {
   if (Number.isFinite(loupeMagnification)) {
     safe.loupeMagnification = Math.min(20, Math.max(2, loupeMagnification));
   }
+
+  const metricDecimals = Number.parseInt(candidate.metricDecimals, 10);
+  if (Number.isFinite(metricDecimals)) safe.metricDecimals = Math.min(10, Math.max(0, metricDecimals));
 
   const ptzPresetSpeed = Number.parseFloat(candidate.ptzPresetSpeed);
   if (Number.isFinite(ptzPresetSpeed)) {
@@ -312,6 +317,7 @@ function syncPreferenceControls() {
   preferenceControls.coneOpacityValue.textContent = `${Math.round(preferences.coneOpacity * 100)}%`;
   preferenceControls.fbxAutoScale.checked = preferences.fbxAutoScale;
   preferenceControls.modelImportPreset.value = preferences.modelImportPreset;
+  preferenceControls.metricDecimals.value = String(preferences.metricDecimals);
   measurementMagnificationControl.value = String(preferences.loupeMagnification);
   measurementMagnificationValue.textContent = String(preferences.loupeMagnification) + 'x';
 }
@@ -328,6 +334,7 @@ function readPreferenceControls() {
     coneOpacity: preferenceControls.coneOpacity.value,
     fbxAutoScale: preferenceControls.fbxAutoScale.checked,
     modelImportPreset: preferenceControls.modelImportPreset.value,
+    metricDecimals: preferenceControls.metricDecimals.value,
     loupeMagnification: measurementMagnificationControl.value
   });
 }
@@ -358,6 +365,8 @@ function applyPreferences({ persist = false } = {}) {
   if (persist) savePreferences();
 }
 
+function formatMetric(value, decimals = preferences?.metricDecimals ?? 5) { const number=Number(value); return Number.isFinite(number) ? number.toFixed(Math.min(10,Math.max(0,Number(decimals)||0))) : "-"; }
+
 let preferences = loadPreferences();
 applyPreferences();
 
@@ -375,7 +384,8 @@ for (const control of [
   preferenceControls.showGrid,
   preferenceControls.showAxes,
   preferenceControls.fbxAutoScale,
-  preferenceControls.modelImportPreset
+  preferenceControls.modelImportPreset,
+  preferenceControls.metricDecimals
 ]) {
   control.addEventListener('change', updatePreferencesFromControls);
 }
@@ -674,47 +684,47 @@ function updateObjectInfoPanel() {
   infoType.textContent = item.type;
 
   if (document.activeElement !== infoX) {
-    infoX.value = pos.x.toFixed(2);
+    infoX.value = formatMetric(pos.x);
   }
 
   if (document.activeElement !== infoY) {
-    infoY.value = pos.y.toFixed(2);
+    infoY.value = formatMetric(pos.y);
   }
 
   if (document.activeElement !== infoZ) {
-    infoZ.value = pos.z.toFixed(2);
+    infoZ.value = formatMetric(pos.z);
   }
 
   const rot = item.object.rotation;
 
   if (document.activeElement !== infoRotX) {
-    infoRotX.value = THREE.MathUtils.radToDeg(rot.x).toFixed(1);
+    infoRotX.value = formatMetric(THREE.MathUtils.radToDeg(rot.x));
   }
 
   if (document.activeElement !== infoRotY) {
-    infoRotY.value = THREE.MathUtils.radToDeg(rot.y).toFixed(1);
+    infoRotY.value = formatMetric(THREE.MathUtils.radToDeg(rot.y));
   }
 
   if (document.activeElement !== infoRotZ) {
-    infoRotZ.value = THREE.MathUtils.radToDeg(rot.z).toFixed(1);
+    infoRotZ.value = formatMetric(THREE.MathUtils.radToDeg(rot.z));
   }
 
   const scale = item.object.scale;
 
   if (document.activeElement !== infoScaleUniform) {
-    infoScaleUniform.value = scale.x.toFixed(3);
+    infoScaleUniform.value = formatMetric(scale.x);
   }
 
   if (document.activeElement !== infoScaleX) {
-    infoScaleX.value = scale.x.toFixed(3);
+    infoScaleX.value = formatMetric(scale.x);
   }
 
   if (document.activeElement !== infoScaleY) {
-    infoScaleY.value = scale.y.toFixed(3);
+    infoScaleY.value = formatMetric(scale.y);
   }
 
   if (document.activeElement !== infoScaleZ) {
-    infoScaleZ.value = scale.z.toFixed(3);
+    infoScaleZ.value = formatMetric(scale.z);
   }
 
   if (item.type === 'camera') {
@@ -757,7 +767,7 @@ function updateObjectInfoPanel() {
 
     infoPan.textContent = `${item.data?.pan ?? 0}°`;
     infoTilt.textContent = `${item.data?.tilt ?? 0}°`;
-    infoZoom.textContent = `${(item.data?.zoom ?? 1).toFixed(1)}x`;
+    infoZoom.textContent = `${formatMetric(item.data?.zoom ?? 1)}x`;
 
     const cone = item.object.userData.projectionCone;
     const distance = item.object.userData.projectionDistance || 20;
@@ -768,8 +778,8 @@ function updateObjectInfoPanel() {
     }
 
     projectionDistanceSlider.value = distance;
-    projectionDistanceInput.value = Number(distance).toFixed(2);
-    projectionDistanceValue.textContent = Number(distance).toFixed(2);
+    projectionDistanceInput.value = formatMetric(distance);
+    projectionDistanceValue.textContent = formatMetric(distance);
 
     const distanceMeters =
       item.data?.projectionDistance ||
@@ -789,9 +799,9 @@ function updateObjectInfoPanel() {
 
     // Update UI
     if (projectionHfovValue && projectionSceneWidthValue && projectionPixelDensityValue) {
-        projectionHfovValue.textContent = `${hfov.toFixed(1)}°`;
-        projectionSceneWidthValue.textContent = `${sceneWidth.toFixed(2)} m`;
-        projectionPixelDensityValue.textContent = `${pixelDensity.toFixed(2)} px/m`;
+        projectionHfovValue.textContent = `${formatMetric(hfov)}°`;
+        projectionSceneWidthValue.textContent = `${formatMetric(sceneWidth)} m`;
+        projectionPixelDensityValue.textContent = `${formatMetric(pixelDensity)} px/m`;
     }
 
     const supportsPan = item.data?.supportsPan;
@@ -1307,7 +1317,7 @@ function ensureCameraPtzPresets(cameraItem) {
 
 function getNextPresetRoiName(preset){const nums=(preset?.rois||[]).map(r=>/^ROI\s+(\d+)$/i.exec(r.name||'')) .filter(Boolean).map(m=>+m[1]);return `ROI ${String(nums.length?Math.max(...nums)+1:1).padStart(3,'0')}`}
 function calculatePolygonRoiMetrics(cameraItem,roi,state={}){const n=roi.nodes||[],a=calculatePresetAnalysis(cameraItem,{},state);if(n.length<3)return{...a,nodeCount:n.length};const xs=n.map(p=>p.x),ys=n.map(p=>p.y),w=Math.max(...xs)-Math.min(...xs),h=Math.max(...ys)-Math.min(...ys);let area=0;n.forEach((p,i)=>{const q=n[(i+1)%n.length];area+=p.x*q.y-q.x*p.y});area=Math.abs(area)/2;const pixelWidth=Math.max(1,Math.round(a.resolutionWidth*w)),pixelHeight=Math.max(1,Math.round(a.resolutionHeight*h)),minimumSpan=Math.min(pixelWidth,pixelHeight);return{...a,nodeCount:n.length,width:a.footprintWidth*w,height:a.footprintHeight*h,area:area*a.footprintWidth*a.footprintHeight,pixelWidth,pixelHeight,pixelArea:area*a.resolutionWidth*a.resolutionHeight,minimumSpan,thermographyClass:minimumSpan>=9?'Preferred/enhanced 9 x 9 or greater':minimumSpan>=3?'Minimum detection 3 x 3':'Below minimum 3 x 3'}}
-function formatPresetRoiAnalysis(roi){if(!roi)return 'Selected ROI: none';const m=roi.metrics||{};return[`Selected ROI: ${roi.name} (${m.nodeCount||roi.nodes?.length||0} nodes)`,`Depth: ${Number(roi.projectionDistance||0).toFixed(2)} m ? ${roi.depthTarget?.objectName||'selected surface'}`,`Bounds: ${m.pixelWidth||0} x ${m.pixelHeight||0} pixels`,`Polygon area: ${Number(m.pixelArea||0).toFixed(0)} px? / ${Number(m.area||0).toFixed(3)} m?`,`Minimum effective span: ${m.minimumSpan||0} pixels`,`Thermography: ${m.thermographyClass||'Not calculated'}`].join('\n')}
+function formatPresetRoiAnalysis(roi){if(!roi)return 'Selected ROI: none';const m=roi.metrics||{};return[`Selected ROI: ${roi.name} (${m.nodeCount||roi.nodes?.length||0} nodes)`,`Depth: ${formatMetric(roi.projectionDistance||0)} m ? ${roi.depthTarget?.objectName||'selected surface'}`,`Bounds: ${m.pixelWidth||0} x ${m.pixelHeight||0} pixels`,`Polygon area: ${formatMetric(m.pixelArea||0)} px? / ${formatMetric(m.area||0)} m?`,`Minimum effective span: ${m.minimumSpan||0} pixels`,`Thermography: ${m.thermographyClass||'Not calculated'}`].join('\n')}
 function calculatePresetAnalysis(cameraItem, roi = {}, state = {}) {
   const depth = Math.max(0.02, Number(state.projectionDistance ?? cameraItem.data?.projectionDistance) || 20);
   const hfov = Number(state.hfov ?? cameraItem.data?.hfov) || 90;
@@ -1385,14 +1395,14 @@ function formatPtzPresetDetails(preset) {
     `ID: ${preset.id}`,
     `Current camera: ${identity.make || '-'} ${identity.model || '-'} | ${identity.lens || '-'}`,
     `Captured camera: ${captured.make || '-'} ${captured.model || '-'} | ${captured.lens || '-'}`,
-    `PTZ: ${preset.pan.toFixed(2)}° / ${preset.tilt.toFixed(2)}° / ${preset.roll.toFixed(2)}°`,
-    `Zoom: ${preset.zoom.toFixed(2)}x   Focal: ${preset.currentFocalLengthMm ?? '-'} mm`,
-    `HFOV: ${preset.hfov.toFixed(2)}°   Depth: ${preset.projectionDistance.toFixed(2)} m`,
+    `PTZ: ${formatMetric(preset.pan)}° / ${formatMetric(preset.tilt)}° / ${formatMetric(preset.roll)}°`,
+    `Zoom: ${formatMetric(preset.zoom)}x   Focal: ${preset.currentFocalLengthMm ?? '-'} mm`,
+    `HFOV: ${formatMetric(preset.hfov)}°   Depth: ${formatMetric(preset.projectionDistance)} m`,
     `Palette: ${preset.viewportPalette}`,
-    `Position: ${preset.cameraPosition.x.toFixed(2)}, ${preset.cameraPosition.y.toFixed(2)}, ${preset.cameraPosition.z.toFixed(2)}`,
-    `Footprint: ${(a.footprintWidth || 0).toFixed(2)} x ${(a.footprintHeight || 0).toFixed(2)} m`,
-    `Density: ${(a.horizontalPixelDensity || 0).toFixed(2)} x ${(a.verticalPixelDensity || 0).toFixed(2)} px/m`,
-    a.roiPixelsX !== null && a.roiPixelsY !== null ? `ROI pixels: ${a.roiPixelsX.toFixed(1)} x ${a.roiPixelsY.toFixed(1)} | ${a.thermographyClass}` : `Thermography: ${a.thermographyClass || 'ROI not configured'}`,
+    `Position: ${formatMetric(preset.cameraPosition.x)}, ${formatMetric(preset.cameraPosition.y)}, ${formatMetric(preset.cameraPosition.z)}`,
+    `Footprint: ${formatMetric(a.footprintWidth || 0)} x ${formatMetric(a.footprintHeight || 0)} m`,
+    `Density: ${formatMetric(a.horizontalPixelDensity || 0)} x ${formatMetric(a.verticalPixelDensity || 0)} px/m`,
+    a.roiPixelsX !== null && a.roiPixelsY !== null ? `ROI pixels: ${formatMetric(a.roiPixelsX)} x ${formatMetric(a.roiPixelsY)} | ${a.thermographyClass}` : `Thermography: ${a.thermographyClass || 'ROI not configured'}`,
     warnings.length ? `LIMIT WARNING: ${warnings.join('; ')}` : 'Limits: compatible',
     preset.notes ? `Notes: ${preset.notes}` : ''
   ].filter(Boolean).join('\n');
@@ -1403,13 +1413,13 @@ function formatLiveCameraAnalysis(cameraItem, roi = {}) {
   const analysis = calculatePresetAnalysis(cameraItem, roi);
   const target = cameraItem.data.depthTarget;
   return [
-    `Live PTZ: ${(Number(cameraItem.data.pan) || 0).toFixed(2)}° / ${(Number(cameraItem.data.tilt) || 0).toFixed(2)}° / ${(Number(cameraItem.data.roll) || 0).toFixed(2)}°`,
-    `Zoom: ${(Number(cameraItem.data.zoom) || 1).toFixed(2)}x   HFOV: ${analysis.hfov.toFixed(2)}°`,
-    `Depth: ${analysis.depth.toFixed(2)} m${target ? ` — ${target.objectName || 'selected surface'}` : ' — no surface selected'}`,
-    `Footprint: ${analysis.footprintWidth.toFixed(2)} x ${analysis.footprintHeight.toFixed(2)} m`,
-    `Pixel density: ${analysis.horizontalPixelDensity.toFixed(2)} x ${analysis.verticalPixelDensity.toFixed(2)} px/m`,
+    `Live PTZ: ${formatMetric(Number(cameraItem.data.pan) || 0)}° / ${formatMetric(Number(cameraItem.data.tilt) || 0)}° / ${formatMetric(Number(cameraItem.data.roll) || 0)}°`,
+    `Zoom: ${formatMetric(Number(cameraItem.data.zoom) || 1)}x   HFOV: ${formatMetric(analysis.hfov)}°`,
+    `Depth: ${formatMetric(analysis.depth)} m${target ? ` — ${target.objectName || 'selected surface'}` : ' — no surface selected'}`,
+    `Footprint: ${formatMetric(analysis.footprintWidth)} x ${formatMetric(analysis.footprintHeight)} m`,
+    `Pixel density: ${formatMetric(analysis.horizontalPixelDensity)} x ${formatMetric(analysis.verticalPixelDensity)} px/m`,
     analysis.roiPixelsX !== null && analysis.roiPixelsY !== null
-      ? `ROI pixels: ${analysis.roiPixelsX.toFixed(1)} x ${analysis.roiPixelsY.toFixed(1)} — ${analysis.thermographyClass}`
+      ? `ROI pixels: ${formatMetric(analysis.roiPixelsX)} x ${formatMetric(analysis.roiPixelsY)} — ${analysis.thermographyClass}`
       : `Thermography: ${analysis.thermographyClass}`
   ].join('\n');
 }
@@ -1537,7 +1547,7 @@ function recallPtzPreset(cameraItem, preset) {
     }
   });
   cameraItem.data.activePtzPresetId = preset.id;
-  if (ptzPresetPanel) ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `Recalling ${preset.name} at ${speed.toFixed(0)}°/s (${(durationMs / 1000).toFixed(2)} s)…`;
+  if (ptzPresetPanel) ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `Recalling ${preset.name} at ${speed.toFixed(0)}°/s (${formatMetric(durationMs / 1000)} s)…`;
 }
 
 function updatePtzPresetAnimations(now) {
@@ -1596,7 +1606,7 @@ function ensurePtzPresetPanel() {
       <label>Existing presets<select class="ptz-preset-list" size="3"></select></label>
       <div class="ptz-preset-actions"><button type="button" data-action="recall">Recall</button><button type="button" data-action="delete">Delete</button></div>
     </details>
-    <details class="ptz-preset-section"><summary>ROI Management</summary><label>ROIs<select class="ptz-roi-list" size="3"></select></label><label>Name<input class="ptz-roi-name" maxlength="80"></label><label>Notes<textarea class="ptz-roi-notes" maxlength="500"></textarea></label><div class="ptz-preset-actions"><button type="button" data-action="roi-edit">Edit Polygon</button><button type="button" data-action="roi-toggle">Show / Hide</button><button type="button" data-action="roi-delete">Delete ROI</button></div><div class="ptz-roi-help">Drag nodes; click an edge to add; right-click a node to delete (3?15 nodes).</div></details>
+    <details class="ptz-preset-section"><summary>ROI Management</summary><label>ROIs<select class="ptz-roi-list" size="3"></select></label><label>Name<input class="ptz-roi-name" maxlength="80"></label><label>Notes<textarea class="ptz-roi-notes" maxlength="500"></textarea></label><div class="ptz-preset-actions"><button type="button" data-action="roi-add">Add ROI</button><button type="button" data-action="roi-edit">Edit ROI</button><button type="button" data-action="roi-delete">Delete ROI</button><button type="button" data-action="roi-toggle">Show / Hide</button></div><div class="ptz-roi-help">Drag nodes; click an edge to add; right-click a node to delete (3?15 nodes).</div></details>
     <details class="ptz-preset-section"><summary>Live Pixel Density</summary><div class="ptz-live-analysis"></div><div class="ptz-roi-analysis"></div><div class="ptz-preset-details"></div></details>
     <details class="ptz-preset-section"><summary>Notes</summary><label>Notes<textarea class="ptz-preset-notes" maxlength="1000"></textarea></label></details>
     <div class="ptz-preset-status"></div>`;
@@ -1721,6 +1731,7 @@ function ensurePtzPresetPanel() {
       }
       beginPresetDepthSelection(activePresetCamera, preset, ptzPresetPanel.parentElement);
     }
+    if(action==='roi-add'){if(!preset?.depthTarget){ptzPresetPanel.querySelector('.ptz-preset-status').textContent='Select a depth surface first.'}else beginPresetRoiCreation(activePresetCamera,preset,ptzPresetPanel.parentElement)}
     if(action==='roi-edit'){editingPresetRoiId=selectedRoi()?.id||null;refreshLive()}
     if(action==='roi-toggle'&&selectedRoi()){selectedRoi().visible=!selectedRoi().visible;refreshLive()}
     if(action==='roi-delete'&&preset&&selectedRoi()&&confirm(`Delete ROI "${selectedRoi().name}"?`)){const id=selectedRoi().id;preset.rois=preset.rois.filter(r=>r.id!==id);preset.activeRoiId=preset.rois[0]?.id||null;editingPresetRoiId=null;refresh(preset.id)}
@@ -1817,6 +1828,8 @@ function endPresetDepthSelection() {
   document.body.classList.remove('preset-depth-pick-active');
 }
 
+function beginPresetRoiCreation(cameraItem,preset,dock){pendingPresetDepthCamera=cameraItem;pendingPresetDepthPresetId=preset.id;pendingPresetDepthDock=dock?.closest?.('.camera-viewport, .video-wall-tile')||dock;pendingPresetDepthStage='roi';pendingPresetRoiDraft={depthTarget:{...preset.depthTarget},projectionDistance:preset.projectionDistance};closePtzPresetPanel();const banner=ensurePresetDepthPickBanner();banner.textContent=`Add ROI for ${preset.name}: drag a rectangle in ${cameraItem.name} Camera View; Esc cancels.`;document.body.classList.add('preset-depth-pick-active');setMeasurementStatus(banner.textContent)}
+
 function beginPresetDepthSelection(cameraItem, preset, dock) {
   pendingPresetDepthCamera = cameraItem;
   pendingPresetDepthPresetId = preset.id;
@@ -1869,10 +1882,7 @@ function completePresetDepthSelection(cameraItem, pick) {
     preset.updatedAt = new Date().toISOString();
     pendingPresetRoiDraft={depthTarget:{...depthTarget},projectionDistance:distance};
   }
-  pendingPresetDepthStage = 'roi';
-  const message = `Depth set to ${distance.toFixed(2)} m. Drag a rectangle in ${cameraItem.name} Camera View around the target ROI; Esc cancels.`;
-  setMeasurementStatus(message);
-  if (presetDepthPickBanner) presetDepthPickBanner.textContent = message;
+  const dock=pendingPresetDepthDock; cameraItem.data.activePtzPresetId=preset?.id||cameraItem.data.activePtzPresetId; const message=`Depth set to ${formatMetric(distance)} m. Use Add ROI to draw one or more regions on this surface.`; endPresetDepthSelection(); setMeasurementStatus(message); openPtzPresetPanel(cameraItem,dock); const status=ptzPresetPanel?.querySelector('.ptz-preset-status'); if(status)status.textContent=message;
 }
 
 function refreshPresetRoiOverlays(cameraItem=null){for(let i=presetRoiOverlayContexts.length-1;i>=0;i--){const c=presetRoiOverlayContexts[i];if(!c.host.isConnected){presetRoiOverlayContexts.splice(i,1);continue}if(cameraItem&&c.cameraItem.id!==cameraItem.id)continue;c.svg?.remove();const selectedId=activePresetCamera?.id===c.cameraItem.id?ptzPresetPanel?.querySelector('.ptz-preset-list')?.value:null;const preset=ensureCameraPtzPresets(c.cameraItem).find(p=>p.id===(selectedId||c.cameraItem.data?.activePtzPresetId));if(!preset?.rois?.length)continue;const rect=c.canvas.getBoundingClientRect(),svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('preset-roi-svg');svg.setAttribute('viewBox',`0 0 ${rect.width} ${rect.height}`);c.host.appendChild(svg);c.svg=svg;for(const roi of preset.rois.filter(r=>r.visible!==false&&r.nodes?.length>=3)){const poly=document.createElementNS(svg.namespaceURI,'polygon');poly.setAttribute('points',roi.nodes.map(n=>`${n.x*rect.width},${n.y*rect.height}`).join(' '));poly.setAttribute('stroke',roi.color);poly.setAttribute('fill',roi.color+'22');svg.appendChild(poly);const label=document.createElementNS(svg.namespaceURI,'text');label.textContent=roi.name;label.setAttribute('x',roi.nodes[0].x*rect.width+5);label.setAttribute('y',roi.nodes[0].y*rect.height-5);svg.appendChild(label);if(editingPresetRoiId!==roi.id)continue;svg.classList.add('editing');roi.nodes.forEach((node,index)=>{const next=roi.nodes[(index+1)%roi.nodes.length],edge=document.createElementNS(svg.namespaceURI,'line');edge.setAttribute('x1',node.x*rect.width);edge.setAttribute('y1',node.y*rect.height);edge.setAttribute('x2',next.x*rect.width);edge.setAttribute('y2',next.y*rect.height);edge.classList.add('preset-roi-edge');edge.onclick=e=>{if(roi.nodes.length>=15)return;const r=c.canvas.getBoundingClientRect();roi.nodes.splice(index+1,0,{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height});updateEditableRoiMetrics(c.cameraItem,preset,roi)};svg.appendChild(edge);const h=document.createElementNS(svg.namespaceURI,'circle');h.setAttribute('cx',node.x*rect.width);h.setAttribute('cy',node.y*rect.height);h.setAttribute('r',6);h.classList.add('preset-roi-node');h.oncontextmenu=e=>{e.preventDefault();if(roi.nodes.length>3){roi.nodes.splice(index,1);updateEditableRoiMetrics(c.cameraItem,preset,roi)}};h.onpointerdown=e=>{e.stopPropagation();const move=v=>{const r=c.canvas.getBoundingClientRect();node.x=THREE.MathUtils.clamp((v.clientX-r.left)/r.width,0,1);node.y=THREE.MathUtils.clamp((v.clientY-r.top)/r.height,0,1);refreshPresetRoiOverlays(c.cameraItem)};h.onpointermove=move;h.onpointerup=()=>{h.onpointermove=null;updateEditableRoiMetrics(c.cameraItem,preset,roi)}};svg.appendChild(h)})}}}
@@ -2004,6 +2014,7 @@ function createWallTile(doc, host, source, records, onDrop, options = {}) {
   let presetToggleButton = null;
   tile.setPresetDockOpen = open => {
     tile.classList.toggle('has-preset-dock', Boolean(open));
+    tile.classList.toggle('preset-dock-vertical', Boolean(open && options.presetDockVertical));
     presetToggleButton?.classList.toggle('active', Boolean(open));
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
   };
@@ -2123,6 +2134,7 @@ function buildIntegratedVideoWall() {
     tileIndex,
     selected: tileIndex === selectedVideoWallTileIndex,
     allowPresetDock: videoWallSupportsPresetDock(layout),
+    presetDockVertical: layout.columns === 1 && layout.rows === 1,
     onSelect: index => {
       selectedVideoWallTileIndex = index;
       selectVideoWallTile(videoWallRecords, index, videoWallSource);
@@ -3291,7 +3303,7 @@ document.getElementById('saveAsProject')?.addEventListener('click', () => savePr
 document.getElementById('exportProject')?.addEventListener('click', () => { projectDownloadExtension = 'json'; saveProjectButton.click(); });
 document.getElementById('uploadProject')?.addEventListener('click', () => loadProjectFile.click());
 function editReportSettings(){const value=prompt('Report settings (Project Title | Client | Location | Prepared By)',[reportSettingsState.projectTitle,reportSettingsState.client,reportSettingsState.location,reportSettingsState.preparedBy].join(' | '));if(value===null)return;const parts=value.split('|').map(v=>v.trim());reportSettingsState={...reportSettingsState,projectTitle:parts[0]||reportSettingsState.projectTitle,client:parts[1]||'',location:parts[2]||'',preparedBy:parts[3]||reportSettingsState.preparedBy}}
-function generateNomadReport(){const cameras=sceneObjects.filter(item=>item.type==='camera'),escape=value=>String(value??'').replace(/[&<>"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char]));const rows=cameras.map(camera=>`<tr><td>${escape(camera.name)}</td><td>${escape(camera.data?.make)}</td><td>${escape(camera.data?.model)}</td><td>${escape(camera.data?.lens)}</td><td>${camera.object.position.toArray().map(v=>v.toFixed(2)).join(', ')}</td><td>${ensureCameraPtzPresets(camera).length}</td><td>${ensureCameraPtzPresets(camera).reduce((n,p)=>n+(p.rois?.length||0),0)}</td></tr>`).join('');const details=cameras.flatMap(camera=>ensureCameraPtzPresets(camera).map(preset=>`<section><h3>${escape(camera.name)} ? ${escape(preset.name)}</h3><p>PTZ: ${preset.pan.toFixed(2)}? / ${preset.tilt.toFixed(2)}? / ${preset.roll.toFixed(2)}?; depth ${preset.projectionDistance.toFixed(2)} m</p>${(reportSettingsState.includeRois?(preset.rois||[]):[]).map(roi=>`<p><b>${escape(roi.name)}</b>: ${formatPresetRoiAnalysis(roi).replaceAll('\n','<br>')}</p>`).join('')}</section>`)).join('');const win=window.open('','nomad-report');if(!win)return alert('Allow pop-ups to generate the report.');win.document.write(`<!doctype html><title>${escape(reportSettingsState.projectTitle)}</title><style>@page{size:letter;margin:.65in}body{font:11pt Arial;color:#17202a}h1{color:#17324d}table{border-collapse:collapse;width:100%}th,td{border:1px solid #789;padding:5px;text-align:left}section{break-inside:avoid}footer{margin-top:24px;color:#667}@media print{button{display:none}}</style><button onclick="print()">Print / Save PDF</button><h1>${escape(reportSettingsState.projectTitle)}</h1><p>Client: ${escape(reportSettingsState.client)}<br>Location: ${escape(reportSettingsState.location)}<br>Prepared by: ${escape(reportSettingsState.preparedBy)}<br>Generated: ${new Date().toLocaleString()}</p>${reportSettingsState.includeBom?`<h2>Camera BOM</h2><table><tr><th>Camera</th><th>Make</th><th>Model</th><th>Lens</th><th>Position XYZ</th><th>Presets</th><th>ROIs</th></tr>${rows}</table>`:''}${reportSettingsState.includePresets?`<h2>Preset Analysis</h2>${details}`:''}<footer>N.O.M.A.D. CCTV Digital Twin Simulator ? All rights reserved.</footer>`);win.document.close()}
+function generateNomadReport(){const cameras=sceneObjects.filter(item=>item.type==='camera'),escape=value=>String(value??'').replace(/[&<>"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char]));const rows=cameras.map(camera=>`<tr><td>${escape(camera.name)}</td><td>${escape(camera.data?.make)}</td><td>${escape(camera.data?.model)}</td><td>${escape(camera.data?.lens)}</td><td>${camera.object.position.toArray().map(v=>formatMetric(v)).join(', ')}</td><td>${ensureCameraPtzPresets(camera).length}</td><td>${ensureCameraPtzPresets(camera).reduce((n,p)=>n+(p.rois?.length||0),0)}</td></tr>`).join('');const details=cameras.flatMap(camera=>ensureCameraPtzPresets(camera).map(preset=>`<section><h3>${escape(camera.name)} ? ${escape(preset.name)}</h3><p>PTZ: ${formatMetric(preset.pan)}? / ${formatMetric(preset.tilt)}? / ${formatMetric(preset.roll)}?; depth ${formatMetric(preset.projectionDistance)} m</p>${(reportSettingsState.includeRois?(preset.rois||[]):[]).map(roi=>`<p><b>${escape(roi.name)}</b>: ${formatPresetRoiAnalysis(roi).replaceAll('\n','<br>')}</p>`).join('')}</section>`)).join('');const win=window.open('','nomad-report');if(!win)return alert('Allow pop-ups to generate the report.');win.document.write(`<!doctype html><title>${escape(reportSettingsState.projectTitle)}</title><style>@page{size:letter;margin:.65in}body{font:11pt Arial;color:#17202a}h1{color:#17324d}table{border-collapse:collapse;width:100%}th,td{border:1px solid #789;padding:5px;text-align:left}section{break-inside:avoid}footer{margin-top:24px;color:#667}@media print{button{display:none}}</style><button onclick="print()">Print / Save PDF</button><h1>${escape(reportSettingsState.projectTitle)}</h1><p>Client: ${escape(reportSettingsState.client)}<br>Location: ${escape(reportSettingsState.location)}<br>Prepared by: ${escape(reportSettingsState.preparedBy)}<br>Generated: ${new Date().toLocaleString()}</p>${reportSettingsState.includeBom?`<h2>Camera BOM</h2><table><tr><th>Camera</th><th>Make</th><th>Model</th><th>Lens</th><th>Position XYZ</th><th>Presets</th><th>ROIs</th></tr>${rows}</table>`:''}${reportSettingsState.includePresets?`<h2>Preset Analysis</h2>${details}`:''}<footer>N.O.M.A.D. CCTV Digital Twin Simulator ? All rights reserved.</footer>`);win.document.close()}
 document.getElementById('generateReport')?.addEventListener('click',generateNomadReport);document.getElementById('reportSettings')?.addEventListener('click',editReportSettings);document.getElementById('openReportOptions')?.addEventListener('click',()=>{reportSettingsState.includeBom=confirm('Include the Camera BOM?');reportSettingsState.includePresets=confirm('Include PTZ preset details?');reportSettingsState.includeRois=confirm('Include ROI depth and pixel-density analysis?');alert('Report options updated and will be saved with the project.')});
 document.getElementById('editCopy')?.addEventListener('click', copySelectedObject);
 document.getElementById('editCut')?.addEventListener('click', () => { if (copySelectedObject()) toolbarDelete.click(); });
@@ -3363,7 +3375,7 @@ function nextMeasurementDisplayId() {
 }
 
 function createMeasurementLabel(record, start, end) {
-  const text = `${record.displayId}  ${record.distance.toFixed(3)} ${record.unit}`;
+  const text = `${record.displayId}  ${formatMetric(record.distance)} ${record.unit}`;
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 96;
@@ -3632,7 +3644,7 @@ function updateMeasurementPreview(pick) {
     measurementPreviewMarker.position.copy(start);
     measurementPreviewLine.geometry.setFromPoints([start, pick.point]);
     const distance = start.distanceTo(pick.point);
-    setMeasurementStatus(`${pick.snapped ? 'Edge snap' : 'Surface'}: ${distance.toFixed(3)} m. Click to set the second point; hold Shift for magnifier.`);
+    setMeasurementStatus(`${pick.snapped ? 'Edge snap' : 'Surface'}: ${formatMetric(distance)} m. Click to set the second point; hold Shift for magnifier.`);
   } else {
     setMeasurementStatus(`${pick.snapped ? 'Edge snap ready' : 'Surface ready'}. Click the first point; hold Shift for magnifier.`);
   }
@@ -3711,7 +3723,7 @@ function completeMeasurement() {
   if (measurementMode === 'calibration') {
     const item = sceneObjects.find(entry => entry.id === selectedId && entry.type === 'model');
     if (!item) return cancelMeasurementTool('The calibration target is no longer selected.');
-    const response = window.prompt(`Measured model distance: ${measuredDistance.toFixed(4)} project units.\nEnter the real-world distance in metres:`, measuredDistance.toFixed(3));
+    const response = window.prompt(`Measured model distance: ${formatMetric(measuredDistance)} project units.\nEnter the real-world distance in metres:`, formatMetric(measuredDistance));
     if (response === null) return cancelMeasurementTool();
     const realDistance = Number(response);
     if (!(realDistance > 0)) {
@@ -3740,7 +3752,7 @@ function completeMeasurement() {
       id: `calibration-${Date.now()}`,
       displayId: nextMeasurementDisplayId(),
       kind: 'calibration',
-      label: `${item.name}: ${realDistance.toFixed(3)} m calibration`,
+      label: `${item.name}: ${formatMetric(realDistance)} m calibration`,
       start: { x: calibratedStart.x, y: calibratedStart.y, z: calibratedStart.z },
       end: { x: calibratedEnd.x, y: calibratedEnd.y, z: calibratedEnd.z },
       distance: realDistance,
@@ -3751,14 +3763,14 @@ function completeMeasurement() {
     measurements.push(record);
     addMeasurementVisual(record);
     updateObjectInfoPanel();
-    cancelMeasurementTool(`Scale calibrated: ${measuredDistance.toFixed(4)} project units = ${realDistance.toFixed(3)} m.`);
+    cancelMeasurementTool(`Scale calibrated: ${formatMetric(measuredDistance)} project units = ${formatMetric(realDistance)} m.`);
     return;
   }
   const record = {
     id: `measurement-${Date.now()}`,
     displayId: nextMeasurementDisplayId(),
     kind: 'distance',
-    label: `${measuredDistance.toFixed(3)} m`,
+    label: `${formatMetric(measuredDistance)} m`,
     start: { x: start.x, y: start.y, z: start.z },
     end: { x: end.x, y: end.y, z: end.z },
     distance: measuredDistance,
@@ -3768,7 +3780,7 @@ function completeMeasurement() {
   };
   measurements.push(record);
   addMeasurementVisual(record);
-  cancelMeasurementTool(`Distance: ${measuredDistance.toFixed(3)} m. Saved with the project.`);
+  cancelMeasurementTool(`Distance: ${formatMetric(measuredDistance)} m. Saved with the project.`);
 }
 
 renderer.domElement.addEventListener('pointerdown', event => {
@@ -4034,8 +4046,8 @@ projectionDistanceSlider.addEventListener('input', () => {
 
   const distance = Number(projectionDistanceSlider.value);
 
-  projectionDistanceInput.value = distance.toFixed(2);
-  projectionDistanceValue.textContent = distance.toFixed(2);
+  projectionDistanceInput.value = formatMetric(distance);
+  projectionDistanceValue.textContent = formatMetric(distance);
 
   updateProjectionDistance(item, distance);
 });
@@ -4148,9 +4160,9 @@ projectionDistanceInput.addEventListener('change', () => {
 
   const distance = Math.max(1, Number(projectionDistanceInput.value || 20));
 
-  projectionDistanceInput.value = distance.toFixed(2);
+  projectionDistanceInput.value = formatMetric(distance);
   projectionDistanceSlider.value = Math.min(distance, 120);
-  projectionDistanceValue.textContent = distance.toFixed(2);
+  projectionDistanceValue.textContent = formatMetric(distance);
 
   updateProjectionDistance(item, distance);
 });
@@ -4295,7 +4307,7 @@ if (sourceFormat === 'fbx') {
   console.log('Auto-dropped FBX model to ground after import.');
 }
 
-console.log(`Model max dimension before scale: ${maxDimensionBeforeScale.toFixed(2)}`);
+console.log(`Model max dimension before scale: ${formatMetric(maxDimensionBeforeScale)}`);
 
 scene.add(model);
 
@@ -4365,7 +4377,7 @@ function loadFbxModel(file) {
 
   if (sizeMb > 75) {
     const proceed = confirm(
-      `This FBX file is ${sizeMb.toFixed(1)} MB. Direct browser loading may freeze or crash the viewer.\n\n` +
+      `This FBX file is ${formatMetric(sizeMb)} MB. Direct browser loading may freeze or crash the viewer.\n\n` +
       'Recommended action: convert it to optimized GLB using NOMAD 3D Converter.\n\n' +
       'Load anyway?'
     );
@@ -4373,7 +4385,7 @@ function loadFbxModel(file) {
     if (!proceed) return;
   } else if (sizeMb > 25) {
     const proceed = confirm(
-      `This FBX file is ${sizeMb.toFixed(1)} MB. It may take time to load.\n\n` +
+      `This FBX file is ${formatMetric(sizeMb)} MB. It may take time to load.\n\n` +
       'Load anyway?'
     );
 

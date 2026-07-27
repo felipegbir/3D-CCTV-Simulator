@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 html = (root / "templates" / "index.html").read_text(encoding="utf-8")
@@ -7,7 +7,7 @@ js = (root / "static" / "viewer.js").read_text(encoding="utf-8")
 for marker in (
     "const PROJECT_SCHEMA_VERSION = 7;",
     "projectDownloadExtension = 'nmd'",
-    "pendingPresetDepthStage = 'roi'",
+    "function beginPresetRoiCreation",
     "attachPresetRoiDrawing",
     "pixelWidth:",
     "pixelHeight:",
@@ -22,7 +22,7 @@ for marker in (
     assert marker in js, f"Missing cache 951 workflow marker: {marker}"
 
 for marker in (
-    "/static/viewer.js?v=952",
+    "/static/viewer.js?v=953",
     'accept=".nmd,.json,application/json"',
     'id="editCopy"',
     'id="viewFitGrid"',
@@ -36,3 +36,4 @@ assert "menu-button disabled" not in "\n".join(
     if any(label in line for label in ("Close Project", "Copy", "Zoom Out", "Add Object"))
 )
 print("cache 951 .nmd, menu, maximized-Presets, and ROI workflow guard passed")
+

@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
@@ -36,6 +36,7 @@ const sanitized = JSON.parse(JSON.stringify(sandbox.sanitizePreferences({
   coneOpacity: 99,
   fbxAutoScale: false,
   ptzPresetSpeed: 99,
+  metricDecimals: 99,
   unexpected: 'ignored'
 })));
 
@@ -46,17 +47,21 @@ assert.equal(sanitized.showGrid, false);
 assert.equal(sanitized.coneOpacity, 0.5);
 assert.equal(sanitized.fbxAutoScale, false);
 assert.equal(sanitized.ptzPresetSpeed, 60);
+assert.equal(sanitized.metricDecimals, 10);
+assert.equal(defaults.metricDecimals, 5);
 assert.equal('unexpected' in sanitized, false);
 
 const invalidEnums = JSON.parse(JSON.stringify(sandbox.sanitizePreferences({
   theme: 'neon',
   rendererQuality: 'ultra',
   coneOpacity: -5,
-  ptzPresetSpeed: 0
+  ptzPresetSpeed: 0,
+  metricDecimals: -5
 })));
 assert.equal(invalidEnums.theme, 'dark');
 assert.equal(invalidEnums.rendererQuality, 'high');
 assert.equal(invalidEnums.coneOpacity, 0.05);
 assert.equal(invalidEnums.ptzPresetSpeed, 1);
+assert.equal(invalidEnums.metricDecimals, 0);
 
 console.log('8e.7.1 preference sanitizer runtime tests passed');

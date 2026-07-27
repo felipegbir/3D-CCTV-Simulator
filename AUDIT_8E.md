@@ -272,3 +272,5 @@ Cache 945 deployment passed on CCTV PID 3764866 at port 5010 with health `ok`, c
 ### 8e.7.1 cache-946 Object Inspector tier correction - deployment pending
 
 Owner QA accepted the right-side rail but found Camera, Projection / Pixel Density, and PTZ Controls structurally nested beneath the Camera tier, while collapsed-rail descendants could remain visible. Cache 946 creates four sibling collapsible sections inside a distinct Inspector rail and force-hides every non-header descendant when the entire rail is collapsed. Automated and owner validation remain pending.
+
+Cache 946 deployment passed on CCTV PID 3785015 at port 5010 with health `ok`, exact local/deployed template hash, and live tier/collapse/cache markers. NAS recovery snapshot: `NOMAD_8e.7.1_CACHE946_INSPECTOR_TIERS_20260727_091523`; server rollback: `deploy_backups/pre_cache_946_20260727_0915`. No independent service or container was restarted. Owner interaction confirmation remains pending.

@@ -1,4 +1,4 @@
-﻿"""8e.7.1 owner-QA regression guard for layout, persistence, and preset lifecycle."""
+"""8e.7.1 owner-QA regression guard for layout, persistence, and preset lifecycle."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,7 +28,7 @@ for marker in (
     'function calculatePtzRecallDurationMs',
     'function refreshCameraPresetDerivedData',
     'function invalidateActivePtzPreset',
-    'selected preset and ROIs are retained for comparison',
+    'recall a preset to display its ROIs.',
     'function beginPresetDepthSelection',
     'preset.depthTarget = { ...depthTarget }',
     'preset.projectionDistance = distance',
@@ -38,7 +38,7 @@ for marker in (
     'baseWidth + 360',
     "containerRect.width * 0.68",
     'const updateMetadataPreview = () =>',
-    'retainedPresets',
+    'function requestConfiguredCameraChange',
     "option.style.color = '#ff3b3b'",
     'setTimeout(() => URL.revokeObjectURL(url), 1000)',
     'hiddenReticleObjects',

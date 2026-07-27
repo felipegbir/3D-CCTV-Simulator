@@ -188,6 +188,8 @@ let measurementMagnifierView = null;
 let measurementPointerStart = null;
 let measurementPointerMoved = false;
 let selectedId = null;
+let sceneNavigationCube = null;
+let sceneScaleIndicator = null;
 const PREFERENCES_STORAGE_KEY = 'nomadCctvPreferences.v1';
 const DEFAULT_PREFERENCES = Object.freeze({
   theme: 'dark',
@@ -202,7 +204,9 @@ const DEFAULT_PREFERENCES = Object.freeze({
   modelImportPreset: 'hvdcMm',
   loupeMagnification: 3,
   ptzPresetSpeed: 10,
-  metricDecimals: 3
+  metricDecimals: 3,
+  showNavigationCube: true,
+  showScaleIndicator: true
 });
 
 const preferenceControls = {
@@ -218,6 +222,8 @@ const preferenceControls = {
   fbxAutoScale: document.getElementById('preferenceFbxAutoScale'),
   modelImportPreset: document.getElementById('preferenceModelImportPreset'),
   metricDecimals: document.getElementById('preferenceMetricDecimals'),
+  showNavigationCube: document.getElementById('preferenceShowNavigationCube'),
+  showScaleIndicator: document.getElementById('preferenceShowScaleIndicator'),
   reset: document.getElementById('resetPreferences')
 };
 
@@ -237,7 +243,7 @@ function sanitizePreferences(candidate) {
     safe.rendererQuality = candidate.rendererQuality;
   }
 
-  for (const key of ['reversePan', 'reverseTilt', 'invertZoom', 'showGrid', 'showAxes', 'fbxAutoScale']) {
+  for (const key of ['reversePan', 'reverseTilt', 'invertZoom', 'showGrid', 'showAxes', 'fbxAutoScale', 'showNavigationCube', 'showScaleIndicator']) {
     if (typeof candidate[key] === 'boolean') safe[key] = candidate[key];
   }
 
@@ -319,6 +325,8 @@ function syncPreferenceControls() {
   preferenceControls.fbxAutoScale.checked = preferences.fbxAutoScale;
   preferenceControls.modelImportPreset.value = preferences.modelImportPreset;
   preferenceControls.metricDecimals.value = String(preferences.metricDecimals);
+  preferenceControls.showNavigationCube.checked = preferences.showNavigationCube;
+  preferenceControls.showScaleIndicator.checked = preferences.showScaleIndicator;
   measurementMagnificationControl.value = String(preferences.loupeMagnification);
   measurementMagnificationValue.textContent = String(preferences.loupeMagnification) + 'x';
 }
@@ -336,6 +344,8 @@ function readPreferenceControls() {
     fbxAutoScale: preferenceControls.fbxAutoScale.checked,
     modelImportPreset: preferenceControls.modelImportPreset.value,
     metricDecimals: preferenceControls.metricDecimals.value,
+    showNavigationCube: preferenceControls.showNavigationCube.checked,
+    showScaleIndicator: preferenceControls.showScaleIndicator.checked,
     loupeMagnification: measurementMagnificationControl.value
   });
 }
@@ -351,6 +361,8 @@ function applyPreferences({ persist = false } = {}) {
   configureRendererQuality(measurementMagnifierRenderer);
   measurementMagnifierRenderer.setSize(180, 180, false);
   measurementMagnifierBadge.textContent = String(preferences.loupeMagnification) + '\u00d7';
+  sceneNavigationCube?.classList.toggle('hidden', !preferences.showNavigationCube);
+  sceneScaleIndicator?.classList.toggle('hidden', !preferences.showScaleIndicator);
 
   sceneObjects
     .filter(item => item.type === 'camera')
@@ -384,6 +396,8 @@ for (const control of [
   preferenceControls.rendererQuality,
   preferenceControls.showGrid,
   preferenceControls.showAxes,
+  preferenceControls.showNavigationCube,
+  preferenceControls.showScaleIndicator,
   preferenceControls.fbxAutoScale,
   preferenceControls.modelImportPreset
 ]) {
@@ -398,6 +412,117 @@ preferenceControls.reset.addEventListener('click', () => {
   applyPreferences({ persist: true });
 });
 
+function animateSceneView(direction, up = new THREE.Vector3(0, 1, 0)) {
+  const target = orbitControls.target.clone();
+  const distance = Math.max(0.1, viewerCamera.position.distanceTo(target));
+  const startPosition = viewerCamera.position.clone();
+  const endPosition = target.clone().add(direction.clone().normalize().multiplyScalar(distance));
+  const startUp = viewerCamera.up.clone();
+  const startedAt = performance.now();
+  const duration = 320;
+  function step(now) {
+    const raw = THREE.MathUtils.clamp((now - startedAt) / duration, 0, 1);
+    const t = raw < 0.5 ? 2 * raw * raw : 1 - Math.pow(-2 * raw + 2, 2) / 2;
+    viewerCamera.position.lerpVectors(startPosition, endPosition, t);
+    viewerCamera.up.lerpVectors(startUp, up, t).normalize();
+    viewerCamera.lookAt(target);
+    viewerCamera.updateMatrixWorld(true);
+    if (raw < 1) requestAnimationFrame(step);
+    else orbitControls.update();
+  }
+  requestAnimationFrame(step);
+}
+
+function initializeSceneNavigationOverlays() {
+  sceneNavigationCube = document.createElement('div');
+  sceneNavigationCube.className = 'scene-navigation-cube';
+  sceneNavigationCube.setAttribute('aria-label', 'Scene navigation cube');
+  sceneNavigationCube.innerHTML = `<div class="nav-cube-core"><button class="nav-cube-face nav-face-front" data-view="front">FRONT</button><button class="nav-cube-face nav-face-back" data-view="back">BACK</button><button class="nav-cube-face nav-face-left" data-view="left">LEFT</button><button class="nav-cube-face nav-face-right" data-view="right">RIGHT</button><button class="nav-cube-face nav-face-top" data-view="top">TOP</button><button class="nav-cube-face nav-face-bottom" data-view="bottom">BOTTOM</button></div>`;
+  container.appendChild(sceneNavigationCube);
+  const cubeCore = sceneNavigationCube.querySelector('.nav-cube-core');
+  const views = {
+    front: [new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0)],
+    back: [new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0)],
+    left: [new THREE.Vector3(-1, 0, 0), new THREE.Vector3(0, 1, 0)],
+    right: [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0)],
+    top: [new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1)],
+    bottom: [new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, 1)]
+  };
+  sceneNavigationCube.addEventListener('click', event => {
+    const face = event.target.closest('[data-view]');
+    if (!face || sceneNavigationCube.dataset.dragged === 'true') return;
+    const [direction, up] = views[face.dataset.view];
+    animateSceneView(direction, up);
+  });
+  let drag = null;
+  cubeCore.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    drag = { x: event.clientX, y: event.clientY, moved: false };
+    sceneNavigationCube.dataset.dragged = 'false';
+    cubeCore.classList.add('dragging');
+    cubeCore.setPointerCapture?.(event.pointerId);
+  });
+  cubeCore.addEventListener('pointermove', event => {
+    if (!drag) return;
+    const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) < 2) return;
+    drag.moved = true;
+    const target = orbitControls.target.clone();
+    const offset = viewerCamera.position.clone().sub(target);
+    const spherical = new THREE.Spherical().setFromVector3(offset);
+    spherical.theta -= dx * 0.01;
+    spherical.phi = THREE.MathUtils.clamp(spherical.phi + dy * 0.01, 0.02, Math.PI - 0.02);
+    viewerCamera.position.copy(target).add(new THREE.Vector3().setFromSpherical(spherical));
+    viewerCamera.up.set(0, 1, 0);
+    viewerCamera.lookAt(target);
+    viewerCamera.updateMatrixWorld(true);
+    drag.x = event.clientX; drag.y = event.clientY;
+  });
+  const finishDrag = () => {
+    if (!drag) return;
+    sceneNavigationCube.dataset.dragged = String(drag.moved);
+    drag = null;
+    cubeCore.classList.remove('dragging');
+    requestAnimationFrame(() => { if (sceneNavigationCube) sceneNavigationCube.dataset.dragged = 'false'; });
+  };
+  cubeCore.addEventListener('pointerup', finishDrag);
+  cubeCore.addEventListener('pointercancel', finishDrag);
+
+  sceneScaleIndicator = document.createElement('div');
+  sceneScaleIndicator.className = 'scene-scale-indicator';
+  sceneScaleIndicator.innerHTML = '<div class="scene-scale-label">Scale</div><div class="scene-scale-bar"></div>';
+  container.appendChild(sceneScaleIndicator);
+  applyPreferences();
+}
+
+function updateSceneNavigationOverlays() {
+  if (sceneNavigationCube && !sceneNavigationCube.classList.contains('hidden')) {
+    const direction = viewerCamera.position.clone().sub(orbitControls.target).normalize();
+    const yaw = Math.atan2(direction.x, direction.z) * 180 / Math.PI;
+    const pitch = Math.asin(THREE.MathUtils.clamp(direction.y, -1, 1)) * 180 / Math.PI;
+    const core = sceneNavigationCube.querySelector('.nav-cube-core');
+    if (core && !core.classList.contains('dragging')) core.style.transform = `rotateX(${pitch - 18}deg) rotateY(${-yaw + 35}deg)`;
+  }
+  if (sceneScaleIndicator && !sceneScaleIndicator.classList.contains('hidden')) {
+    const height = Math.max(1, container.clientHeight);
+    const distance = Math.max(0.001, viewerCamera.position.distanceTo(orbitControls.target));
+    const worldPerPixel = 2 * distance * Math.tan(THREE.MathUtils.degToRad(viewerCamera.fov / 2)) / height / Math.max(0.001, viewerCamera.zoom || 1);
+    const desired = worldPerPixel * 120;
+    const exponent = Math.floor(Math.log10(Math.max(desired, 1e-9)));
+    const fraction = desired / Math.pow(10, exponent);
+    const niceFraction = fraction >= 5 ? 5 : fraction >= 2 ? 2 : 1;
+    const niceMetres = niceFraction * Math.pow(10, exponent);
+    const width = THREE.MathUtils.clamp(niceMetres / worldPerPixel, 54, 132);
+    let value = niceMetres, unit = 'm';
+    if (niceMetres < 0.01) { value = niceMetres * 1000; unit = 'mm'; }
+    else if (niceMetres < 1) { value = niceMetres * 100; unit = 'cm'; }
+    else if (niceMetres >= 1000) { value = niceMetres / 1000; unit = 'km'; }
+    sceneScaleIndicator.querySelector('.scene-scale-label').textContent = `${formatMetric(value, value < 10 ? 2 : 0)} ${unit}`;
+    sceneScaleIndicator.querySelector('.scene-scale-bar').style.width = `${width}px`;
+  }
+}
+
+initializeSceneNavigationOverlays();
 const undoStack = [];
 const redoStack = [];
 
@@ -1471,9 +1596,12 @@ function refreshCameraPresetDerivedData(cameraItem) {
 
 function invalidateActivePtzPreset(cameraItem, message = 'Manual camera movement: no preset is active.') {
   if (!cameraItem?.data) return;
+  cameraItem.data.activePtzPresetId = null;
+  editingPresetRoiId = null;
+  refreshPresetRoiOverlays(cameraItem);
   if (ptzPresetPanel && activePresetCamera?.id === cameraItem.id) {
     ptzPresetPanel.refreshDerived?.();
-    ptzPresetPanel.querySelector('.ptz-preset-status').textContent = 'Camera moved; selected preset and ROIs are retained for comparison.';
+    ptzPresetPanel.querySelector('.ptz-preset-status').textContent = message || 'Camera moved; recall a preset to display its ROIs.';
   }
 }
 
@@ -1701,7 +1829,9 @@ function ensurePtzPresetPanel() {
     const notesField = ptzPresetPanel.querySelector('.ptz-preset-notes');
     const roi = { width: Number(ptzPresetPanel.querySelector('.ptz-preset-roi-width').value) || null, height: Number(ptzPresetPanel.querySelector('.ptz-preset-roi-height').value) || null };
     if (action === 'add') {
-      const created = captureCameraPreset(activePresetCamera, { name: nameField.value.trim() || undefined, notes: notesField.value.trim(), roi });
+      const enteredName = nameField.value.trim();
+      const explicitNewName = enteredName && (!preset || enteredName !== preset.name) ? enteredName : undefined;
+      const created = captureCameraPreset(activePresetCamera, { name: explicitNewName || getNextPtzPresetName(activePresetCamera), notes: notesField.value.trim(), roi });
       ensureCameraPtzPresets(activePresetCamera).push(created);
       refresh(created.id);
       ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `${created.name} added from the current camera view.`;
@@ -1831,7 +1961,7 @@ function endPresetDepthSelection() {
   document.body.classList.remove('preset-depth-pick-active');
 }
 
-function beginPresetRoiCreation(cameraItem,preset,dock){pendingPresetDepthCamera=cameraItem;pendingPresetDepthPresetId=preset.id;pendingPresetDepthDock=dock?.closest?.('.camera-viewport, .video-wall-tile')||dock;pendingPresetDepthStage='roi';pendingPresetRoiDraft={depthTarget:{...preset.depthTarget},projectionDistance:preset.projectionDistance};const banner=ensurePresetDepthPickBanner();banner.textContent=`Add ROI for ${preset.name}: drag a rectangle in ${cameraItem.name} Camera View; Esc cancels.`;document.body.classList.add('preset-depth-pick-active');setMeasurementStatus(banner.textContent)}
+function beginPresetRoiCreation(cameraItem,preset,dock){pendingPresetDepthCamera=cameraItem;pendingPresetDepthPresetId=preset.id;pendingPresetDepthDock=dock?.closest?.('.camera-viewport, .video-wall-tile')||dock;pendingPresetDepthStage='roi';pendingPresetRoiDraft={depthTarget:{...preset.depthTarget},projectionDistance:preset.projectionDistance};const banner=ensurePresetDepthPickBanner();banner.textContent=`Add ROI for ${preset.name}: drag a rectangle in ${cameraItem.name} Camera View; Esc cancels.`;document.body.classList.add('preset-depth-pick-active');setPresetWorkflowStatus(banner.textContent)}
 
 function beginPresetDepthSelection(cameraItem, preset, dock) {
   pendingPresetDepthCamera = cameraItem;
@@ -1841,7 +1971,7 @@ function beginPresetDepthSelection(cameraItem, preset, dock) {
   const banner = ensurePresetDepthPickBanner();
   banner.textContent = `Depth selection armed for ${preset.name}. Click a visible model/reference surface inside ${cameraItem.name} Camera View; Esc cancels.`;
   document.body.classList.add('preset-depth-pick-active');
-  setMeasurementStatus(banner.textContent);
+  setPresetWorkflowStatus(banner.textContent);
 }
 
 function pickCameraViewportSurface(event, viewportCamera, canvas) {
@@ -1884,10 +2014,10 @@ function completePresetDepthSelection(cameraItem, pick) {
     preset.updatedAt = new Date().toISOString();
     pendingPresetRoiDraft={depthTarget:{...depthTarget},projectionDistance:distance};
   }
-  const dock=pendingPresetDepthDock; cameraItem.data.activePtzPresetId=preset?.id||cameraItem.data.activePtzPresetId; const message=`Depth set to ${formatMetric(distance)} m. Use Add ROI to draw one or more regions on this surface.`; endPresetDepthSelection(); setMeasurementStatus(message); openPtzPresetPanel(cameraItem,dock); const status=ptzPresetPanel?.querySelector('.ptz-preset-status'); if(status)status.textContent=message;
+  const dock=pendingPresetDepthDock; cameraItem.data.activePtzPresetId=preset?.id||cameraItem.data.activePtzPresetId; const message=`Depth set to ${formatMetric(distance)} m. Use Add ROI to draw one or more regions on this surface.`; endPresetDepthSelection(); openPtzPresetPanel(cameraItem,dock); const status=ptzPresetPanel?.querySelector('.ptz-preset-status'); if(status)status.textContent=message;
 }
 
-function refreshPresetRoiOverlays(cameraItem=null){for(let i=presetRoiOverlayContexts.length-1;i>=0;i--){const c=presetRoiOverlayContexts[i];if(!c.host.isConnected){presetRoiOverlayContexts.splice(i,1);continue}if(cameraItem&&c.cameraItem.id!==cameraItem.id)continue;c.svg?.remove();const selectedId=activePresetCamera?.id===c.cameraItem.id?ptzPresetPanel?.querySelector('.ptz-preset-list')?.value:null;const preset=ensureCameraPtzPresets(c.cameraItem).find(p=>p.id===(selectedId||c.cameraItem.data?.activePtzPresetId));if(!preset?.rois?.length)continue;const rect=c.canvas.getBoundingClientRect(),svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('preset-roi-svg');svg.setAttribute('viewBox',`0 0 ${rect.width} ${rect.height}`);c.host.appendChild(svg);c.svg=svg;for(const roi of preset.rois.filter(r=>r.visible!==false&&r.nodes?.length>=3)){const poly=document.createElementNS(svg.namespaceURI,'polygon');poly.setAttribute('points',roi.nodes.map(n=>`${n.x*rect.width},${n.y*rect.height}`).join(' '));poly.setAttribute('stroke',roi.color);poly.setAttribute('fill',roi.color+'22');svg.appendChild(poly);const label=document.createElementNS(svg.namespaceURI,'text');label.textContent=roi.name;label.setAttribute('x',roi.nodes[0].x*rect.width+5);label.setAttribute('y',roi.nodes[0].y*rect.height-5);svg.appendChild(label);if(editingPresetRoiId!==roi.id)continue;svg.classList.add('editing');roi.nodes.forEach((node,index)=>{const next=roi.nodes[(index+1)%roi.nodes.length],edge=document.createElementNS(svg.namespaceURI,'line');edge.setAttribute('x1',node.x*rect.width);edge.setAttribute('y1',node.y*rect.height);edge.setAttribute('x2',next.x*rect.width);edge.setAttribute('y2',next.y*rect.height);edge.classList.add('preset-roi-edge');edge.onclick=e=>{if(roi.nodes.length>=15)return;const r=c.canvas.getBoundingClientRect();roi.nodes.splice(index+1,0,{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height});updateEditableRoiMetrics(c.cameraItem,preset,roi)};svg.appendChild(edge);const h=document.createElementNS(svg.namespaceURI,'circle');h.setAttribute('cx',node.x*rect.width);h.setAttribute('cy',node.y*rect.height);h.setAttribute('r',6);h.classList.add('preset-roi-node');h.oncontextmenu=e=>{e.preventDefault();if(roi.nodes.length>3){roi.nodes.splice(index,1);updateEditableRoiMetrics(c.cameraItem,preset,roi)}};h.onpointerdown=e=>{e.preventDefault();e.stopPropagation();const move=v=>{const r=c.canvas.getBoundingClientRect();node.x=THREE.MathUtils.clamp((v.clientX-r.left)/r.width,0,1);node.y=THREE.MathUtils.clamp((v.clientY-r.top)/r.height,0,1);roi.metrics=calculatePolygonRoiMetrics(c.cameraItem,roi,{projectionDistance:roi.projectionDistance,hfov:preset.hfov});const analysisBox=ptzPresetPanel?.querySelector('.ptz-roi-analysis');if(analysisBox)analysisBox.textContent=formatPresetRoiAnalysis(roi);h.setAttribute('cx',node.x*r.width);h.setAttribute('cy',node.y*r.height);poly.setAttribute('points',roi.nodes.map(n=>`${n.x*r.width},${n.y*r.height}`).join(' '));if(index===0){label.setAttribute('x',node.x*r.width+5);label.setAttribute('y',node.y*r.height-5)}};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);updateEditableRoiMetrics(c.cameraItem,preset,roi)};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up)};svg.appendChild(h)})}}}
+function refreshPresetRoiOverlays(cameraItem=null){for(let i=presetRoiOverlayContexts.length-1;i>=0;i--){const c=presetRoiOverlayContexts[i];if(!c.host.isConnected){presetRoiOverlayContexts.splice(i,1);continue}if(cameraItem&&c.cameraItem.id!==cameraItem.id)continue;c.svg?.remove();const activePresetId=c.cameraItem.data?.activePtzPresetId;const preset=activePresetId?ensureCameraPtzPresets(c.cameraItem).find(p=>p.id===activePresetId):null;if(!preset?.rois?.length)continue;const rect=c.canvas.getBoundingClientRect(),svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('preset-roi-svg');svg.setAttribute('viewBox',`0 0 ${rect.width} ${rect.height}`);const hostRect=c.host.getBoundingClientRect();svg.style.inset='auto';svg.style.left=`${rect.left-hostRect.left}px`;svg.style.top=`${rect.top-hostRect.top}px`;svg.style.width=`${rect.width}px`;svg.style.height=`${rect.height}px`;c.host.appendChild(svg);c.svg=svg;for(const roi of preset.rois.filter(r=>r.visible!==false&&r.nodes?.length>=3)){const poly=document.createElementNS(svg.namespaceURI,'polygon');poly.setAttribute('points',roi.nodes.map(n=>`${n.x*rect.width},${n.y*rect.height}`).join(' '));poly.setAttribute('stroke',roi.color);poly.setAttribute('fill',roi.color+'22');svg.appendChild(poly);const label=document.createElementNS(svg.namespaceURI,'text');label.textContent=roi.name;label.setAttribute('x',roi.nodes[0].x*rect.width+5);label.setAttribute('y',roi.nodes[0].y*rect.height-5);svg.appendChild(label);if(editingPresetRoiId!==roi.id)continue;svg.classList.add('editing');roi.nodes.forEach((node,index)=>{const next=roi.nodes[(index+1)%roi.nodes.length],edge=document.createElementNS(svg.namespaceURI,'line');edge.setAttribute('x1',node.x*rect.width);edge.setAttribute('y1',node.y*rect.height);edge.setAttribute('x2',next.x*rect.width);edge.setAttribute('y2',next.y*rect.height);edge.classList.add('preset-roi-edge');edge.onclick=e=>{if(roi.nodes.length>=15)return;const r=c.canvas.getBoundingClientRect();roi.nodes.splice(index+1,0,{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height});updateEditableRoiMetrics(c.cameraItem,preset,roi)};svg.appendChild(edge);const h=document.createElementNS(svg.namespaceURI,'circle');h.setAttribute('cx',node.x*rect.width);h.setAttribute('cy',node.y*rect.height);h.setAttribute('r',6);h.classList.add('preset-roi-node');h.oncontextmenu=e=>{e.preventDefault();if(roi.nodes.length>3){roi.nodes.splice(index,1);updateEditableRoiMetrics(c.cameraItem,preset,roi)}};h.onpointerdown=e=>{e.preventDefault();e.stopPropagation();const move=v=>{const r=c.canvas.getBoundingClientRect();node.x=THREE.MathUtils.clamp((v.clientX-r.left)/r.width,0,1);node.y=THREE.MathUtils.clamp((v.clientY-r.top)/r.height,0,1);roi.metrics=calculatePolygonRoiMetrics(c.cameraItem,roi,{projectionDistance:roi.projectionDistance,hfov:preset.hfov});const analysisBox=ptzPresetPanel?.querySelector('.ptz-roi-analysis');if(analysisBox)analysisBox.textContent=formatPresetRoiAnalysis(roi);h.setAttribute('cx',node.x*r.width);h.setAttribute('cy',node.y*r.height);poly.setAttribute('points',roi.nodes.map(n=>`${n.x*r.width},${n.y*r.height}`).join(' '));if(index===0){label.setAttribute('x',node.x*r.width+5);label.setAttribute('y',node.y*r.height-5)}};const up=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);updateEditableRoiMetrics(c.cameraItem,preset,roi)};window.addEventListener('pointermove',move);window.addEventListener('pointerup',up)};svg.appendChild(h)})}}}
 function updateEditableRoiMetrics(cameraItem,preset,roi){roi.metrics=calculatePolygonRoiMetrics(cameraItem,roi,{projectionDistance:roi.projectionDistance,hfov:preset.hfov});roi.updatedAt=new Date().toISOString();preset.updatedAt=roi.updatedAt;ptzPresetPanel?.refreshLive?.()}
 
 function attachPresetRoiDrawing(host, canvas, cameraItem) {
@@ -1900,9 +2030,12 @@ function attachPresetRoiDrawing(host, canvas, cameraItem) {
     const overlay = document.createElement('div');
     overlay.className = 'preset-roi-overlay';
     host.appendChild(overlay);
-    pendingPresetRoiDrawing = { host, canvas, cameraItem, startX, startY, currentX: startX, currentY: startY, overlay };
-    overlay.style.left = `${startX}px`;
-    overlay.style.top = `${startY}px`;
+    const hostRect = host.getBoundingClientRect();
+    const offsetX = rect.left - hostRect.left;
+    const offsetY = rect.top - hostRect.top;
+    pendingPresetRoiDrawing = { host, canvas, cameraItem, startX, startY, currentX: startX, currentY: startY, overlay, offsetX, offsetY };
+    overlay.style.left = `${offsetX + startX}px`;
+    overlay.style.top = `${offsetY + startY}px`;
     overlay.style.width = '1px';
     overlay.style.height = '1px';
     event.preventDefault();
@@ -1916,8 +2049,8 @@ function attachPresetRoiDrawing(host, canvas, cameraItem) {
     drawing.currentY = THREE.MathUtils.clamp(event.clientY - rect.top, 0, rect.height);
     const left = Math.min(drawing.startX, drawing.currentX);
     const top = Math.min(drawing.startY, drawing.currentY);
-    drawing.overlay.style.left = `${left}px`;
-    drawing.overlay.style.top = `${top}px`;
+    drawing.overlay.style.left = `${drawing.offsetX + left}px`;
+    drawing.overlay.style.top = `${drawing.offsetY + top}px`;
     drawing.overlay.style.width = `${Math.abs(drawing.currentX - drawing.startX)}px`;
     drawing.overlay.style.height = `${Math.abs(drawing.currentY - drawing.startY)}px`;
     event.preventDefault();
@@ -1931,7 +2064,7 @@ function attachPresetRoiDrawing(host, canvas, cameraItem) {
     if (pixelWidthOnCanvas < 4 || pixelHeightOnCanvas < 4) {
       drawing.overlay.remove();
       pendingPresetRoiDrawing = null;
-      setMeasurementStatus('ROI is too small. Drag a rectangle at least 4 screen pixels wide and high.');
+      setPresetWorkflowStatus('ROI is too small. Drag a rectangle at least 4 screen pixels wide and high.');
       return;
     }
     const preset = ensureCameraPtzPresets(cameraItem).find(entry => entry.id === pendingPresetDepthPresetId);
@@ -1951,7 +2084,7 @@ function attachPresetRoiDrawing(host, canvas, cameraItem) {
         height: normalizedHeight
       }
     };
-    const roi=normalizePresetRoi({name:getNextPresetRoiName(preset),nodes:[{x:legacyRoi.normalized.x,y:legacyRoi.normalized.y},{x:legacyRoi.normalized.x+legacyRoi.normalized.width,y:legacyRoi.normalized.y},{x:legacyRoi.normalized.x+legacyRoi.normalized.width,y:legacyRoi.normalized.y+legacyRoi.normalized.height},{x:legacyRoi.normalized.x,y:legacyRoi.normalized.y+legacyRoi.normalized.height}],depthTarget:pendingPresetRoiDraft?.depthTarget||preset.depthTarget,projectionDistance:pendingPresetRoiDraft?.projectionDistance||preset.projectionDistance},preset.rois?.length||0);roi.metrics=calculatePolygonRoiMetrics(cameraItem,roi,{projectionDistance:roi.projectionDistance,hfov:preset.hfov});preset.rois=[...(preset.rois||[]),roi];preset.activeRoiId=roi.id;cameraItem.data.activePtzPresetId=preset.id;preset.roi=legacyRoi;preset.analysis={...roi.metrics,roiPixelsX:roi.metrics.pixelWidth,roiPixelsY:roi.metrics.pixelHeight};preset.updatedAt=new Date().toISOString();const dock=pendingPresetDepthDock;const result=`${preset.name} / ${roi.name}: ${roi.metrics.pixelWidth} x ${roi.metrics.pixelHeight} pixels - ${roi.metrics.thermographyClass}.`;endPresetDepthSelection();setMeasurementStatus(result);openPtzPresetPanel(cameraItem,dock);const status=ptzPresetPanel?.querySelector('.ptz-preset-status');if(status)status.textContent=result;
+    const roi=normalizePresetRoi({name:getNextPresetRoiName(preset),nodes:[{x:legacyRoi.normalized.x,y:legacyRoi.normalized.y},{x:legacyRoi.normalized.x+legacyRoi.normalized.width,y:legacyRoi.normalized.y},{x:legacyRoi.normalized.x+legacyRoi.normalized.width,y:legacyRoi.normalized.y+legacyRoi.normalized.height},{x:legacyRoi.normalized.x,y:legacyRoi.normalized.y+legacyRoi.normalized.height}],depthTarget:pendingPresetRoiDraft?.depthTarget||preset.depthTarget,projectionDistance:pendingPresetRoiDraft?.projectionDistance||preset.projectionDistance},preset.rois?.length||0);roi.metrics=calculatePolygonRoiMetrics(cameraItem,roi,{projectionDistance:roi.projectionDistance,hfov:preset.hfov});preset.rois=[...(preset.rois||[]),roi];preset.activeRoiId=roi.id;cameraItem.data.activePtzPresetId=preset.id;preset.roi=legacyRoi;preset.analysis={...roi.metrics,roiPixelsX:roi.metrics.pixelWidth,roiPixelsY:roi.metrics.pixelHeight};preset.updatedAt=new Date().toISOString();const dock=pendingPresetDepthDock;const result=`${preset.name} / ${roi.name}: ${roi.metrics.pixelWidth} x ${roi.metrics.pixelHeight} pixels - ${roi.metrics.thermographyClass}.`;endPresetDepthSelection();openPtzPresetPanel(cameraItem,dock);const status=ptzPresetPanel?.querySelector('.ptz-preset-status');if(status)status.textContent=result;
     event.preventDefault();
     event.stopImmediatePropagation();
   }, true);
@@ -1962,7 +2095,7 @@ renderer.domElement.addEventListener('click', event => {
   const cameraItem = pendingPresetDepthCamera;
   const pick = pickMeasurementPoint(event);
   if (!pick) {
-    setMeasurementStatus('No model/reference surface was hit. Select a visible surface for preset depth.');
+    setPresetWorkflowStatus('No model/reference surface was hit. Select a visible surface for preset depth.');
     event.stopImmediatePropagation();
     return;
   }
@@ -1978,6 +2111,8 @@ function createWallTile(doc, host, source, records, onDrop, options = {}) {
   tile.dataset.tileIndex = String(options.tileIndex ?? records.length);
   const renderPane = doc.createElement('div');
   renderPane.className = 'video-wall-render-pane';
+  renderPane.style.display = 'grid';
+  renderPane.style.placeItems = 'center';
   tile.appendChild(renderPane);
   tile.style.setProperty('--preset-panel-percent',`${videoWallPresetPanelPercent}%`);
   const presetResizer=doc.createElement('div');presetResizer.className='video-wall-preset-resizer';presetResizer.title='Drag to resize PTZ Presets';tile.appendChild(presetResizer);presetResizer.addEventListener('pointerdown',event=>{event.preventDefault();event.stopPropagation();presetResizer.classList.add('dragging');presetResizer.setPointerCapture?.(event.pointerId);const move=moveEvent=>{const rect=tile.getBoundingClientRect();videoWallPresetPanelPercent=THREE.MathUtils.clamp((rect.right-moveEvent.clientX)/Math.max(1,rect.width)*100,15,50);tile.style.setProperty('--preset-panel-percent',`${videoWallPresetPanelPercent}%`);window.dispatchEvent(new Event('resize'))};const up=()=>{presetResizer.classList.remove('dragging');presetResizer.removeEventListener('pointermove',move)};presetResizer.addEventListener('pointermove',move);presetResizer.addEventListener('pointerup',up,{once:true})});
@@ -2412,22 +2547,14 @@ function openCameraViewport(cameraItem) {
   attachPresetRoiDrawing(body, viewportRenderer.domElement, cameraItem);
 
   function resizeCameraViewportRenderer() {
-    const width = Math.max(1, body.clientWidth);
-    const height = Math.max(1, body.clientHeight);
-
-    viewportRenderer.setSize(width, height, false);
-
-    viewportRenderer.setViewport(
-      0,
-      0,
-      width,
-      height
-    );
-
-    if (viewportCamera && height > 0) {
-      viewportCamera.aspect = (Number(cameraItem.data?.resolutionWidth) || 1920) / (Number(cameraItem.data?.resolutionHeight) || 1080);
+    const sensorAspect = (Number(cameraItem.data?.resolutionWidth) || 1920) / (Number(cameraItem.data?.resolutionHeight) || 1080);
+    const fitted = fitRendererToHost(viewportRenderer, body, sensorAspect);
+    viewportRenderer.setViewport(0, 0, fitted.width, fitted.height);
+    if (viewportCamera) {
+      viewportCamera.aspect = sensorAspect;
       viewportCamera.updateProjectionMatrix();
     }
+    refreshPresetRoiOverlays(cameraItem);
   }
 
   resizeCameraViewportRenderer();
@@ -3362,6 +3489,11 @@ document.getElementById('objectLock')?.addEventListener('click', () => {
 function setMeasurementStatus(message) {
   measurementStatus.textContent = message;
 }
+function setPresetWorkflowStatus(message) {
+  if (presetDepthPickBanner) presetDepthPickBanner.textContent = message;
+  const status = ptzPresetPanel?.querySelector('.ptz-preset-status');
+  if (status) status.textContent = message;
+}
 
 function disposeMeasurementVisuals() {
   measurementVisuals.traverse(child => {
@@ -4053,6 +4185,7 @@ projectionDistanceSlider.addEventListener('input', () => {
   if (!item || item.type !== 'camera') return;
 
   const distance = Number(projectionDistanceSlider.value);
+  cancelCameraPresetAnimation(item, 'Depth changed; recall a preset to display its ROIs.');
 
   projectionDistanceInput.value = formatMetric(distance);
   projectionDistanceValue.textContent = formatMetric(distance);
@@ -4060,20 +4193,67 @@ projectionDistanceSlider.addEventListener('input', () => {
   updateProjectionDistance(item, distance);
 });
 
+function cameraHasDependentConfiguration(cameraItem) {
+  const data = cameraItem?.data || {};
+  return ensureCameraPtzPresets(cameraItem).length > 0
+    || Boolean(data.depthTarget)
+    || Math.abs(Number(data.pan) || 0) > 0.001
+    || Math.abs(Number(data.tilt) || 0) > 0.001
+    || Math.abs(Number(data.roll) || 0) > 0.001
+    || Math.abs((Number(data.zoom) || 1) - 1) > 0.001
+    || Math.abs((Number(data.projectionDistance) || 20) - 20) > 0.001;
+}
+
+function requestConfiguredCameraChange(cameraItem, nextModel) {
+  return new Promise(resolve => {
+    document.querySelector('.camera-change-backdrop')?.remove();
+    const presetCount = ensureCameraPtzPresets(cameraItem).length;
+    const roiCount = ensureCameraPtzPresets(cameraItem).reduce((total, preset) => total + (preset.rois?.length || 0), 0);
+    const backdrop = document.createElement('div');
+    backdrop.className = 'camera-change-backdrop';
+    backdrop.innerHTML = `<div class="camera-change-dialog"><h3>Change configured camera?</h3><p><strong>${cameraItem.name}</strong> contains ${presetCount} PTZ preset(s) and ${roiCount} ROI(s), or other camera-specific analysis.</p><p>Changing from <strong>${cameraItem.data?.model || 'current model'}</strong> to <strong>${nextModel}</strong> can invalidate optical limits and pixel-density results. Clone the camera to compare models without altering this configured instance.</p><div class="camera-change-actions"><button data-choice="cancel">Cancel</button><button data-choice="replace">Replace and Clear Configuration</button><button data-choice="clone">Clone and Apply New Model</button></div></div>`;
+    document.body.appendChild(backdrop);
+    const finish = choice => { backdrop.remove(); resolve(choice); };
+    backdrop.addEventListener('click', event => {
+      const choice = event.target.dataset.choice;
+      if (choice) finish(choice);
+      else if (event.target === backdrop) finish('cancel');
+    });
+  });
+}
 cameraModelSelect.addEventListener('focus', () => {
   cameraModelSelect.select();
 });
 
-cameraModelSelect.addEventListener('change', () => {
+cameraModelSelect.addEventListener('change', async () => {
   if (!selectedId) return;
 
-  const item = sceneObjects.find(o => o.id === selectedId);
+  let item = sceneObjects.find(o => o.id === selectedId);
   if (!item || item.type !== 'camera') return;
 
   const selectedModel = cameraModelSelect.value;
   const record = cameraDatabaseByModel[selectedModel];
 
   if (!record) return;
+
+  let clearConfiguration = false;
+  if (cameraHasDependentConfiguration(item)) {
+    const decision = await requestConfiguredCameraChange(item, selectedModel);
+    if (decision === 'cancel') {
+      cameraModelSelect.value = item.data?.model || '';
+      return;
+    }
+    clearConfiguration = true;
+    if (decision === 'clone') {
+      const original = item;
+      createCameraObject(`${original.name} - ${selectedModel}`, original.object.position.clone());
+      item = sceneObjects.find(entry => entry.id === selectedId);
+      if (!item) return;
+      item.object.rotation.copy(original.object.rotation);
+      item.object.updateMatrixWorld(true);
+      closePtzPresetPanel();
+    }
+  }
 
   const oldData = item.data || {};
   const oldMin = Number.parseFloat(oldData.focalLengthMinMm);
@@ -4083,6 +4263,7 @@ cameraModelSelect.addEventListener('change', () => {
   let zoomRatio = 0;
 
   if (
+    !clearConfiguration &&
     Number.isFinite(oldMin) &&
     Number.isFinite(oldMax) &&
     Number.isFinite(oldCurrent) &&
@@ -4127,20 +4308,11 @@ cameraModelSelect.addEventListener('change', () => {
     newData.supportsZoom = false;
   }
 
-  const retainedPresets = ensureCameraPtzPresets(item).map(preset => normalizePtzPreset(preset));
-  const retainedState = {
-    pan: oldData.pan,
-    tilt: oldData.tilt,
-    roll: oldData.roll,
-    projectionDistance: oldData.projectionDistance,
-    viewportPalette: oldData.viewportPalette,
-    depthTarget: oldData.depthTarget,
-    activePtzPresetId: oldData.activePtzPresetId
-  };
   item.data = {
     ...newData,
-    ...retainedState,
-    ptzPresets: retainedPresets
+    ptzPresets: [],
+    depthTarget: null,
+    activePtzPresetId: null
   };
   refreshCameraPresetDerivedData(item);
 
@@ -4156,7 +4328,7 @@ cameraModelSelect.addEventListener('change', () => {
   updateObjectInfoPanel();
   if (ptzPresetPanel && activePresetCamera?.id === item.id) {
     ptzPresetPanel.refresh?.(item.data.activePtzPresetId || undefined, { clearSelection: !item.data.activePtzPresetId });
-    ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `${retainedPresets.length} preset(s) retained; red names indicate replacement-camera limit conflicts.`;
+    ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `Camera model changed. Dependent PTZ presets, depth targets, and ROIs were cleared.`;
   }
 });
 
@@ -4167,6 +4339,7 @@ projectionDistanceInput.addEventListener('change', () => {
   if (!item || item.type !== 'camera') return;
 
   const distance = Math.max(1, Number(projectionDistanceInput.value || 20));
+  cancelCameraPresetAnimation(item, 'Depth changed; recall a preset to display its ROIs.');
 
   projectionDistanceInput.value = formatMetric(distance);
   projectionDistanceSlider.value = Math.min(distance, 120);
@@ -4652,12 +4825,12 @@ function applyLoadedProject(project) {
     const inspectorToggle = document.getElementById('objectInspectorToggle');
     if (sceneToggle) {
       const collapsed = document.body.classList.contains('scene-tree-collapsed');
-      sceneToggle.textContent = collapsed ? 'â–¶' : 'â—€';
+      sceneToggle.textContent = collapsed ? '\u25B6' : '\u25C0';
       sceneToggle.setAttribute('aria-expanded', String(!collapsed));
     }
     if (inspectorToggle) {
       const collapsed = document.body.classList.contains('object-inspector-collapsed');
-      inspectorToggle.textContent = collapsed ? 'â—€' : 'â–¶';
+      inspectorToggle.textContent = collapsed ? '\u25C0' : '\u25B6';
       inspectorToggle.setAttribute('aria-expanded', String(!collapsed));
     }
   }
@@ -4932,7 +5105,7 @@ window.addEventListener('keydown', (event) => {
     const cameraItem = pendingPresetDepthCamera;
     const dock = pendingPresetDepthDock;
     endPresetDepthSelection();
-    setMeasurementStatus('Preset depth selection cancelled.');
+    setPresetWorkflowStatus('Preset depth selection cancelled.');
     openPtzPresetPanel(cameraItem, dock);
     return;
   }
@@ -4966,6 +5139,20 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
+function fitRendererToHost(targetRenderer, host, aspect) {
+  const availableWidth = Math.max(1, host.clientWidth);
+  const availableHeight = Math.max(1, host.clientHeight);
+  const safeAspect = Math.max(0.01, Number(aspect) || availableWidth / availableHeight);
+  let width = availableWidth, height = availableHeight;
+  if (availableWidth / availableHeight > safeAspect) width = Math.max(1, Math.round(availableHeight * safeAspect));
+  else height = Math.max(1, Math.round(availableWidth / safeAspect));
+  const resized = Number.parseFloat(targetRenderer.domElement.style.width) !== width || Number.parseFloat(targetRenderer.domElement.style.height) !== height;
+  if (resized) targetRenderer.setSize(width, height, false);
+  targetRenderer.domElement.style.width = `${width}px`;
+  targetRenderer.domElement.style.height = `${height}px`;
+  targetRenderer.domElement.style.position = 'relative';
+  return { width, height, resized };
+}
 function renderCameraView(targetRenderer, targetCamera) {
   const helper = transformControls.getHelper ? transformControls.getHelper() : transformControls;
   const hidden = [helper];
@@ -4989,11 +5176,13 @@ function renderVideoWallRecords(records) {
   helper.visible = false;
   records.forEach(record => {
     if (!record.host?.isConnected) return;
-    const width = Math.max(1, record.host.clientWidth);
-    const height = Math.max(1, record.host.clientHeight);
-    if (record.renderer.domElement.width !== width || record.renderer.domElement.height !== height) {
-      record.renderer.setSize(width, height, false);
-    }
+    const hostWidth = Math.max(1, record.host.clientWidth);
+    const hostHeight = Math.max(1, record.host.clientHeight);
+    const sourceAspect = record.sourceKey === 'scene'
+      ? hostWidth / hostHeight
+      : (Number(record.item?.data?.resolutionWidth) || 1920) / (Number(record.item?.data?.resolutionHeight) || 1080);
+    const fitted = fitRendererToHost(record.renderer, record.host, sourceAspect);
+    if (fitted.resized && record.item) refreshPresetRoiOverlays(record.item);
     if (record.sourceKey === 'scene') {
       record.camera.position.copy(viewerCamera.position);
       record.camera.quaternion.copy(viewerCamera.quaternion);
@@ -5004,7 +5193,7 @@ function renderVideoWallRecords(records) {
     } else if (!syncWallCamera(record.camera, record.item)) {
       return;
     }
-    record.camera.aspect = record.sourceKey === 'scene' ? width / height : (Number(record.item?.data?.resolutionWidth) || 1920) / (Number(record.item?.data?.resolutionHeight) || 1080);
+    record.camera.aspect = sourceAspect;
     record.camera.updateProjectionMatrix();
     renderCameraView(record.renderer, record.camera);
   });
@@ -5013,6 +5202,7 @@ function renderVideoWallRecords(records) {
 function animate() {
   requestAnimationFrame(animate);
   orbitControls.update();
+  updateSceneNavigationOverlays();
   updatePtzPresetAnimations(performance.now());
 
   if (selectedId) {

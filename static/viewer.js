@@ -645,6 +645,7 @@ function updateSelectedToolbar() {
 function updateObjectInfoPanel() {
   if (!selectedId) {
     objectInfoPanel.classList.add('hidden');
+    document.body.classList.remove('object-inspector-visible');
     return;
   }
 
@@ -652,12 +653,14 @@ function updateObjectInfoPanel() {
 
   if (!item) {
     objectInfoPanel.classList.add('hidden');
+    document.body.classList.remove('object-inspector-visible');
     return;
   }
 
   const pos = item.object.position;
 
   objectInfoPanel.classList.remove('hidden');
+  document.body.classList.add('object-inspector-visible');
 
   if (document.activeElement !== infoName) {
     infoName.value = item.name;

@@ -381,21 +381,24 @@
    }
 
    #objectInfoPanel {
-     position: absolute;
-     top: 8px;
-     right: 18px;
-     width: 280px;
-     background: var(--inspector-bg);
-     border: 1px solid var(--border);
-     border-radius: 10px;
-     box-shadow: 0 3px 12px rgba(0,0,0,0.28);
-     padding: 10px;
+     position: fixed;
+     top: 40px;
+     right: 0;
+     width: 300px;
+     height: calc(100vh - 40px);
+     background: var(--sidebar-bg);
+     border: 0;
+     border-left: 1px solid var(--border-strong);
+     border-radius: 0;
+     box-shadow: none;
+     padding: 8px;
      z-index: 21;
      color: var(--text);
      font-size: 13px;
-     max-height: calc(100vh - 16px);
+     max-height: none;
      overflow-y: auto;
      box-sizing: border-box;
+     transition: width .18s ease, padding .18s ease;
    }
 
    #objectInfoPanel.hidden {
@@ -1093,11 +1096,34 @@
       left: 38px;
       width: calc(100vw - 38px);
     }
-    #objectInfoPanel {
-      top: 8px;
-      max-height: calc(100vh - 56px);
+    #objectInfoPanel > .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
     }
-
+    #objectInspectorToggle {
+      min-width: 25px;
+      padding: 2px 6px;
+      border: 1px solid var(--border-strong);
+      border-radius: 4px;
+      background: var(--control-bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+    body.object-inspector-visible:not(.scene-tree-collapsed) #viewer { width: calc(100vw - 600px); }
+    body.object-inspector-visible.scene-tree-collapsed #viewer { width: calc(100vw - 338px); }
+    body.object-inspector-visible.object-inspector-collapsed:not(.scene-tree-collapsed) #viewer { width: calc(100vw - 338px); }
+    body.object-inspector-visible.object-inspector-collapsed.scene-tree-collapsed #viewer { width: calc(100vw - 76px); }
+    body.object-inspector-collapsed #objectInfoPanel { width: 38px; padding: 6px; overflow: hidden; }
+    body.object-inspector-collapsed #objectInfoPanel #objectInspectorBody,
+    body.object-inspector-collapsed #objectInfoPanel .panel-title > span { display: none; }
+    body.object-inspector-collapsed #objectInfoPanel > .panel-title {
+      padding: 6px 0;
+      justify-content: center;
+      border: 0;
+      background: transparent;
+    }
     /* The preset manager is owned by and docked inside its maximized Camera View. */
     .camera-viewport.has-preset-dock .camera-viewport-body { margin-right: 360px; }
     .camera-viewport .ptz-preset-panel {
@@ -1333,9 +1359,9 @@
 
 <div id="viewer">
   <div id="cameraViewports"></div>
-  <div id="objectInfoPanel" class="hidden">
-    <div class="info-title collapsible" onclick="toggleObjectInspectorBody(this)">
-      <span class="collapse-indicator">▶</span> Object Inspector
+  <aside id="objectInfoPanel" class="panel-frame hidden" aria-label="Object Inspector">
+    <div class="panel-title">
+      <span>Object Inspector</span><button id="objectInspectorToggle" type="button" title="Collapse Object Inspector" aria-expanded="true">▶</button>
     </div>
 
     <div id="objectInspectorBody" style="display: block;">
@@ -1545,7 +1571,7 @@
     </div>
   </div>
 </div>
-</div>
+</aside>
 
   <div id="selectedToolbar" class="hidden">
     <span id="selectedToolbarLabel">No object selected</span>
@@ -1631,9 +1657,18 @@
       sceneToggle.setAttribute('aria-expanded', String(!collapsed));
       setTimeout(() => window.dispatchEvent(new Event('resize')), 190);
     });
+
+    const inspectorToggle = document.getElementById('objectInspectorToggle');
+    inspectorToggle.addEventListener('click', () => {
+      const collapsed = document.body.classList.toggle('object-inspector-collapsed');
+      inspectorToggle.textContent = collapsed ? '◀' : '▶';
+      inspectorToggle.title = collapsed ? 'Expand Object Inspector' : 'Collapse Object Inspector';
+      inspectorToggle.setAttribute('aria-expanded', String(!collapsed));
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 190);
+    });
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=944"></script>
+<script type="module" src="/static/viewer.js?v=945"></script>
 </body>
 </html>

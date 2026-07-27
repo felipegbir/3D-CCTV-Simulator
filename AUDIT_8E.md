@@ -263,3 +263,6 @@ Cache 943 corrects the owner-reported cache-942 dropdown gap and active-label wi
 ### 8e.7.1 cache-944 PTZ dock correction - deployment pending
 
 Owner QA confirmed PTZ failed only while the preset dock was visible. The visible metadata callback referenced an undefined local `panel`, throwing during active-preset invalidation before manual movement applied. Cache 944 uses the valid global preset panel, preserves PTZ operation with the dock open, restores the original 68% maximized camera image, and expands/restores the containing window around the dock. Full targeted regressions pass; owner interaction confirmation remains required.Cache 944 PTZ-dock deployment passed on CCTV PID 1047019 with health `ok`, exact deployed hashes, and live corrected callback/dock-sizing/cache-944 markers. Independent services were not restarted. Owner PTZ-with-dock interaction confirmation remains pending.
+### 8e.7.1 cache-945 Object Inspector sidebar - deployment pending
+
+The Object Inspector is converted from a floating overlay to a right-side rail matching the Scene Tree. It reserves workspace width while expanded, collapses to a 38-pixel tab, preserves the existing inspector sections and selection lifecycle, and triggers renderer resize after layout transitions. Automated validation and owner QA remain pending.

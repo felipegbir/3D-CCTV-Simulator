@@ -2334,7 +2334,7 @@ function ensurePopupVideoWall() {
     .bar{height:48px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#111a24;border-bottom:1px solid #34465a}.bar strong{margin-right:auto}
     button,select{padding:7px 10px;border:1px solid #52677d;border-radius:4px;background:#233244;color:#fff}
     #grid{height:calc(100% - 48px);box-sizing:border-box;display:grid;grid-template-columns:repeat(var(--wall-columns,2),minmax(0,1fr));grid-template-rows:repeat(var(--wall-rows,1),minmax(0,1fr));gap:6px;padding:6px}
-    .video-wall-empty-slot{min-width:0;min-height:0;border:1px dashed #33465a;border-radius:4px;background:#0b1118}.video-wall-tile{position:relative;min-width:0;min-height:0;display:flex;overflow:hidden;background:#000;border:2px solid #40536a;border-radius:6px}.video-wall-tile.selected{border-color:#23b7ff;box-shadow:0 0 0 2px rgba(35,183,255,.28)}.video-wall-tile.drag-over{outline:3px solid #00aaff}.video-wall-render-pane{position:absolute;inset:0;width:100%;height:100%;min-width:0;min-height:0;overflow:hidden}.video-wall-tile canvas{width:100%;height:100%;display:block}.video-wall-label{position:absolute;left:6px;top:6px;z-index:2;padding:4px 7px;border-radius:3px;background:rgba(0,0,0,.7);font-size:12px;cursor:grab;user-select:none}.video-wall-tile-controls{position:absolute;top:5px;right:5px;z-index:3;display:flex;gap:4px;padding:3px;border-radius:4px;background:rgba(0,0,0,.72)}.video-wall-tile-controls button,.video-wall-tile-controls select{height:25px;padding:2px 6px;border:1px solid #5d7187;border-radius:3px;background:#1d2a38;color:#fff;font-size:11px}.video-wall-tile-controls button.active{background:#006db3}.video-wall-tile-controls button:disabled{opacity:.55}.video-wall-tile.ptz-active canvas{cursor:crosshair}
+    .video-wall-empty-slot{min-width:0;min-height:0;border:1px dashed #33465a;border-radius:4px;background:#0b1118}.video-wall-tile{position:relative;min-width:0;min-height:0;display:flex;overflow:hidden;background:#000;border:2px solid #40536a;border-radius:6px}.video-wall-tile.selected{border-color:#23b7ff;box-shadow:0 0 0 2px rgba(35,183,255,.28)}.video-wall-tile.drag-over{outline:3px solid #00aaff}.video-wall-render-pane{position:relative;flex:1 1 100%;width:100%;min-width:0;min-height:0;overflow:hidden}.video-wall-tile canvas{width:100%;height:100%;display:block}.video-wall-label{position:absolute;left:6px;top:6px;z-index:2;padding:4px 7px;border-radius:3px;background:rgba(0,0,0,.7);font-size:12px;cursor:grab;user-select:none}.video-wall-tile-controls{position:absolute;top:5px;right:5px;z-index:3;display:flex;gap:4px;padding:3px;border-radius:4px;background:rgba(0,0,0,.72)}.video-wall-tile-controls button,.video-wall-tile-controls select{height:25px;padding:2px 6px;border:1px solid #5d7187;border-radius:3px;background:#1d2a38;color:#fff;font-size:11px}.video-wall-tile-controls button.active{background:#006db3}.video-wall-tile-controls button:disabled{opacity:.55}.video-wall-tile.ptz-active canvas{cursor:crosshair}
   </style></head><body><div class="bar"><strong>N.O.M.A.D. Video Wall</strong><label>Layout <select id="layout"><option value="auto">Auto</option><option value="1">1 x 1</option><option value="1x2">1 x 2</option><option value="2">2 x 2</option><option value="3">3 x 3</option><option value="4">4 x 4</option><option value="5">5 x 5</option></select></label><label>Source <select id="source"></select></label><button id="refresh">Refresh Sources</button></div><div id="grid"></div></body></html>`);
   doc.close();
   doc.querySelector('#layout').value = videoWallLayout.value;
@@ -2749,7 +2749,7 @@ function openCameraViewport(cameraItem) {
 
     } else {
 
-      body.style.display = 'block';
+      body.style.display = 'flex';
 
       if (viewport.userDataBeforeMinimize) {
 
@@ -2855,7 +2855,7 @@ function openCameraViewport(cameraItem) {
     minimizeBtn.style.display = isMaximized ? 'none' : 'inline-block';
 
     if (isMaximized) {
-      body.style.display = 'block';
+      body.style.display = 'flex';
 //      isMinimized = false;
 //      minimizeBtn.textContent = '—';
 
@@ -2863,16 +2863,16 @@ function openCameraViewport(cameraItem) {
       normalViewportState.top = viewport.style.top;
 
       const containerRect = container.getBoundingClientRect();
-
-// Temporary debug line
-      console.log('Maximize clicked. Container size:', containerRect.width, containerRect.height);
-// Temporary debut line
-
+      const sensorAspect = (Number(cameraItem.data?.resolutionWidth) || 1920) / (Number(cameraItem.data?.resolutionHeight) || 1080);
+      const headerHeight = Math.max(24, header.getBoundingClientRect().height);
+      const maxWidth = Math.max(320, Math.floor(containerRect.width * 0.68));
+      const maxBodyHeight = Math.max(180, Math.floor(containerRect.height * 0.68) - headerHeight);
+      let bodyWidth = maxWidth, bodyHeight = bodyWidth / sensorAspect;
+      if (bodyHeight > maxBodyHeight) { bodyHeight = maxBodyHeight; bodyWidth = bodyHeight * sensorAspect; }
       viewport.style.left = '24px';
       viewport.style.top = '24px';
-      viewport.style.width = `${Math.floor(containerRect.width * 0.68)}px`;
-      viewport.style.height = `${Math.floor(containerRect.height * 0.68)}px`;
-
+      viewport.style.width = `${Math.floor(bodyWidth)}px`;
+      viewport.style.height = `${Math.floor(bodyHeight + headerHeight)}px`;
       requestAnimationFrame(resizeCameraViewportRenderer);
 
       maximizeBtn.textContent = '❐';

@@ -19,6 +19,6 @@ for marker in (
     assert marker in JS, marker
 for forbidden in ('baseWidth + 360', "cameraItem.data.activePtzPresetId = preset.id;\n  if (ptzPresetPanel)"):
     assert forbidden not in JS, forbidden
-assert '.video-wall-render-pane { position: absolute; inset: 0; width: 100%; height: 100%' in HTML
+assert '.video-wall-render-pane { position: relative; flex: 1 1 100%; width: 100%' in HTML
 assert '.nav-face-top{transform:rotateX(-90deg)' in HTML
 print('cache 958 immutable sensor frame/ROI/navigation/clone guard passed')

@@ -18,5 +18,5 @@ for marker in ['preferenceShowNavigationCube', 'preferenceShowScaleIndicator', '
 ptz_workflow = js[js.index('function beginPresetRoiCreation'):js.index("renderer.domElement.addEventListener('click'")]
 assert 'setMeasurementStatus(' not in ptz_workflow
 assert 'pixels ?' not in js
-assert '/static/viewer.js?v=958' in html
+assert '/static/viewer.js?v=959' in html
 print('cache 957 consolidated aspect, ROI lifecycle, naming, replacement guard, navigation, and scale guard passed')

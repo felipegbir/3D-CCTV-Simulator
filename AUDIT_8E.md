@@ -351,3 +351,5 @@ Cache 953 deployment passed on CCTV PID 4076820 at port 5010 with health status 
 ### 8e.7.1 cache-954 stable ROI lifecycle, display-only precision refresh, and resizable 1 x 1 dock - deployment pending
 
 Preset lookup now preserves object identity so Delete ROI mutates the stored preset instead of a stale normalized copy. Depth selection and ROI drawing keep the preset dock open, preserving camera canvas aspect ratio and aligning the drawn polygon with its persistent overlay. Metric Decimals defaults to 3 and uses a display-only refresh that does not resize renderers. The integrated Video Wall 1 x 1 preset panel defaults to 20% width and has a draggable divider clamped to 15-50%; the width persists in the .nmd workspace.
+
+Cache 954 deployment passed on CCTV PID 4090556 at port 5010 with health ok, exact frontend hashes, and live stable-ROI/resizer/cache markers. NAS baseline: NOMAD_8e.7.1_CACHE953_PRE_954_20260727_152255; server rollback: deploy_backups/pre_cache_954_20260727_1530. Only CCTV PID 4076820 was replaced; unrelated services/containers were untouched. Owner QA pending.

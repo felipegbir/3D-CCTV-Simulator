@@ -357,3 +357,5 @@ Cache 954 deployment passed on CCTV PID 4090556 at port 5010 with health ok, exa
 ### 8e.7.1 cache-955 continuous ROI editing and camera-image anchoring - deployment pending
 
 ROI node dragging now uses window-level pointer capture semantics and updates the active polygon in place, avoiding the one-pixel/recreated-SVG restriction. Edit ROI toggles to Finish Editing and Escape exits editing. Manual camera/PTZ movement retains the selected preset and ROI children for comparison. PTZ ROI numeric inputs use the global precision formatter. Camera sources use their sensor resolution aspect ratio in Camera View and Video Wall so resizing the 1 x 1 dock does not reproject ROI geometry.
+
+Cache 955 deployment passed on CCTV PID 4117245 at port 5010 with health ok and exact frontend hashes. NAS baseline: NOMAD_8e.7.1_CACHE954_PRE_955_20260727_155941; server rollback: deploy_backups/pre_cache_955_20260727_1610. Only CCTV PID 4090556 was replaced; unrelated services/containers untouched. Owner QA pending.

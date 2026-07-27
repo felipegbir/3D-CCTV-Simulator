@@ -330,3 +330,6 @@ All formerly disabled top-menu commands are populated: File provides Close, Save
 
 Preset depth selection is now followed by a drag-to-draw ROI inside the Camera View or supported Video Wall camera tile. The preset stores normalized ROI bounds, physical width/height, exact sensor-image pixel width/height, and the classification: below 3 x 3, minimum 3 x 3, or preferred 9 x 9 and greater. The result is shown explicitly as N x M pixels, so pixels per metre is no longer the sole metric. Static, JavaScript syntax, complete regression, and dedicated cache-951 workflow guards pass. Owner interaction and save/load confirmation remain pending.
 
+
+Cache 951 deployment passed on CCTV PID 4029353 at port 5010 with health status ok, camera API HTTP 200, exact local/deployed frontend hashes, and live cache/schema-6/.nmd/ROI/menu markers. NAS recovery snapshot: NOMAD_8e.7.1_CACHE951_NMD_MENUS_ROI_20260727_141531; server rollback: deploy_backups/pre_cache_951_20260727_1416. Only the verified CCTV Simulator PID 3963296 was replaced; no independent service or container was restarted. Owner interaction, ROI accuracy, and .nmd save/load confirmation remain pending.
+

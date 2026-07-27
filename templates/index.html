@@ -1116,8 +1116,9 @@
     body.object-inspector-visible.object-inspector-collapsed:not(.scene-tree-collapsed) #viewer { width: calc(100vw - 338px); }
     body.object-inspector-visible.object-inspector-collapsed.scene-tree-collapsed #viewer { width: calc(100vw - 76px); }
     body.object-inspector-collapsed #objectInfoPanel { width: 38px; padding: 6px; overflow: hidden; }
+    body.object-inspector-collapsed #objectInfoPanel > :not(.panel-title),
     body.object-inspector-collapsed #objectInfoPanel #objectInspectorBody,
-    body.object-inspector-collapsed #objectInfoPanel .panel-title > span { display: none; }
+    body.object-inspector-collapsed #objectInfoPanel .panel-title > span { display: none !important; }
     body.object-inspector-collapsed #objectInfoPanel > .panel-title {
       padding: 6px 0;
       justify-content: center;
@@ -1361,10 +1362,14 @@
   <div id="cameraViewports"></div>
   <aside id="objectInfoPanel" class="panel-frame hidden" aria-label="Object Inspector">
     <div class="panel-title">
-      <span>Object Inspector</span><button id="objectInspectorToggle" type="button" title="Collapse Object Inspector" aria-expanded="true">▶</button>
+      <span>Inspector</span><button id="objectInspectorToggle" type="button" title="Collapse Inspector Panel" aria-expanded="true">▶</button>
     </div>
 
     <div id="objectInspectorBody" style="display: block;">
+      <div class="info-title small collapsible" onclick="toggleInspectorSection(this)">
+        <span class="collapse-indicator">▼</span> Object Inspector
+      </div>
+      <div class="info-section" style="display: block;">
 
     <div class="info-row">
       <span>Name</span>
@@ -1440,6 +1445,7 @@
       </div>
 
     </div>
+    </div>
 
     <div id="cameraInfoSection">
       <div class="info-title small collapsible" onclick="toggleInspectorSection(this)">
@@ -1486,6 +1492,7 @@
         <span>Zoom</span>
         <strong id="infoZoom">-</strong>
       </div>
+    </div>
     </div>
 
       <div class="info-title small collapsible" onclick="toggleInspectorSection(this)">
@@ -1569,7 +1576,6 @@
        </div>
        <button class="toolbar-button" id="ptzPresetsInspector" type="button">Presets</button>
     </div>
-  </div>
 </div>
 </aside>
 
@@ -1662,13 +1668,13 @@
     inspectorToggle.addEventListener('click', () => {
       const collapsed = document.body.classList.toggle('object-inspector-collapsed');
       inspectorToggle.textContent = collapsed ? '◀' : '▶';
-      inspectorToggle.title = collapsed ? 'Expand Object Inspector' : 'Collapse Object Inspector';
+      inspectorToggle.title = collapsed ? 'Expand Inspector Panel' : 'Collapse Inspector Panel';
       inspectorToggle.setAttribute('aria-expanded', String(!collapsed));
       setTimeout(() => window.dispatchEvent(new Event('resize')), 190);
     });
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=945"></script>
+<script type="module" src="/static/viewer.js?v=946"></script>
 </body>
 </html>

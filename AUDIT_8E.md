@@ -268,3 +268,7 @@ Owner QA confirmed PTZ failed only while the preset dock was visible. The visibl
 The Object Inspector is converted from a floating overlay to a right-side rail matching the Scene Tree. It reserves workspace width while expanded, collapses to a 38-pixel tab, preserves the existing inspector sections and selection lifecycle, and triggers renderer resize after layout transitions. Automated validation and owner QA remain pending.
 
 Cache 945 deployment passed on CCTV PID 3764866 at port 5010 with health `ok`, camera API HTTP 200, matching local/deployed frontend hashes, and live Object Inspector/cache markers. The NAS recovery snapshot is `NOMAD_8e.7.1_CACHE945_OBJECT_INSPECTOR_20260727_085050`; the server rollback is `deploy_backups/pre_cache_945_20260727_0850`. No independent service or container was restarted. Owner visual/interaction confirmation remains pending.
+
+### 8e.7.1 cache-946 Object Inspector tier correction - deployment pending
+
+Owner QA accepted the right-side rail but found Camera, Projection / Pixel Density, and PTZ Controls structurally nested beneath the Camera tier, while collapsed-rail descendants could remain visible. Cache 946 creates four sibling collapsible sections inside a distinct Inspector rail and force-hides every non-header descendant when the entire rail is collapsed. Automated and owner validation remain pending.

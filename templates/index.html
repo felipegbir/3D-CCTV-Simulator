@@ -1225,6 +1225,7 @@
       pointer-events: none;
       box-sizing: border-box;
     }
+    .preset-roi-svg{position:absolute;inset:0;width:100%;height:100%;z-index:13;pointer-events:none}.preset-roi-svg polygon{stroke-width:2;vector-effect:non-scaling-stroke}.preset-roi-svg text{fill:#fff;font:bold 12px sans-serif;paint-order:stroke;stroke:#000;stroke-width:3}.preset-roi-svg.editing{pointer-events:auto}.preset-roi-edge{stroke:transparent;stroke-width:14;cursor:copy}.preset-roi-node{fill:#00e5ff;stroke:#001820;stroke-width:2;cursor:move}.ptz-roi-analysis{white-space:pre-line;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}.ptz-roi-help{font-size:11px;color:var(--muted-text);margin-top:6px}
     .preset-depth-pick-banner {
       position: fixed;
       top: 50px;
@@ -1278,7 +1279,7 @@
 
         <button class="menu-button" id="closeProject" type="button">Close Project</button>
         <button class="menu-button" id="saveProject">Save Project</button>
-        <button class="menu-button" id="saveAsProject" type="button">Save As</button>
+        <button class="menu-button" id="saveAsProject" type="button" hidden>Save As</button>
         <button class="menu-button" id="importModel">Import Model</button>
 
         <input
@@ -1298,7 +1299,7 @@
         >
 
         <button class="menu-button" id="exportProject" type="button">Export JSON</button>
-        <button class="menu-button" id="uploadProject" type="button">Open Project File</button>
+        <button class="menu-button" id="uploadProject" type="button" hidden>Open Project File</button>
       </div>
 
       <div class="menu-group collapsed">
@@ -1308,7 +1309,7 @@
         <button class="menu-button" id="editPaste" type="button">Paste</button>
         <button class="menu-button" id="editDelete" type="button">Delete</button>
         <button class="menu-button" id="editClone" type="button">Clone</button>
-        <button class="menu-button" id="editAdd" type="button">Add Box</button>
+        <button class="menu-button" id="editAdd" type="button" hidden>Add Box</button>
       </div>
 
       <div class="menu-group collapsed">
@@ -1319,8 +1320,8 @@
         <button class="menu-button" id="popOutVideoWall" type="button">Pop Out Video Wall</button>
         <button class="menu-button" id="viewZoomOut" type="button">Zoom Out</button>
         <button class="menu-button" id="viewFitGrid" type="button">Fit Grid</button>
-        <button class="menu-button" id="viewToggleGrid" type="button">Show / Hide Grid</button>
-        <button class="menu-button" id="viewToggleAxes" type="button">Show / Hide Axes</button>
+        <button class="menu-button" id="viewToggleGrid" type="button" hidden>Show / Hide Grid</button>
+        <button class="menu-button" id="viewToggleAxes" type="button" hidden>Show / Hide Axes</button>
       </div>
 
       <div class="menu-group collapsed">
@@ -1400,6 +1401,7 @@
         <button class="menu-button" id="clearMeasurements" type="button">Clear Measurements</button>
         <div class="measurement-status" id="measurementStatus">Select a tool. Measurements use project units (metres).</div>
       </div>
+      <div class="menu-group collapsed" id="reportGroup"><div class="section-title">Report</div><button class="menu-button" id="generateReport" type="button">Generate Report</button><button class="menu-button" id="reportSettings" type="button">Report Settings</button><button class="menu-button" id="openReportOptions" type="button">Open Report Options</button></div>
       <div class="menu-group collapsed" id="helpGroup">
         <div class="section-title">Help</div>
         <div class="about-card">
@@ -1748,6 +1750,6 @@
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=951"></script>
+<script type="module" src="/static/viewer.js?v=952"></script>
 </body>
 </html>

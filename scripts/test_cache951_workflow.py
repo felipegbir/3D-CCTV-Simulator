@@ -5,7 +5,7 @@ html = (root / "templates" / "index.html").read_text(encoding="utf-8")
 js = (root / "static" / "viewer.js").read_text(encoding="utf-8")
 
 for marker in (
-    "const PROJECT_SCHEMA_VERSION = 6;",
+    "const PROJECT_SCHEMA_VERSION = 7;",
     "projectDownloadExtension = 'nmd'",
     "pendingPresetDepthStage = 'roi'",
     "attachPresetRoiDrawing",
@@ -22,7 +22,7 @@ for marker in (
     assert marker in js, f"Missing cache 951 workflow marker: {marker}"
 
 for marker in (
-    "/static/viewer.js?v=951",
+    "/static/viewer.js?v=952",
     'accept=".nmd,.json,application/json"',
     'id="editCopy"',
     'id="viewFitGrid"',

@@ -1,4 +1,4 @@
-import assert from 'node:assert/strict';
+﻿import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
@@ -10,7 +10,7 @@ function section(startMarker, endMarker) {
   return source.slice(start, end);
 }
 const executable = [
-  section('function normalizePtzPreset', 'function ensureCameraPtzPresets'),
+  section('function normalizePresetRoi', 'function ensureCameraPtzPresets'),
   section('function shortestAngleDelta', 'function applyAnimatedOpticalState'),
   'this.normalizePtzPreset = normalizePtzPreset;',
   'this.shortestAngleDelta = shortestAngleDelta;'
@@ -31,10 +31,13 @@ assert.equal(normalized.roll, -5);
 assert.equal(normalized.zoom, 4);
 assert.equal(normalized.projectionDistance, 75);
 assert.equal(normalized.viewportPalette, 'whiteHot');
-assert.deepEqual(normalized.roi, { width: 0.5, height: 0.25 });
+assert.equal(normalized.roi.width, 0.5);
+assert.equal(normalized.roi.height, 0.25);
+assert.deepEqual(normalized.rois, []);
 assert.equal(sandbox.shortestAngleDelta(170, -170), 20);
 assert.equal(sandbox.shortestAngleDelta(-170, 170), -20);
 assert.match(source, /raw < 0\.5 \? 4 \* raw \* raw \* raw/);
 assert.match(source, /cancelCameraPresetAnimation\(cameraItem/);
 assert.match(source, /syncCameraPalette\(cameraItem, preset\.viewportPalette\)/);
 console.log('8e.7.1 PTZ preset normalization and animation runtime tests passed');
+

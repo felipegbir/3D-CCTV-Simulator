@@ -333,3 +333,9 @@ Preset depth selection is now followed by a drag-to-draw ROI inside the Camera V
 
 Cache 951 deployment passed on CCTV PID 4029353 at port 5010 with health status ok, camera API HTTP 200, exact local/deployed frontend hashes, and live cache/schema-6/.nmd/ROI/menu markers. NAS recovery snapshot: NOMAD_8e.7.1_CACHE951_NMD_MENUS_ROI_20260727_141531; server rollback: deploy_backups/pre_cache_951_20260727_1416. Only the verified CCTV Simulator PID 3963296 was replaced; no independent service or container was restarted. Owner interaction, ROI accuracy, and .nmd save/load confirmation remain pending.
 
+
+### 8e.7.1 cache-952 multi-ROI polygons and report foundation - deployment pending
+
+Project schema 7 migrates each legacy single rectangular preset ROI to ROI 001 and stores multiple named ROI child entities per PTZ preset. Each ROI retains its selected surface/depth, normalized 3-15 node polygon, visibility, notes, physical bounds/area, pixel bounds/area, conservative minimum effective span, and 3 x 3 / 9 x 9 thermography classification. Persistent Camera View and supported Video Wall overlays can be shown/hidden; edit mode supports node drag, edge-click insertion, and right-click deletion with a three-node minimum and fifteen-node maximum. ROI metrics appear in Live Pixel Density and save inside the .nmd project.
+
+The visible toolbar is simplified by hiding redundant Open/Save As/Add Box/Grid/Axes duplicates while retaining their underlying compatibility hooks. A Report menu now provides Generate Report, Report Settings, and Open Report Options. The generated print-ready letter report includes report metadata, camera BOM, PTZ preset records, and optional ROI depth/pixel-density analysis; report settings persist in schema 7.

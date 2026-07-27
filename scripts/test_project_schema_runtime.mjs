@@ -13,7 +13,7 @@ function section(startMarker, endMarker) {
 }
 
 const executable = [
-  "const PROJECT_SCHEMA_VERSION = 6;",
+  "const PROJECT_SCHEMA_VERSION = 7;",
   "const LEGACY_PROJECT_SCHEMA_VERSION = 1;",
   section('function buildProjectAssetManifest()', 'function formatAssetWarningMessage'),
   section('function formatAssetWarningMessage', 'function validateProjectSchema'),
@@ -72,13 +72,13 @@ assert.match(manifest.warnings[0].message, /Local Plant\.fbx/);
 assert.match(manifest.warnings[1].message, /Floor Plan\.png/);
 
 alerts.length = 0;
-assert.equal(context.validateProjectSchema({ schemaVersion: 4 }), true);
+assert.equal(context.validateProjectSchema({ schemaVersion: 7 }), true);
 assert.equal(alerts.length, 0);
 
 assert.equal(context.validateProjectSchema({}), true);
 assert.match(alerts.pop(), /Legacy project schema 1/);
 
-assert.equal(context.validateProjectSchema({ schemaVersion: 5 }), false);
+assert.equal(context.validateProjectSchema({ schemaVersion: 8 }), false);
 assert.match(alerts.pop(), /newer simulator version/);
 
 assert.equal(context.validateProjectSchema({ schemaVersion: 'invalid' }), false);

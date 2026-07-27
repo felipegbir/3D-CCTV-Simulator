@@ -274,3 +274,20 @@ Cache 945 deployment passed on CCTV PID 3764866 at port 5010 with health `ok`, c
 Owner QA accepted the right-side rail but found Camera, Projection / Pixel Density, and PTZ Controls structurally nested beneath the Camera tier, while collapsed-rail descendants could remain visible. Cache 946 creates four sibling collapsible sections inside a distinct Inspector rail and force-hides every non-header descendant when the entire rail is collapsed. Automated and owner validation remain pending.
 
 Cache 946 deployment passed on CCTV PID 3785015 at port 5010 with health `ok`, exact local/deployed template hash, and live tier/collapse/cache markers. NAS recovery snapshot: `NOMAD_8e.7.1_CACHE946_INSPECTOR_TIERS_20260727_091523`; server rollback: `deploy_backups/pre_cache_946_20260727_0915`. No independent service or container was restarted. Owner interaction confirmation remains pending.
+
+### 8e.7.1 cache-947 consolidated Video Wall / PTZ analysis UI - deployment pending
+
+Scope:
+- Raise traditional top-menu dropdowns above Camera Viewports and Video Wall content.
+- Add selected-tile then selected-source assignment in integrated and pop-out Video Walls.
+- Add a true 1 x 2 layout.
+- Enable the full PTZ Preset dock in integrated 1 x 1 and 1 x 2 camera tiles using a 70/30 render/preset split.
+- Add Camera View and Video Wall camera-tile surface picking for PTZ preset depth.
+- Add live PTZ, zoom, footprint, pixel density, and thermography analysis.
+- Convert the PTZ Preset dock to compact collapsible sections and normalize control sizing.
+
+Remaining roadmap after cache 947:
+- 8e.7 visibility/occlusion checks.
+- 8e.8 NAS-backed persistence and reporting.
+- Report coordinate-origin workflow, BOM, current camera captures, PTZ preset captures, and pixel-density pages.
+- Final save/load consolidation for theme, camera visualization modes, Video Wall assignments, depth targets, external-asset transforms/references, and all accumulated UI state.

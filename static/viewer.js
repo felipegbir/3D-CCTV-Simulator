@@ -20,6 +20,8 @@ var videoWallRecords = [];
 var popupVideoWallRecords = [];
 var popupVideoWallWindow = null;
 let videoWallOrder = ['scene'];
+let selectedVideoWallTileIndex = 0;
+let selectedPopupVideoWallTileIndex = 0;
 const APP_VERSION = '8e.7.1';
 const PROJECT_SCHEMA_VERSION = 4;
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
@@ -113,6 +115,7 @@ const popOutVideoWallButton = document.getElementById('popOutVideoWall');
 const videoWallOverlay = document.getElementById('videoWallOverlay');
 const videoWallGrid = document.getElementById('videoWallGrid');
 const videoWallLayout = document.getElementById('videoWallLayout');
+const videoWallSource = document.getElementById('videoWallSource');
 const closeVideoWallButton = document.getElementById('closeVideoWall');
 const refreshVideoWallButton = document.getElementById('refreshVideoWall');
 const popOutVideoWallOverlayButton = document.getElementById('popOutVideoWallOverlay');
@@ -1085,10 +1088,15 @@ function focusCameraViewport(viewport) {
   viewport.style.zIndex = String(viewportZCounter);
 }
 
-function getVideoWallSources() {
+function getAvailableVideoWallSources() {
   const cameras = sceneObjects.filter(item => item.type === 'camera').slice(0, MAX_CAMERA_VIEWPORTS);
   const available = new Map([['scene', { key: 'scene', label: 'Planning Scene', item: null }]]);
   cameras.forEach(item => available.set(item.id, { key: item.id, label: item.name, item }));
+  return available;
+}
+
+function getVideoWallSources() {
+  const available = getAvailableVideoWallSources();
   videoWallOrder = videoWallOrder.filter(key => available.has(key));
   available.forEach((value, key) => { if (!videoWallOrder.includes(key)) videoWallOrder.push(key); });
   return videoWallOrder.map(key => available.get(key));
@@ -1113,6 +1121,7 @@ function getWallColumns(count, selection) {
 }
 
 function getVideoWallLayout(count, selection) {
+  if (selection === '1x2') return { columns: 2, rows: 1, capacity: 2 };
   const columns = getWallColumns(count, selection);
   if (selection === 'auto') {
     return {
@@ -1138,6 +1147,36 @@ function appendVideoWallEmptySlots(doc, grid, count) {
     empty.setAttribute('aria-label', 'Empty video wall slot');
     grid.appendChild(empty);
   }
+}
+
+function populateVideoWallSourceSelect(select, selectedIndex) {
+  if (!select) return;
+  const available = [...getAvailableVideoWallSources().values()];
+  select.replaceChildren(...available.map(source => {
+    const option = select.ownerDocument.createElement('option');
+    option.value = source.key;
+    option.textContent = source.label;
+    return option;
+  }));
+  const sourceKey = videoWallOrder[selectedIndex];
+  if (available.some(source => source.key === sourceKey)) select.value = sourceKey;
+}
+
+function assignVideoWallSource(tileIndex, sourceKey) {
+  if (!getAvailableVideoWallSources().has(sourceKey)) return;
+  while (videoWallOrder.length <= tileIndex) videoWallOrder.push('scene');
+  videoWallOrder[tileIndex] = sourceKey;
+  buildIntegratedVideoWall();
+  if (popupVideoWallWindow && !popupVideoWallWindow.closed) buildPopupVideoWall();
+}
+
+function selectVideoWallTile(records, tileIndex, sourceSelect) {
+  records.forEach(record => record.hostTile?.classList.toggle('selected', record.tileIndex === tileIndex));
+  populateVideoWallSourceSelect(sourceSelect, tileIndex);
+}
+
+function videoWallSupportsPresetDock(layout) {
+  return layout.rows === 1 && layout.capacity <= 2;
 }
 
 function syncWallCamera(target, sourceItem) {
@@ -1185,6 +1224,7 @@ function adjustCameraPtzFromView(cameraItem, deltaX, deltaY) {
     90
   );
   applyCameraPtzRig(cameraItem);
+  ptzPresetPanel?.refreshLive?.();
   if (selectedId === cameraItem.id) updateObjectInfoPanel();
 }
 
@@ -1319,6 +1359,22 @@ function formatPtzPresetDetails(preset) {
     warnings.length ? `LIMIT WARNING: ${warnings.join('; ')}` : 'Limits: compatible',
     preset.notes ? `Notes: ${preset.notes}` : ''
   ].filter(Boolean).join('\n');
+}
+
+function formatLiveCameraAnalysis(cameraItem, roi = {}) {
+  if (!cameraItem?.data) return 'Live camera analysis is unavailable.';
+  const analysis = calculatePresetAnalysis(cameraItem, roi);
+  const target = cameraItem.data.depthTarget;
+  return [
+    `Live PTZ: ${(Number(cameraItem.data.pan) || 0).toFixed(2)}° / ${(Number(cameraItem.data.tilt) || 0).toFixed(2)}° / ${(Number(cameraItem.data.roll) || 0).toFixed(2)}°`,
+    `Zoom: ${(Number(cameraItem.data.zoom) || 1).toFixed(2)}x   HFOV: ${analysis.hfov.toFixed(2)}°`,
+    `Depth: ${analysis.depth.toFixed(3)} m${target ? ` — ${target.objectName || 'selected surface'}` : ' — no surface selected'}`,
+    `Footprint: ${analysis.footprintWidth.toFixed(2)} x ${analysis.footprintHeight.toFixed(2)} m`,
+    `Pixel density: ${analysis.horizontalPixelDensity.toFixed(2)} x ${analysis.verticalPixelDensity.toFixed(2)} px/m`,
+    analysis.roiPixelsX !== null && analysis.roiPixelsY !== null
+      ? `ROI pixels: ${analysis.roiPixelsX.toFixed(1)} x ${analysis.roiPixelsY.toFixed(1)} — ${analysis.thermographyClass}`
+      : `Thermography: ${analysis.thermographyClass}`
+  ].join('\n');
 }
 
 function getCameraIdentity(cameraItem) {
@@ -1460,6 +1516,7 @@ function updatePtzPresetAnimations(now) {
     applyAnimatedOpticalState(cameraItem, focal, THREE.MathUtils.lerp(start.zoom, preset.zoom, t), THREE.MathUtils.lerp(start.hfov, preset.hfov, t));
     updateProjectionDistance(cameraItem, THREE.MathUtils.lerp(start.depth, preset.projectionDistance, t));
     applyCameraPtzRig(cameraItem);
+    if (activePresetCamera?.id === cameraId && !ptzPresetPanel?.classList.contains('hidden')) ptzPresetPanel.refreshLive?.();
     if (raw >= 1) {
       cameraItem.data.pan = preset.pan;
       cameraItem.data.tilt = preset.tilt;
@@ -1483,27 +1540,42 @@ function ensurePtzPresetPanel() {
   ptzPresetPanel.innerHTML = `
     <div class="ptz-preset-heading"><h3>PTZ Presets</h3><button class="ptz-preset-close" type="button" data-action="close" title="Close preset dock">×</button></div>
     <div class="ptz-preset-camera"></div>
-    <label>Existing presets<select class="ptz-preset-list" size="5"></select></label>
-    <label>Name<input class="ptz-preset-name" type="text" maxlength="80"></label>
-    <label>Notes<textarea class="ptz-preset-notes" maxlength="1000"></textarea></label>
-    <div class="ptz-preset-speed"><span>Target ROI (m)</span><input class="ptz-preset-roi-width" type="number" min="0" step="0.001" placeholder="Width"><input class="ptz-preset-roi-height" type="number" min="0" step="0.001" placeholder="Height"></div>
-    <label class="ptz-preset-speed">Movement speed<input class="ptz-preset-speed-input" type="range" min="1" max="60" step="1"><output class="ptz-preset-speed-value"></output></label>
-    <div class="ptz-preset-actions">
-      <button type="button" data-action="recall">Recall</button>
-      <button type="button" data-action="add">Add Current</button>
-      <button type="button" data-action="save">Save Details</button>
-      <button type="button" data-action="update">Update Current</button>
-      <button type="button" data-action="depth">Select Depth Surface</button>
-      <button type="button" data-action="delete">Delete</button>
-      <button type="button" data-action="close">Close</button>
-    </div>
-    <div class="ptz-preset-status"></div>
-    <div class="ptz-preset-details"></div>`;
+    <details class="ptz-preset-section" open><summary>Presets</summary>
+      <label>Existing presets<select class="ptz-preset-list" size="3"></select></label>
+      <div class="ptz-preset-actions"><button type="button" data-action="recall">Recall</button></div>
+    </details>
+    <details class="ptz-preset-section" open><summary>Name and Notes</summary>
+      <label>Name<input class="ptz-preset-name" type="text" maxlength="80"></label>
+      <label>Notes<textarea class="ptz-preset-notes" maxlength="1000"></textarea></label>
+      <div class="ptz-preset-actions"><button type="button" data-action="save">Save Details</button></div>
+    </details>
+    <details class="ptz-preset-section" open><summary>Target and Movement</summary>
+      <div class="ptz-preset-speed"><span>Target ROI (m)</span><input class="ptz-preset-roi-width" type="number" min="0" step="0.001" placeholder="Width"><input class="ptz-preset-roi-height" type="number" min="0" step="0.001" placeholder="Height"></div>
+      <label class="ptz-preset-speed">Movement speed<input class="ptz-preset-speed-input" type="range" min="1" max="60" step="1"><output class="ptz-preset-speed-value"></output></label>
+      <div class="ptz-preset-actions"><button type="button" data-action="depth">Select Depth Surface</button></div>
+    </details>
+    <details class="ptz-preset-section" open><summary>Live Pixel Density</summary><div class="ptz-live-analysis"></div></details>
+    <details class="ptz-preset-section"><summary>Preset Metadata</summary><div class="ptz-preset-details"></div></details>
+    <details class="ptz-preset-section"><summary>Preset Management</summary>
+      <div class="ptz-preset-actions">
+        <button type="button" data-action="add">Add Current</button>
+        <button type="button" data-action="update">Update Current</button>
+        <button type="button" data-action="delete">Delete</button>
+      </div>
+    </details>
+    <div class="ptz-preset-status"></div>`;
   document.body.appendChild(ptzPresetPanel);
   const list = ptzPresetPanel.querySelector('.ptz-preset-list');
   const speed = ptzPresetPanel.querySelector('.ptz-preset-speed-input');
   const speedValue = ptzPresetPanel.querySelector('.ptz-preset-speed-value');
   const selectedPreset = () => ensureCameraPtzPresets(activePresetCamera).find(preset => preset.id === list.value);
+  const currentRoi = () => ({
+    width: Number(ptzPresetPanel.querySelector('.ptz-preset-roi-width').value) || null,
+    height: Number(ptzPresetPanel.querySelector('.ptz-preset-roi-height').value) || null
+  });
+  const refreshLive = () => {
+    ptzPresetPanel.querySelector('.ptz-live-analysis').textContent = formatLiveCameraAnalysis(activePresetCamera, currentRoi());
+  };
   const refresh = (selectedId = list.value, options = {}) => {
     const presets = refreshCameraPresetDerivedData(activePresetCamera);
     list.replaceChildren(...presets.map(preset => {
@@ -1526,6 +1598,7 @@ function ensurePtzPresetPanel() {
     const details = ptzPresetPanel.querySelector('.ptz-preset-details');
     details.textContent = formatPtzPresetDetails(preset);
     details.classList.toggle('ptz-preset-limit-warning', Boolean(preset?.limitIssues?.length));
+    refreshLive();
   };
   list.addEventListener('change', () => refresh(list.value));
   const updateMetadataPreview = () => {
@@ -1548,6 +1621,7 @@ function ensurePtzPresetPanel() {
     const details = ptzPresetPanel.querySelector('.ptz-preset-details');
     details.textContent = formatPtzPresetDetails(draft);
     details.classList.toggle('ptz-preset-limit-warning', Boolean(draft.limitIssues?.length));
+    refreshLive();
   };
   for (const field of ptzPresetPanel.querySelectorAll('.ptz-preset-name, .ptz-preset-notes, .ptz-preset-roi-width, .ptz-preset-roi-height')) {
     field.addEventListener('input', updateMetadataPreview);
@@ -1607,6 +1681,7 @@ function ensurePtzPresetPanel() {
     }
   });
   ptzPresetPanel.refresh = refresh;
+  ptzPresetPanel.refreshLive = refreshLive;
   ptzPresetPanel.refreshDerived = () => {
     const preset = selectedPreset();
     [...list.options].forEach(option => {
@@ -1618,6 +1693,7 @@ function ensurePtzPresetPanel() {
     details.textContent = formatPtzPresetDetails(preset);
     details.classList.toggle('ptz-preset-limit-warning', Boolean(preset?.limitIssues?.length));
     ptzPresetPanel.querySelector('.ptz-preset-camera').textContent = `${activePresetCamera.name} — ${activePresetCamera.data?.make || ''} ${activePresetCamera.data?.model || ''}`.trim();
+    refreshLive();
   };
   return ptzPresetPanel;
 }
@@ -1625,20 +1701,24 @@ function ensurePtzPresetPanel() {
 function closePtzPresetPanel() {
   if (!ptzPresetPanel) return;
   ptzPresetPanel.classList.add('hidden');
-  const ownerViewport = ptzPresetPanel.closest('.camera-viewport');
-  ownerViewport?.setPresetDockOpen?.(false);
+  const owner = ptzPresetPanel.parentElement;
+  owner?.setPresetDockOpen?.(false);
 }
 
 function openPtzPresetPanel(cameraItem, viewportElement = null) {
   if (!cameraItem || cameraItem.type !== 'camera') return;
-  let viewportRecord = openCameraViewports.find(record => record.cameraId === cameraItem.id);
-  if (!viewportRecord) viewportRecord = openCameraViewport(cameraItem);
-  if (!viewportRecord) return;
-  viewportRecord.maximize?.();
-  const ownerViewport = viewportElement || viewportRecord.element;
+  const wallTile = viewportElement?.closest?.('.video-wall-tile');
+  let ownerViewport = wallTile;
+  if (!ownerViewport) {
+    let viewportRecord = openCameraViewports.find(record => record.cameraId === cameraItem.id);
+    if (!viewportRecord) viewportRecord = openCameraViewport(cameraItem);
+    if (!viewportRecord) return;
+    viewportRecord.maximize?.();
+    ownerViewport = viewportElement || viewportRecord.element;
+  }
   activePresetCamera = cameraItem;
   const panel = ensurePtzPresetPanel();
-  const previousViewport = panel.closest('.camera-viewport');
+  const previousViewport = panel.parentElement;
   if (previousViewport && previousViewport !== ownerViewport) previousViewport.setPresetDockOpen?.(false);
   ownerViewport.appendChild(panel);
   ownerViewport.setPresetDockOpen?.(true);
@@ -1671,23 +1751,28 @@ function endPresetDepthSelection() {
 function beginPresetDepthSelection(cameraItem, preset, dock) {
   pendingPresetDepthCamera = cameraItem;
   pendingPresetDepthPresetId = preset.id;
-  pendingPresetDepthDock = dock?.closest?.('.camera-viewport') || dock;
+  pendingPresetDepthDock = dock?.closest?.('.camera-viewport, .video-wall-tile') || dock;
   closePtzPresetPanel();
   const banner = ensurePresetDepthPickBanner();
-  banner.textContent = `Depth selection armed for ${preset.name}. Click a model/reference surface; Esc cancels.`;
+  banner.textContent = `Depth selection armed for ${preset.name}. Click a visible model/reference surface inside ${cameraItem.name} Camera View; Esc cancels.`;
   document.body.classList.add('preset-depth-pick-active');
   setMeasurementStatus(banner.textContent);
 }
 
-renderer.domElement.addEventListener('click', event => {
-  if (!pendingPresetDepthCamera) return;
-  const cameraItem = pendingPresetDepthCamera;
-  const pick = pickMeasurementPoint(event);
-  if (!pick) {
-    setMeasurementStatus('No model/reference surface was hit. Select a visible surface for preset depth.');
-    event.stopImmediatePropagation();
-    return;
-  }
+function pickCameraViewportSurface(event, viewportCamera, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const pointer = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  const raycaster = new THREE.Raycaster();
+  viewportCamera.updateMatrixWorld(true);
+  raycaster.setFromCamera(pointer, viewportCamera);
+  const intersection = raycaster.intersectObjects(getMeasurementTargets(), true)[0];
+  return intersection ? { point: intersection.point.clone(), intersection } : null;
+}
+
+function completePresetDepthSelection(cameraItem, pick) {
   cameraItem.object.updateMatrixWorld(true);
   const cameraPosition = cameraItem.object.userData.renderCamera?.getWorldPosition(new THREE.Vector3()) || cameraItem.object.getWorldPosition(new THREE.Vector3());
   const distance = cameraPosition.distanceTo(pick.point);
@@ -1717,13 +1802,30 @@ renderer.domElement.addEventListener('click', event => {
   endPresetDepthSelection();
   setMeasurementStatus(`Depth set from ${cameraItem.name} to ${targetItem?.name || 'selected surface'}: ${distance.toFixed(3)} m.`);
   openPtzPresetPanel(cameraItem, dock);
+}
+
+renderer.domElement.addEventListener('click', event => {
+  if (!pendingPresetDepthCamera) return;
+  const cameraItem = pendingPresetDepthCamera;
+  const pick = pickMeasurementPoint(event);
+  if (!pick) {
+    setMeasurementStatus('No model/reference surface was hit. Select a visible surface for preset depth.');
+    event.stopImmediatePropagation();
+    return;
+  }
+  completePresetDepthSelection(cameraItem, pick);
+
   event.preventDefault();
   event.stopImmediatePropagation();
 }, true);
-function createWallTile(doc, host, source, records, onDrop) {
+function createWallTile(doc, host, source, records, onDrop, options = {}) {
   const tile = doc.createElement('div');
   tile.className = 'video-wall-tile';
   tile.dataset.sourceKey = source.key;
+  tile.dataset.tileIndex = String(options.tileIndex ?? records.length);
+  const renderPane = doc.createElement('div');
+  renderPane.className = 'video-wall-render-pane';
+  tile.appendChild(renderPane);
   const label = doc.createElement('div');
   label.className = 'video-wall-label';
   label.textContent = source.label;
@@ -1736,11 +1838,12 @@ function createWallTile(doc, host, source, records, onDrop) {
     tile.classList.remove('drag-over');
     onDrop(event.dataTransfer.getData('text/plain'), source.key);
   });
-  tile.appendChild(label);
+  tile.addEventListener('click', () => options.onSelect?.(Number(tile.dataset.tileIndex)));
+  renderPane.appendChild(label);
   host.appendChild(tile);
 
   const wallRenderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  tile.appendChild(wallRenderer.domElement);
+  renderPane.appendChild(wallRenderer.domElement);
   configureRendererQuality(wallRenderer);
   const wallCamera = new THREE.PerspectiveCamera(60, 1, 0.01, 10000);
   const record = {
@@ -1748,12 +1851,18 @@ function createWallTile(doc, host, source, records, onDrop) {
     item: source.item,
     renderer: wallRenderer,
     camera: wallCamera,
-    host: tile,
+    host: renderPane,
+    hostTile: tile,
+    tileIndex: Number(tile.dataset.tileIndex),
     palette: source.item?.data?.viewportPalette || (source.item ? getDefaultViewportPalette(source.item) : 'visible'),
     ptzEnabled: false,
     ptzDragging: false,
     lastX: 0,
     lastY: 0
+  };
+  tile.setPresetDockOpen = open => {
+    tile.classList.toggle('has-preset-dock', Boolean(open));
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
   };
   records.push(record);
   applyViewportPalette(wallRenderer, record.palette);
@@ -1804,13 +1913,22 @@ function createWallTile(doc, host, source, records, onDrop) {
     presets.type = 'button';
     presets.textContent = 'Presets';
     presets.title = 'Manage and recall PTZ presets';
+    presets.disabled = !options.allowPresetDock;
     presets.addEventListener('click', event => {
       event.stopPropagation();
-      openPtzPresetPanel(source.item);
+      if (options.allowPresetDock) openPtzPresetPanel(source.item, tile);
     });
     controls.appendChild(presets);
 
     const canvas = wallRenderer.domElement;
+    canvas.addEventListener('click', event => {
+      if (pendingPresetDepthCamera?.id !== source.item.id) return;
+      const pick = pickCameraViewportSurface(event, wallCamera, canvas);
+      if (!pick) return;
+      completePresetDepthSelection(source.item, pick);
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
     canvas.addEventListener('pointerdown', event => {
       if (!record.ptzEnabled) return;
       record.ptzDragging = true;
@@ -1836,7 +1954,8 @@ function createWallTile(doc, host, source, records, onDrop) {
       event.preventDefault();
     }, { passive: false });
   }
-  tile.appendChild(controls);
+  renderPane.appendChild(controls);
+  tile.classList.toggle('selected', Boolean(options.selected));
 }
 function buildIntegratedVideoWall() {
   disposeVideoWallRecords(videoWallRecords);
@@ -1844,8 +1963,18 @@ function buildIntegratedVideoWall() {
   const sources = getVideoWallSources();
   const layout = applyVideoWallGridLayout(videoWallGrid, sources.length, videoWallLayout.value);
   const visibleSources = sources.slice(0, layout.capacity);
-  visibleSources.forEach(source => createWallTile(document, videoWallGrid, source, videoWallRecords, reorderVideoWall));
+  selectedVideoWallTileIndex = THREE.MathUtils.clamp(selectedVideoWallTileIndex, 0, Math.max(0, visibleSources.length - 1));
+  visibleSources.forEach((source, tileIndex) => createWallTile(document, videoWallGrid, source, videoWallRecords, reorderVideoWall, {
+    tileIndex,
+    selected: tileIndex === selectedVideoWallTileIndex,
+    allowPresetDock: videoWallSupportsPresetDock(layout),
+    onSelect: index => {
+      selectedVideoWallTileIndex = index;
+      selectVideoWallTile(videoWallRecords, index, videoWallSource);
+    }
+  }));
   appendVideoWallEmptySlots(document, videoWallGrid, layout.capacity - visibleSources.length);
+  populateVideoWallSourceSelect(videoWallSource, selectedVideoWallTileIndex);
 }
 
 function showVideoWall() {
@@ -1874,12 +2003,13 @@ function ensurePopupVideoWall() {
     .bar{height:48px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:7px 12px;background:#111a24;border-bottom:1px solid #34465a}.bar strong{margin-right:auto}
     button,select{padding:7px 10px;border:1px solid #52677d;border-radius:4px;background:#233244;color:#fff}
     #grid{height:calc(100% - 48px);box-sizing:border-box;display:grid;grid-template-columns:repeat(var(--wall-columns,2),minmax(0,1fr));grid-template-rows:repeat(var(--wall-rows,1),minmax(0,1fr));gap:6px;padding:6px}
-    .video-wall-empty-slot{min-width:0;min-height:0;border:1px dashed #33465a;border-radius:4px;background:#0b1118}.video-wall-tile{min-width:0;min-height:0;position:relative;overflow:hidden;background:#000;border:1px solid #40536a;border-radius:4px}.video-wall-tile.drag-over{outline:3px solid #00aaff}.video-wall-tile canvas{width:100%;height:100%;display:block}.video-wall-label{position:absolute;left:6px;top:6px;z-index:2;padding:4px 7px;border-radius:3px;background:rgba(0,0,0,.7);font-size:12px;cursor:grab;user-select:none}.video-wall-tile-controls{position:absolute;top:5px;right:5px;z-index:3;display:flex;gap:4px;padding:3px;border-radius:4px;background:rgba(0,0,0,.72)}.video-wall-tile-controls button,.video-wall-tile-controls select{height:25px;padding:2px 6px;border:1px solid #5d7187;border-radius:3px;background:#1d2a38;color:#fff;font-size:11px}.video-wall-tile-controls button.active{background:#006db3}.video-wall-tile-controls button:disabled{opacity:.55}.video-wall-tile.ptz-active canvas{cursor:crosshair}
-  </style></head><body><div class="bar"><strong>N.O.M.A.D. Video Wall</strong><label>Layout <select id="layout"><option value="auto">Auto</option><option value="1">1 x 1</option><option value="2">2 x 2</option><option value="3">3 x 3</option><option value="4">4 x 4</option><option value="5">5 x 5</option></select></label><button id="refresh">Refresh Sources</button></div><div id="grid"></div></body></html>`);
+    .video-wall-empty-slot{min-width:0;min-height:0;border:1px dashed #33465a;border-radius:4px;background:#0b1118}.video-wall-tile{min-width:0;min-height:0;display:flex;overflow:hidden;background:#000;border:2px solid #40536a;border-radius:6px}.video-wall-tile.selected{border-color:#23b7ff;box-shadow:0 0 0 2px rgba(35,183,255,.28)}.video-wall-tile.drag-over{outline:3px solid #00aaff}.video-wall-render-pane{position:relative;flex:1;min-width:0;min-height:0;overflow:hidden}.video-wall-tile canvas{width:100%;height:100%;display:block}.video-wall-label{position:absolute;left:6px;top:6px;z-index:2;padding:4px 7px;border-radius:3px;background:rgba(0,0,0,.7);font-size:12px;cursor:grab;user-select:none}.video-wall-tile-controls{position:absolute;top:5px;right:5px;z-index:3;display:flex;gap:4px;padding:3px;border-radius:4px;background:rgba(0,0,0,.72)}.video-wall-tile-controls button,.video-wall-tile-controls select{height:25px;padding:2px 6px;border:1px solid #5d7187;border-radius:3px;background:#1d2a38;color:#fff;font-size:11px}.video-wall-tile-controls button.active{background:#006db3}.video-wall-tile-controls button:disabled{opacity:.55}.video-wall-tile.ptz-active canvas{cursor:crosshair}
+  </style></head><body><div class="bar"><strong>N.O.M.A.D. Video Wall</strong><label>Layout <select id="layout"><option value="auto">Auto</option><option value="1">1 x 1</option><option value="1x2">1 x 2</option><option value="2">2 x 2</option><option value="3">3 x 3</option><option value="4">4 x 4</option><option value="5">5 x 5</option></select></label><label>Source <select id="source"></select></label><button id="refresh">Refresh Sources</button></div><div id="grid"></div></body></html>`);
   doc.close();
   doc.querySelector('#layout').value = videoWallLayout.value;
   doc.querySelector('#layout').addEventListener('change', buildPopupVideoWall);
   doc.querySelector('#refresh').addEventListener('click', buildPopupVideoWall);
+  doc.querySelector('#source').addEventListener('change', event => assignVideoWallSource(selectedPopupVideoWallTileIndex, event.target.value));
   popupVideoWallWindow.addEventListener('beforeunload', () => { disposeVideoWallRecords(popupVideoWallRecords); popupVideoWallWindow = null; });
   return popupVideoWallWindow;
 }
@@ -1896,8 +2026,18 @@ function buildPopupVideoWall() {
   const selection = doc.querySelector('#layout').value;
   const layout = applyVideoWallGridLayout(grid, sources.length, selection);
   const visibleSources = sources.slice(0, layout.capacity);
-  visibleSources.forEach(source => createWallTile(doc, grid, source, popupVideoWallRecords, reorderVideoWall));
+  selectedPopupVideoWallTileIndex = THREE.MathUtils.clamp(selectedPopupVideoWallTileIndex, 0, Math.max(0, visibleSources.length - 1));
+  const sourceSelect = doc.querySelector('#source');
+  visibleSources.forEach((source, tileIndex) => createWallTile(doc, grid, source, popupVideoWallRecords, reorderVideoWall, {
+    tileIndex,
+    selected: tileIndex === selectedPopupVideoWallTileIndex,
+    onSelect: index => {
+      selectedPopupVideoWallTileIndex = index;
+      selectVideoWallTile(popupVideoWallRecords, index, sourceSelect);
+    }
+  }));
   appendVideoWallEmptySlots(doc, grid, layout.capacity - visibleSources.length);
+  populateVideoWallSourceSelect(sourceSelect, selectedPopupVideoWallTileIndex);
 }
 
 function popOutVideoWall() {
@@ -1911,6 +2051,9 @@ popOutVideoWallOverlayButton.addEventListener('click', popOutVideoWall);
 closeVideoWallButton.addEventListener('click', hideVideoWall);
 refreshVideoWallButton.addEventListener('click', buildIntegratedVideoWall);
 videoWallLayout.addEventListener('change', buildIntegratedVideoWall);
+videoWallSource.addEventListener('change', () => {
+  assignVideoWallSource(selectedVideoWallTileIndex, videoWallSource.value);
+});
 function openCameraViewport(cameraItem) {
   if (!cameraItem || cameraItem.type !== 'camera') return;
 
@@ -2075,6 +2218,22 @@ function openCameraViewport(cameraItem) {
     ? sourceRenderCamera.clone()
     : new THREE.PerspectiveCamera(90, 16 / 9, 0.1, 1000);
 
+  body.addEventListener('click', event => {
+    if (pendingPresetDepthCamera?.id !== cameraItem.id) return;
+    const pick = pickCameraViewportSurface(event, viewportCamera, viewportRenderer.domElement);
+    if (!pick) {
+      const message = `No visible model/reference surface was hit in ${cameraItem.name} Camera View. Try another point or press Esc to cancel.`;
+      setMeasurementStatus(message);
+      if (presetDepthPickBanner) presetDepthPickBanner.textContent = message;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    completePresetDepthSelection(cameraItem, pick);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+
   function resizeCameraViewportRenderer() {
     const width = Math.max(1, body.clientWidth);
     const height = Math.max(1, body.clientHeight);
@@ -2137,6 +2296,7 @@ function openCameraViewport(cameraItem) {
         );
 
         applyCameraPtzRig(cameraItem);
+        ptzPresetPanel?.refreshLive?.();
 
         updateObjectInfoPanel();
       }
@@ -2809,6 +2969,8 @@ function zoomCameraItem(cameraItem, direction) {
       (cameraItem.data.hfovWide - cameraItem.data.hfovTele);
 
   updateCameraProjection(cameraItem);
+  refreshCameraPresetDerivedData(cameraItem);
+  ptzPresetPanel?.refreshLive?.();
   updateObjectInfoPanel();
 }
 

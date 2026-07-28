@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-  <title>N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.1</title>
+  <title>N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.2</title>
   <style>
     :root {
       color-scheme: light;
@@ -1215,6 +1215,7 @@
       max-width: none;
       height: 100%;
       max-height: 100%;
+      box-sizing: border-box;
       transform: none;
       padding: 12px;
       border-width: 1px;
@@ -1275,7 +1276,7 @@
 <body data-theme="dark">
 <div id="sidebar">
   <div id="appHeader">
-    <h3>N.O.M.A.D. CCTV Simulator <span class="app-version">v<span id="appVersionLabel">8e.7.1</span></span></h3>
+    <h3>N.O.M.A.D. CCTV Simulator <span class="app-version">v<span id="appVersionLabel">8e.7.2</span></span></h3>
   </div>
 
   <div id="sceneFrame" class="panel-frame">
@@ -1288,7 +1289,7 @@
   <div id="sidebarSpacer"></div>
 
   <div id="operationsFrame" class="panel-frame">
-    <div class="panel-title">N.O.M.A.D. CCTV Simulator <span class="app-version">&nbsp;v<span id="menuVersionLabel">8e.7.1</span></span></div>
+    <div class="panel-title">N.O.M.A.D. CCTV Simulator <span class="app-version">&nbsp;v<span id="menuVersionLabel">8e.7.2</span></span></div>
     <div class="panel-content">
       <div class="menu-group collapsed">
         <div class="section-title">File</div>
@@ -1431,8 +1432,9 @@
       <div class="menu-group collapsed" id="helpGroup">
         <div class="section-title">Help</div>
         <div class="about-card">
-          <strong>User Manual</strong>
-          <div>The manual link will be enabled when the documentation is published.</div>
+          <strong>User Guide</strong>
+          <div>Operating instructions for projects, models, cameras, PTZ presets, ROIs, measurements, Video Wall, saving, and reports.</div>
+          <div class="about-links"><a id="openUserGuide" href="/static/user-guide.html" target="_blank" rel="noopener noreferrer">Open User Guide</a></div>
         </div>
       </div>
       <div class="menu-group collapsed" id="aboutGroup">
@@ -1776,6 +1778,6 @@
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=960"></script>
+<script type="module" src="/static/viewer.js?v=872"></script>
 </body>
 </html>

@@ -1,0 +1,1783 @@
+<!doctype html>
+<html>
+<head>
+  <title>N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.2</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page-bg: #e9ecef;
+      --sidebar-bg: #d7dbe0;
+      --header-bg: #2f3b46;
+      --header-text: #ffffff;
+      --panel-bg: #f8f9fa;
+      --panel-title-bg: #c2cad3;
+      --border: #aeb6c0;
+      --border-strong: #9aa1aa;
+      --text: #1f2933;
+      --text-muted: #4b5563;
+      --section-text: #263238;
+      --section-border: #d0d4da;
+      --row-border: #d8dde3;
+      --hover-bg: #e1e7ef;
+      --selected-bg: #007bff;
+      --selected-text: #ffffff;
+      --control-bg: #ffffff;
+      --control-hover-bg: #e6edf5;
+      --control-disabled-bg: #f1f1f1;
+      --control-disabled-text: #777777;
+      --toolbar-bg: rgba(47, 59, 70, 0.96);
+      --inspector-bg: rgba(248, 249, 250, 0.97);
+      --viewport-bg: #f2f2f2;
+      --viewport-frame-bg: #000000;
+      --viewport-frame-border: #444444;
+      --viewport-panel-bg: rgba(248, 249, 250, 0.95);
+      --combo-border: #e5e7eb;
+      --scrollbar-track: #f1f1f1;
+      --scrollbar-thumb: #9aa1aa;
+      --scrollbar-thumb-hover: #6b7280;
+      --sensor-control-bg: #222222;
+      --sensor-control-text: #ffffff;
+      --sensor-label: #dddddd;
+      --sensor-border: #555555;
+      --sensor-border-hover: #888888;
+    }
+
+    body[data-theme="dark"] {
+      color-scheme: dark;
+      --page-bg: #11161c;
+      --sidebar-bg: #171e26;
+      --header-bg: #0c1117;
+      --header-text: #f4f7fa;
+      --panel-bg: #202a35;
+      --panel-title-bg: #2c3947;
+      --border: #485666;
+      --border-strong: #607185;
+      --text: #eef3f7;
+      --text-muted: #b8c4cf;
+      --section-text: #e2e8ee;
+      --section-border: #435160;
+      --row-border: #3b4856;
+      --hover-bg: #314052;
+      --selected-bg: #1479d4;
+      --selected-text: #ffffff;
+      --control-bg: #263341;
+      --control-hover-bg: #35475a;
+      --control-disabled-bg: #202832;
+      --control-disabled-text: #8895a3;
+      --toolbar-bg: rgba(12, 17, 23, 0.96);
+      --inspector-bg: rgba(25, 33, 42, 0.97);
+      --viewport-bg: #11161c;
+      --viewport-frame-bg: #05080b;
+      --viewport-frame-border: #627286;
+      --viewport-panel-bg: rgba(30, 40, 51, 0.96);
+      --combo-border: #3b4856;
+      --scrollbar-track: #1b242e;
+      --scrollbar-thumb: #5b6b7d;
+      --scrollbar-thumb-hover: #77899c;
+      --sensor-control-bg: #111820;
+      --sensor-control-text: #f4f7fa;
+      --sensor-label: #dce5ed;
+      --sensor-border: #607185;
+      --sensor-border-hover: #8fa1b3;
+    }
+
+    button,
+    input,
+    select {
+      color: var(--text);
+    }
+
+    input,
+    select {
+      background: var(--control-bg);
+      border-color: var(--border-strong);
+    }
+
+    .menu-button:hover:not(.disabled) {
+      background: var(--control-hover-bg);
+    }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      background: var(--page-bg);
+      color: var(--text);
+    }
+
+    .preference-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 2px;
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .preference-row select {
+      width: 122px;
+      min-width: 0;
+    }
+
+    .preference-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--selected-bg);
+    }
+
+    .preference-range {
+      grid-template-columns: minmax(0, 1fr) 92px 38px;
+    }
+
+    .preference-range input[type="range"] {
+      width: 92px;
+      accent-color: var(--selected-bg);
+    }
+
+    .preference-output {
+      text-align: right;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    #appHeader .app-version {
+      color: #9fd3ff;
+      font-size: 12px;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+
+    .camera-viewport.active-viewport {
+      border-color: #00aaff;
+      box-shadow: 0 0 0 2px rgba(0, 170, 255, 0.35), 0 6px 18px rgba(0,0,0,0.5);
+    }
+
+    .about-card {
+      margin-top: 6px;
+      padding: 9px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--control-bg);
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .about-card strong {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .about-card a {
+      color: #4daeff;
+    }
+
+    .about-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      margin-top: 6px;
+    }
+
+    #sidebar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 320px;
+      height: 100vh;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border-strong);
+      box-sizing: border-box;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    #appHeader {
+      flex: 0 0 auto;
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.25);
+    }
+
+    #appHeader h3 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .panel-frame {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.18);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    #sceneFrame {
+      flex: 0 1 48%;
+      max-height: 48%;
+      min-height: 180px;
+    }
+
+    #sidebarSpacer {
+      flex: 1 1 auto;
+      min-height: 20px;
+    }
+
+    #operationsFrame {
+      flex: 0 1 48%;
+      max-height: 48%;
+      min-height: 180px;
+    }
+
+    .panel-title {
+      flex: 0 0 auto;
+      padding: 8px 10px;
+      background: var(--panel-title-bg);
+      border-bottom: 1px solid var(--border);
+      font-weight: bold;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .panel-content {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+
+    .section-title {
+      cursor: pointer;
+      user-select: none;
+      font-weight: bold;
+      font-size: 13px;
+      margin: 8px 0 6px 0;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--section-border);
+      color: var(--section-text);
+    }
+
+    #sceneTree .scene-tree-section-title {
+      margin: 5px 0;
+      padding: 7px 8px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--panel-title-bg);
+      color: var(--text);
+    }
+
+    #sceneTree .scene-tree-section-title:hover {
+      background: var(--hover-bg);
+    }
+
+    .tree-item {
+      padding: 6px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--section-border);
+      border-radius: 0;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .tree-item:hover {
+      background: var(--hover-bg);
+    }
+
+    .tree-item.selected {
+      background: var(--selected-bg);
+      color: var(--header-text);
+    }
+
+    .menu-group {
+      margin-bottom: 8px;
+    }
+
+    .menu-button {
+      width: 100%;
+      text-align: left;
+      padding: 7px;
+      margin: 2px 0;
+      border: 1px solid var(--border);
+      background: var(--control-bg);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+
+    .menu-button.disabled {
+      color: var(--control-disabled-text);
+      background: var(--control-disabled-bg);
+      cursor: not-allowed;
+    }
+
+    .menu-group.collapsed .menu-button,
+    .menu-group.collapsed .preference-row,
+    .menu-group.collapsed .about-card,
+    .menu-group.collapsed .measurement-status {
+      display: none;
+    }
+
+    #viewer {
+      position: absolute;
+      left: 320px;
+      top: 0;
+      width: calc(100vw - 320px);
+      height: 100vh;
+      z-index: 0;
+      isolation: isolate;
+    }
+
+    #selectedToolbar {
+      position: absolute;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      width: auto;
+      max-width: min(900px, calc(100% - 40px));
+      background: var(--toolbar-bg);
+      color: var(--header-text);
+      border: 1px solid var(--text);
+      border-radius: 10px;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 20;
+      box-sizing: border-box;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+   #selectedToolbar.hidden {
+     display: none;
+   }
+
+   #selectedToolbarLabel {
+     flex: 1 1 auto;
+     min-width: 0;
+     max-width: 360px;
+     overflow: hidden;
+     text-overflow: ellipsis;
+     white-space: nowrap;
+     font-size: 13px;
+     font-weight: bold;
+     margin-right: 8px;
+   }
+
+   .toolbar-button {
+     padding: 6px 10px;
+     border: 1px solid var(--border-strong);
+     border-radius: 5px;
+     background: var(--control-bg);
+     color: var(--text);
+     cursor: pointer;
+     font-size: 13px;
+     white-space: nowrap;
+     flex: 0 0 auto;
+   }
+
+   .toolbar-button:hover {
+     background: var(--control-hover-bg);
+   }
+
+   .toolbar-button.disabled {
+     color: var(--control-disabled-text);
+     background: var(--control-disabled-bg);
+     cursor: not-allowed;
+   }
+
+   #objectInfoPanel {
+     position: fixed;
+     top: 40px;
+     right: 0;
+     width: 300px;
+     height: calc(100vh - 40px);
+     background: var(--sidebar-bg);
+     border: 0;
+     border-left: 1px solid var(--border-strong);
+     border-radius: 0;
+     box-shadow: none;
+     padding: 8px;
+     z-index: 21;
+     color: var(--text);
+     font-size: 13px;
+     max-height: none;
+     overflow-y: auto;
+     box-sizing: border-box;
+     transition: width .18s ease, padding .18s ease;
+   }
+
+   #objectInfoPanel.hidden {
+     display: none;
+   }
+
+   .info-title {
+     font-weight: bold;
+     background: var(--panel-title-bg);
+     padding: 7px;
+     border-radius: 6px;
+     margin-bottom: 8px;
+   }
+
+   .info-title.small {
+     margin-top: 10px;
+   }
+
+   .info-title.collapsible {
+     cursor: pointer;
+     user-select: none;
+   }
+
+   .info-title.collapsible:hover {
+     background: var(--hover-bg);
+   }
+
+   .info-row {
+     display: flex;
+     justify-content: space-between;
+     gap: 8px;
+     padding: 5px 2px;
+     border-bottom: 1px solid var(--row-border);
+   }
+
+   .info-row span {
+     color: var(--text-muted);
+   }
+
+   .info-row strong {
+     text-align: right;
+   }
+
+   .ptz-cross {
+     display: grid;
+     grid-template-columns: 1fr 1fr 1fr;
+     gap: 6px;
+     margin-top: 8px;
+     align-items: center;
+   }
+
+   .ptz-arrow {
+     font-size: 16px;
+     font-weight: bold;
+     padding: 7px;
+   }
+
+   .ptz-center {
+     text-align: center;
+     font-weight: bold;
+     font-size: 12px;
+     color: var(--text-muted);
+   }
+
+   .ptz-zoom-row {
+     display: grid;
+     grid-template-columns: 1fr 1fr;
+     gap: 6px;
+     margin-top: 8px;
+   }
+
+   .ptz-zoom-row button {
+     font-size: 12px;
+     padding: 6px;
+   }
+
+   #cameraViewports {
+     position: absolute;
+     top: 0;
+     left: 0;
+     width: 100%;
+     height: 100%;
+     pointer-events: none;
+     z-index: 100;
+     isolation: isolate;
+   }
+
+   .camera-viewport {
+     position: absolute;
+     width: 320px;
+     height: 240px;
+     background: var(--viewport-frame-bg);
+     border: 1px solid var(--viewport-frame-border);
+     border-radius: 6px;
+     box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+     pointer-events: auto;
+     display: flex;
+     flex-direction: column;
+     overflow: hidden;
+   }
+
+   .camera-viewport-header {
+     background: var(--header-bg);
+     color: white;
+     font-size: 12px;
+     padding: 4px 6px;
+     display: flex;
+     justify-content: space-between;
+     align-items: center;
+   }
+
+.camera-viewport-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex: 1;
+  background: var(--viewport-frame-bg);
+  overflow: hidden;
+}
+
+.camera-viewport-body canvas {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.viewport-roll-control {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.45);
+  background: rgba(47, 59, 70, 0.72);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 8;
+  display: none;
+  backdrop-filter: blur(4px);
+}
+
+.viewport-roll-control:hover {
+  background: rgba(70, 90, 105, 0.92);
+}
+
+.viewport-roll-left {
+  left: 12px;
+}
+
+.viewport-roll-right {
+  right: 12px;
+}
+
+.viewport-ptz-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.65);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 7;
+  white-space: nowrap;
+}
+
+.viewport-ptz-hint.hidden {
+  display: none;
+}
+
+.viewport-ptz-toggle.active,
+.viewport-presets.active {
+  background: rgba(0, 170, 255, 0.25);
+  border-color: rgba(0, 170, 255, 0.8);
+}
+
+   .camera-viewport-ptz {
+     position: absolute;
+     top: 32px;
+     right: 8px;
+     width: 170px;
+     background: var(--viewport-panel-bg);
+     border: 1px solid var(--border);
+     border-radius: 8px;
+     padding: 8px;
+     box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+     color: var(--text);
+     z-index: 5;
+   }
+
+   .camera-viewport-ptz.hidden {
+     display: none;
+   }
+
+   .viewport-ptz-title {
+     font-size: 12px;
+     font-weight: bold;
+     margin-bottom: 8px;
+     text-align: center;
+   }
+
+   .viewport-ptz-cross {
+     display: grid;
+     grid-template-columns: 1fr 1fr 1fr;
+     gap: 5px;
+     align-items: center;
+   }
+
+   .viewport-ptz-btn {
+     padding: 5px;
+     font-size: 12px;
+     border: 1px solid var(--border-strong);
+     border-radius: 5px;
+     background: var(--control-bg);
+     cursor: pointer;
+   }
+
+   .viewport-ptz-center {
+     text-align: center;
+     font-size: 11px;
+     font-weight: bold;
+   }
+
+   .viewport-ptz-zoom-row,
+   .viewport-ptz-roll-row {
+     display: grid;
+     grid-template-columns: 1fr 1fr;
+     gap: 5px;
+     margin-top: 7px;
+   }
+
+   .camera-viewport-controls button {
+     width: 26px;
+     height: 22px;
+     background: transparent;
+     border: none;
+     color: white;
+     cursor: pointer;
+     font-size: 14px;
+     line-height: 20px;
+     margin-left: 2px;
+     text-align: center;
+     padding: 0;
+   }
+
+   .camera-viewport-controls .viewport-text-button {
+     width: auto;
+     min-width: 44px;
+     padding: 0 8px;
+     font-size: 12px;
+     border: 1px solid rgba(255,255,255,0.45);
+     border-radius: 4px;
+     margin-left: 4px;
+   }
+
+   .camera-viewport-controls .viewport-text-button:hover {
+     background: rgba(255,255,255,0.15);
+   }
+
+   .camera-combo {
+     position: relative;
+   }
+
+   .camera-combo-results {
+     display: none;
+     position: absolute;
+     right: 0;
+     top: 24px;
+     width: 220px;
+     max-height: 260px;
+     overflow-y: auto;
+     background: var(--control-bg);
+     border: 1px solid var(--border-strong);
+     border-radius: 4px;
+     box-shadow: 0 3px 10px rgba(0,0,0,0.25);
+     z-index: 9999;
+   }
+
+   .camera-combo-result {
+     padding: 6px 8px;
+     cursor: pointer;
+     font-size: 12px;
+     border-bottom: 1px solid var(--combo-border);
+   }
+
+   .camera-combo-result:hover {
+     background: var(--selected-bg);
+     color: var(--selected-text);
+   }
+
+   .camera-combo-results::-webkit-scrollbar {
+     width: 10px;
+   }
+
+   .camera-combo-results::-webkit-scrollbar-track {
+     background: var(--scrollbar-track);
+   }
+
+   .camera-combo-results::-webkit-scrollbar-thumb {
+     background: var(--scrollbar-thumb);
+     border-radius: 6px;
+   }
+
+   .camera-combo-results::-webkit-scrollbar-thumb:hover {
+     background: var(--scrollbar-thumb-hover);
+   }
+
+/* ============================================================
+   CAMERA VIEWPORT PALETTE SELECTOR
+   NOMAD 8e Sensor Visualization
+   ============================================================ */
+
+.viewport-palette-label {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--sensor-label);
+  margin-right: 6px;
+}
+
+.viewport-palette-select {
+  height: 22px;
+  min-width: 120px;
+  font-size: 11px;
+  background: var(--sensor-control-bg);
+  color: var(--sensor-control-text);
+  border: 1px solid var(--sensor-border);
+  border-radius: 3px;
+  outline: none;
+}
+
+.viewport-palette-select:hover {
+  border-color: var(--sensor-border-hover);
+}
+
+.viewport-palette-select:focus {
+  border-color: #00aaff;
+}
+
+.viewport-palette-select option {
+  background: var(--sensor-control-bg);
+  color: var(--sensor-control-text);
+}
+
+
+    #videoWallOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 15000;
+      display: flex;
+      flex-direction: column;
+      background: #080c11;
+      color: #eef3f7;
+    }
+    #videoWallOverlay.hidden { display: none; }
+    .video-wall-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 52px;
+      padding: 8px 12px;
+      box-sizing: border-box;
+      background: #111a24;
+      border-bottom: 1px solid #34465a;
+    }
+    .video-wall-toolbar strong { margin-right: auto; }
+    .video-wall-toolbar label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+    .video-wall-toolbar button,
+    .video-wall-toolbar select {
+      min-height: 32px;
+      padding: 6px 10px;
+      border: 1px solid #52677d;
+      border-radius: 5px;
+      background: #233244;
+      color: #f5f7fa;
+      font: 600 12px Arial, sans-serif;
+      box-sizing: border-box;
+    }
+    .video-wall-toolbar button:hover,
+    .video-wall-toolbar select:hover { border-color: #23b7ff; background: #2b3d52; }
+    #videoWallSource { min-width: 190px; }
+    .video-wall-grid {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(var(--wall-columns, 2), minmax(0, 1fr));
+      grid-template-rows: repeat(var(--wall-rows, 1), minmax(0, 1fr));
+      gap: 6px;
+      padding: 6px;
+    }
+    .video-wall-tile {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #000;
+      border: 2px solid #40536a;
+      border-radius: 6px;
+      box-shadow: 0 3px 12px rgba(0,0,0,.35);
+    }
+    .video-wall-tile.selected {
+      border-color: #23b7ff;
+      box-shadow: 0 0 0 2px rgba(35,183,255,.28), 0 4px 16px rgba(0,0,0,.45);
+    }
+    .video-wall-tile.drag-over { outline: 3px solid #00aaff; }
+    .video-wall-empty-slot { min-width: 0; min-height: 0; border: 1px dashed #33465a; border-radius: 4px; background: #0b1118; }
+    .video-wall-render-pane { position: relative; flex: 1 1 100%; width: 100%; min-width: 0; min-height: 0; overflow: hidden; }
+    .video-wall-tile.has-preset-dock .video-wall-render-pane { position: relative; flex: 1 1 100%; width: 100%; height: 100%; }
+    .video-wall-tile.has-preset-dock.preset-dock-vertical { position: relative; display: block; }
+    .video-wall-tile.has-preset-dock.preset-dock-vertical .video-wall-render-pane { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .video-wall-tile canvas { width: 100%; height: 100%; display: block; }
+    .video-wall-tile .ptz-preset-panel { position: absolute; z-index: 20; left: 0; right: 0; bottom: 0; width: 100%; max-width: 100%; height: 40%; max-height: 40%; transform: none; border: 0; border-top: 1px solid #40536a; border-radius: 0; box-shadow: none; padding: 10px; box-sizing: border-box; overflow: auto; }
+    .video-wall-tile.preset-dock-vertical .ptz-preset-panel { position: absolute; z-index: 20; left: auto; right: 0; top: 0; bottom: auto; flex: none; width: var(--preset-panel-percent, 20%); max-width: 50%; min-width: 15%; height: 100%; max-height: 100%; border-top: 0; border-left: 1px solid #40536a; }
+    .video-wall-preset-resizer { display: none; flex: 0 0 6px; width: 6px; background: #40536a; cursor: col-resize; touch-action: none; }
+    .video-wall-tile.has-preset-dock.preset-dock-vertical .video-wall-preset-resizer { display: block; position: absolute; z-index: 21; top: 0; bottom: 0; right: var(--preset-panel-percent, 20%); height: 100%; }
+    .video-wall-tile.has-preset-dock.preset-dock-vertical .video-wall-tile-controls { right: calc(var(--preset-panel-percent, 20%) + 10px); }
+    .video-wall-preset-resizer:hover, .video-wall-preset-resizer.dragging { background: #23b7ff; }
+    .video-wall-label {
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      z-index: 2;
+      padding: 4px 7px;
+      border-radius: 3px;
+      background: rgba(0,0,0,.7);
+      color: #fff;
+      font-size: 12px;
+      cursor: grab;
+      user-select: none;
+    }
+    .measurement-status {
+      margin: 4px 0;
+      padding: 7px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--control-bg);
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .video-wall-tile-controls {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.72);
+    }
+    .video-wall-tile-controls button,
+    .video-wall-tile-controls select {
+      width: auto;
+      min-width: 66px;
+      height: 28px;
+      padding: 3px 8px;
+      border: 1px solid #5d7187;
+      border-radius: 4px;
+      background: #1d2a38;
+      color: #fff;
+      font: 600 11px Arial, sans-serif;
+    }
+    .video-wall-tile-controls select { min-width: 105px; }
+    .video-wall-tile-controls button:hover,
+    .video-wall-tile-controls select:hover { border-color: #23b7ff; background: #2a3b4e; }
+    .video-wall-tile-controls button.active { background: #006db3; border-color: #23b7ff; }
+    .video-wall-tile-controls button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .video-wall-tile.ptz-active canvas { cursor: crosshair; }
+    .measurement-magnifier {
+      position: fixed;
+      z-index: 7000;
+      width: 180px;
+      height: 180px;
+      display: none;
+      border: 3px solid #00e5ff;
+      border-radius: 50%;
+      background: #000;
+      box-shadow: 0 4px 18px rgba(0,0,0,.65);
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .measurement-magnifier.active { display: block; }
+    .measurement-magnifier canvas { width: 100%; height: 100%; display: block; }
+    .measurement-magnifier::before,
+    .measurement-magnifier::after {
+      content: '';
+      position: absolute;
+      z-index: 2;
+      left: 50%;
+      top: 50%;
+      background: #00e5ff;
+      transform: translate(-50%, -50%);
+    }
+    .measurement-magnifier::before { width: 38px; height: 1px; }
+    .measurement-magnifier::after { width: 1px; height: 38px; }
+    .measurement-magnifier-level {
+      position: absolute;
+      z-index: 3;
+      right: 12px;
+      bottom: 12px;
+      padding: 2px 7px;
+      border: 1px solid #00e5ff;
+      border-radius: 10px;
+      color: #fff;
+      background: rgba(0, 18, 28, 0.82);
+      font: bold 12px Arial, sans-serif;
+    }
+
+    .ptz-preset-panel {
+      position: fixed;
+      z-index: 8000;
+      width: min(420px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px);
+      overflow: auto;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      padding: 14px;
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      background: var(--panel-bg);
+      color: var(--text-color);
+      box-shadow: 0 12px 38px rgba(0,0,0,.65);
+    }
+    .ptz-preset-panel.hidden { display: none; }
+    .ptz-preset-panel h3 { margin: 0 0 4px; }
+    .ptz-preset-camera { margin-bottom: 10px; color: var(--muted-text); }
+    .ptz-preset-panel select,
+    .ptz-preset-panel input[type="text"],
+    .ptz-preset-panel textarea { width: 100%; box-sizing: border-box; margin: 4px 0 8px; }
+    .ptz-preset-panel textarea { min-height: 44px; resize: vertical; }
+    .ptz-preset-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+    .ptz-preset-actions button { flex: 1 1 105px; min-height: 30px; border-radius: 5px; font-weight: 600; }
+    .ptz-preset-details,
+    .ptz-live-analysis { white-space: pre-wrap; padding: 8px; border: 1px solid var(--panel-border); border-radius: 5px; background: var(--input-bg); font-size: 12px; }
+    .ptz-preset-speed { display: grid; grid-template-columns: 1fr 150px 64px; align-items: center; gap: 6px; margin: 8px 0; }
+    .ptz-preset-status { position: sticky; bottom: 0; min-height: 18px; padding: 5px 0 2px; color: var(--accent-color); background: var(--panel-bg); font-size: 12px; }
+    .ptz-preset-section { margin: 5px 0; border: 1px solid var(--panel-border); border-radius: 6px; overflow: hidden; }
+    .ptz-preset-section > summary { cursor: pointer; list-style: none; padding: 7px 8px; color: var(--text-color); background: var(--panel-title-bg); font-weight: 700; user-select: none; }
+    .ptz-preset-section > summary::-webkit-details-marker { display: none; }
+    .ptz-preset-section > summary::before { content: '\25B6'; display: inline-block; width: 14px; }
+    .ptz-preset-section[open] > summary::before { content: '\25BC'; }
+    .ptz-preset-section[open] > summary { border-bottom: 1px solid var(--panel-border); }
+    .ptz-preset-section > :not(summary) { margin-left: 7px; margin-right: 7px; }
+
+    /* 8e.7.1 correction: compact top menu and collapsible Scene Tree. */
+    #operationsFrame {
+      position: fixed;
+      inset: 0 0 auto 0;
+      width: 100vw;
+      height: 40px;
+      min-height: 40px;
+      max-height: 40px;
+      z-index: 30000;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      overflow: visible;
+      border: 0;
+      border-radius: 0;
+      background: var(--header-bg);
+      box-shadow: 0 2px 8px rgba(0,0,0,.35);
+    }
+    #operationsFrame::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 1px;
+      z-index: 30002;
+      background: var(--border-strong);
+      pointer-events: none;
+    }
+    #operationsFrame > .panel-title {
+      display: flex;
+      align-items: center;
+      min-width: 276px;
+      padding: 0 12px;
+      border: 0;
+      background: var(--header-bg);
+      color: var(--header-text);
+      white-space: nowrap;
+    }
+    #operationsFrame > .panel-content {
+      display: flex;
+      flex: 1;
+      align-items: stretch;
+      gap: 0;
+      padding: 0;
+      overflow: visible;
+    }
+    #operationsFrame .menu-group {
+      position: relative;
+      flex: 0 0 auto;
+      width: fit-content;
+      min-width: 0;
+      height: 40px;
+      margin: 0;
+      overflow: visible;
+      background: var(--header-bg);
+    }
+    #operationsFrame .section-title {
+      height: 40px;
+      margin: 0;
+      padding: 0 13px;
+      display: flex;
+      align-items: center;
+      border: 0;
+      color: var(--header-text);
+      font-size: 13px;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+    #operationsFrame .menu-group.open .section-title,
+    #operationsFrame .section-title:hover {
+      background: var(--hover-bg);
+      color: var(--text);
+    }
+    #operationsFrame .menu-group > :not(.section-title):not(.menu-dropdown) {
+      display: none;
+      width: 280px;
+      margin: 0;
+      border-radius: 0;
+      box-sizing: border-box;
+    }
+    #operationsFrame .menu-group.open > :not(.section-title):not(.menu-dropdown) {
+      display: grid;
+      position: relative;
+      z-index: 1;
+    }
+    #operationsFrame .menu-group.open > input[type="file"] { display: none; }
+    #operationsFrame .menu-button {
+      min-height: 32px;
+      padding: 7px 10px;
+      border-width: 0 1px 1px;
+      background: var(--panel-bg);
+    }
+    #operationsFrame .preference-row,
+    #operationsFrame .about-card,
+    #operationsFrame .measurement-status {
+      padding: 8px 10px;
+      border: 0;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      background: var(--panel-bg);
+    }
+    #operationsFrame .about-card { margin: 0; }
+    #operationsFrame .menu-group.open {
+      height: 40px;
+      max-height: 40px;
+      overflow: visible;
+      box-shadow: none;
+    }
+    #operationsFrame .menu-group > .menu-dropdown {
+      display: none;
+      position: absolute;
+      top: 40px;
+      left: 0;
+      z-index: 30001;
+      width: 280px;
+      max-height: calc(100vh - 52px);
+      overflow-x: hidden;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-top: 0;
+      border-radius: 0 0 5px 5px;
+      background: var(--panel-bg);
+      box-shadow: 0 10px 24px rgba(0,0,0,.48);
+    }
+    #operationsFrame .menu-group.open > .menu-dropdown {
+      display: block;
+      position: absolute;
+      top: 40px;
+      left: 0;
+    }
+    #operationsFrame .menu-dropdown > .menu-button,
+    #operationsFrame .menu-dropdown > .preference-row,
+    #operationsFrame .menu-dropdown > .about-card,
+    #operationsFrame .menu-dropdown > .measurement-status {
+      display: grid;
+      position: relative;
+      width: 100%;
+      margin: 0;
+      box-sizing: border-box;
+    }
+    #operationsFrame .menu-dropdown > input[type="file"] { display: none; }
+    #appHeader, #sidebarSpacer { display: none; }
+    #sidebar {
+      top: 40px;
+      width: 300px;
+      height: calc(100vh - 40px);
+      padding: 8px;
+      transition: width .18s ease;
+    }
+    #sceneFrame {
+      flex: 1 1 auto;
+      width: 100%;
+      max-height: none;
+      min-height: 0;
+      background: var(--sidebar-bg);
+      border: 0;
+      border-radius: 0;
+      box-shadow: none;
+    }
+    #sceneFrame .panel-content {
+      background: var(--sidebar-bg);
+    }
+    #sceneFrame .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    #sceneTreeToggle {
+      min-width: 25px;
+      padding: 2px 6px;
+      border: 1px solid var(--border-strong);
+      border-radius: 4px;
+      background: var(--control-bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+    body.scene-tree-collapsed #sidebar { width: 38px; padding: 6px; }
+    body.scene-tree-collapsed #sceneFrame .panel-content,
+    body.scene-tree-collapsed #sceneFrame .panel-title > span { display: none; }
+    body.scene-tree-collapsed #sceneFrame .panel-title {
+      padding: 6px 0;
+      justify-content: center;
+      border: 0;
+      background: transparent;
+    }
+    #viewer {
+      left: 300px;
+      top: 40px;
+      width: calc(100vw - 300px);
+      height: calc(100vh - 40px);
+      transition: left .18s ease, width .18s ease;
+    }
+    body.scene-tree-collapsed #viewer {
+      left: 38px;
+      width: calc(100vw - 38px);
+    }
+    #objectInfoPanel > .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    #objectInspectorToggle {
+      min-width: 25px;
+      padding: 2px 6px;
+      border: 1px solid var(--border-strong);
+      border-radius: 4px;
+      background: var(--control-bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+    body.object-inspector-visible:not(.scene-tree-collapsed) #viewer { width: calc(100vw - 600px); }
+    body.object-inspector-visible.scene-tree-collapsed #viewer { width: calc(100vw - 338px); }
+    body.object-inspector-visible.object-inspector-collapsed:not(.scene-tree-collapsed) #viewer { width: calc(100vw - 338px); }
+    body.object-inspector-visible.object-inspector-collapsed.scene-tree-collapsed #viewer { width: calc(100vw - 76px); }
+    body.object-inspector-collapsed #objectInfoPanel { width: 38px; padding: 6px; overflow: hidden; }
+    body.object-inspector-collapsed #objectInfoPanel > :not(.panel-title),
+    body.object-inspector-collapsed #objectInfoPanel #objectInspectorBody,
+    body.object-inspector-collapsed #objectInfoPanel .panel-title > span { display: none !important; }
+    body.object-inspector-collapsed #objectInfoPanel > .panel-title {
+      padding: 6px 0;
+      justify-content: center;
+      border: 0;
+      background: transparent;
+    }
+    /* The preset manager is an attached sibling dock and never consumes sensor-pane space. */
+    .camera-viewport.has-preset-dock { overflow: visible; }
+    .camera-viewport.has-preset-dock .camera-viewport-body { display: flex; align-items: center; justify-content: center; }
+    .camera-viewport .ptz-preset-panel {
+      position: absolute;
+      left: 100%;
+      right: auto;
+      top: 0;
+      bottom: auto;
+      z-index: 5;
+      width: 360px;
+      max-width: none;
+      height: 100%;
+      max-height: 100%;
+      box-sizing: border-box;
+      transform: none;
+      padding: 12px;
+      border-width: 1px;
+      border-left-color: var(--viewport-frame-border);
+      border-radius: 0 6px 6px 0;
+      box-shadow: 4px 0 12px rgba(0,0,0,.35);
+    }
+    .ptz-preset-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .ptz-preset-heading h3 { margin: 0; }
+    .ptz-preset-close {
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--control-bg);
+      cursor: pointer;
+    }
+    .ptz-preset-list option.limit-warning { color: #ff3b3b; font-weight: bold; }
+    .ptz-preset-limit-warning { color: #ff5252; font-weight: bold; }
+    .preset-roi-overlay {
+      position: absolute;
+      z-index: 12;
+      border: 2px solid #00e5ff;
+      background: rgba(0, 229, 255, .14);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, .75);
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+    .preset-roi-svg{position:absolute;inset:0;width:100%;height:100%;z-index:13;pointer-events:none}.preset-roi-svg polygon{stroke-width:2;vector-effect:non-scaling-stroke}.preset-roi-svg text{fill:#fff;font:bold 12px sans-serif;paint-order:stroke;stroke:#000;stroke-width:3}.preset-roi-svg.editing{pointer-events:auto}.preset-roi-edge{stroke:transparent;stroke-width:14;cursor:copy}.preset-roi-node{fill:#00e5ff;stroke:#001820;stroke-width:2;cursor:move}.ptz-roi-analysis{white-space:pre-line;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}.ptz-roi-help{font-size:11px;color:var(--muted-text);margin-top:6px}
+    .ptz-live-analysis, .ptz-roi-analysis, .ptz-preset-details { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.35; font-weight: 400; white-space: pre-line; }
+    .ptz-roi-analysis { margin: 7px 0; padding: 7px; border: 1px solid var(--border); border-radius: 4px; background: var(--control-bg); }
+    .preset-depth-pick-banner {
+      position: fixed;
+      top: 50px;
+      left: 50%;
+      z-index: 9500;
+      transform: translateX(-50%);
+      padding: 9px 14px;
+      border: 2px solid #00e5ff;
+      border-radius: 7px;
+      background: rgba(0,18,28,.94);
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(0,0,0,.55);
+      pointer-events: none;
+    }
+    body.preset-depth-pick-active #viewer canvas { cursor: crosshair !important; }
+
+    /* The screen-space precision reticle stays small at every loupe crop factor. */
+    .measurement-magnifier::before { width: 12px; height: 1px; }
+    .measurement-magnifier::after { width: 1px; height: 12px; }
+    .scene-navigation-cube{position:absolute;right:18px;bottom:18px;width:96px;height:96px;z-index:90;pointer-events:auto;user-select:none;touch-action:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,.55))}.scene-navigation-cube.hidden,.scene-scale-indicator.hidden{display:none}.nav-cube-core{position:absolute;inset:20px;transform-style:preserve-3d;transform:rotateX(-22deg) rotateY(35deg);cursor:grab}.nav-cube-core.dragging{cursor:grabbing}.nav-cube-face{position:absolute;width:56px;height:56px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.52);background:rgba(47,65,83,.88);color:#fff;font:700 10px Arial,sans-serif;backface-visibility:visible}.nav-cube-face:hover{background:rgba(0,145,220,.95)}.nav-face-front{transform:translateZ(28px)}.nav-face-back{transform:rotateY(180deg) translateZ(28px)}.nav-face-right{transform:rotateY(90deg) translateZ(28px)}.nav-face-left{transform:rotateY(-90deg) translateZ(28px)}.nav-face-top{transform:rotateX(-90deg) translateZ(28px)}.nav-face-bottom{transform:rotateX(90deg) translateZ(28px)}.scene-scale-indicator{position:absolute;left:18px;bottom:18px;z-index:90;width:154px;height:34px;box-sizing:border-box;padding:5px 9px;border:1px solid rgba(140,175,205,.55);border-radius:5px;background:rgba(13,24,35,.72);color:#fff;font:12px/1 Arial,sans-serif;white-space:nowrap;overflow:hidden;pointer-events:none}.scene-scale-label{height:13px;text-align:center}.scene-scale-bar{position:relative;height:8px;margin:3px auto 0;border-left:2px solid #fff;border-right:2px solid #fff;border-bottom:2px solid #fff;box-sizing:border-box}.camera-change-backdrop{position:fixed;inset:0;z-index:22000;display:grid;place-items:center;background:rgba(0,0,0,.65)}.camera-change-dialog{width:min(520px,90vw);padding:15px;border:1px solid var(--border);border-radius:7px;background:var(--panel-bg);color:var(--text);box-shadow:0 14px 44px rgba(0,0,0,.65);font:13px Arial,sans-serif}.camera-change-dialog h3{margin:0 0 8px}.camera-change-dialog p{line-height:1.4}.camera-change-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:14px}.camera-change-actions button{padding:7px 12px;border:1px solid var(--border);border-radius:4px;background:var(--control-bg);color:var(--text)}  </style>
+</head>
+
+<body data-theme="dark">
+<div id="sidebar">
+  <div id="appHeader">
+    <h3>N.O.M.A.D. CCTV Simulator <span class="app-version">v<span id="appVersionLabel">8e.7.2</span></span></h3>
+  </div>
+
+  <div id="sceneFrame" class="panel-frame">
+    <div class="panel-title"><span>Scene Tree</span><button id="sceneTreeToggle" type="button" title="Collapse Scene Tree" aria-expanded="true">◀</button></div>
+    <div class="panel-content">
+      <div id="sceneTree"></div>
+    </div>
+  </div>
+
+  <div id="sidebarSpacer"></div>
+
+  <div id="operationsFrame" class="panel-frame">
+    <div class="panel-title">N.O.M.A.D. CCTV Simulator <span class="app-version">&nbsp;v<span id="menuVersionLabel">8e.7.2</span></span></div>
+    <div class="panel-content">
+      <div class="menu-group collapsed">
+        <div class="section-title">File</div>
+        <button class="menu-button" id="loadProject">Load Project</button>
+
+        <input
+          id="loadProjectFile"
+          type="file"
+          accept=".nmd,.json,application/json"
+          style="display: none;"
+        >
+
+        <button class="menu-button" id="closeProject" type="button">Close Project</button>
+        <button class="menu-button" id="saveProject">Save Project</button>
+        <button class="menu-button" id="saveAsProject" type="button" hidden>Save As</button>
+        <button class="menu-button" id="importModel">Import Model</button>
+
+        <input
+          id="importModelFile"
+          type="file"
+          accept=".glb,.gltf,.fbx"
+          style="display: none;"
+        >
+
+        <button class="menu-button" id="importReferenceImage">Import Reference Image</button>
+
+        <input
+          id="importReferenceImageFile"
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp"
+          style="display: none;"
+        >
+
+        <button class="menu-button" id="exportProject" type="button">Export JSON</button>
+        <button class="menu-button" id="uploadProject" type="button" hidden>Open Project File</button>
+      </div>
+
+      <div class="menu-group collapsed">
+        <div class="section-title">Edit</div>
+        <button class="menu-button" id="editCopy" type="button">Copy</button>
+        <button class="menu-button" id="editCut" type="button">Cut</button>
+        <button class="menu-button" id="editPaste" type="button">Paste</button>
+        <button class="menu-button" id="editDelete" type="button">Delete</button>
+        <button class="menu-button" id="editClone" type="button">Clone</button>
+        <button class="menu-button" id="editAdd" type="button" hidden>Add Box</button>
+      </div>
+
+      <div class="menu-group collapsed">
+        <div class="section-title">View</div>
+        <button class="menu-button" id="resetView">Reset View</button>
+        <button class="menu-button" id="fitSelectedView">Fit Selected</button>
+        <button class="menu-button" id="openVideoWall" type="button">Open Video Wall</button>
+        <button class="menu-button" id="popOutVideoWall" type="button">Pop Out Video Wall</button>
+        <button class="menu-button" id="viewZoomOut" type="button">Zoom Out</button>
+        <button class="menu-button" id="viewFitGrid" type="button">Fit Grid</button>
+        <button class="menu-button" id="viewToggleGrid" type="button" hidden>Show / Hide Grid</button>
+        <button class="menu-button" id="viewToggleAxes" type="button" hidden>Show / Hide Axes</button>
+      </div>
+
+      <div class="menu-group collapsed">
+        <div class="section-title">Object</div>
+        <button class="menu-button" id="addCameraButton">Add Camera</button>
+        <button class="menu-button" id="objectAdd" type="button">Add Box Object</button>
+        <button class="menu-button" id="objectDefine" type="button">Rename / Define</button>
+        <button class="menu-button" id="objectProperties" type="button">Object Properties</button>
+        <button class="menu-button" id="objectLock" type="button">Lock / Unlock</button>
+      </div>
+
+      <div class="menu-group collapsed" id="preferencesGroup">
+        <div class="section-title">Preferences</div>
+        <label class="preference-row" for="preferenceTheme">
+          <span>Theme</span>
+          <select id="preferenceTheme">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+        <label class="preference-row" for="preferenceReversePan">
+          <span>Reverse Pan</span>
+          <input id="preferenceReversePan" type="checkbox">
+        </label>
+        <label class="preference-row" for="preferenceReverseTilt">
+          <span>Reverse Tilt</span>
+          <input id="preferenceReverseTilt" type="checkbox">
+        </label>
+        <label class="preference-row" for="preferenceInvertZoom">
+          <span>Invert Zoom</span>
+          <input id="preferenceInvertZoom" type="checkbox">
+        </label>
+        <label class="preference-row" for="preferenceRendererQuality">
+          <span>Renderer Quality</span>
+          <select id="preferenceRendererQuality">
+            <option value="performance">Performance</option>
+            <option value="balanced">Balanced</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+        <label class="preference-row" for="preferenceShowGrid">
+          <span>Show Grid</span>
+          <input id="preferenceShowGrid" type="checkbox">
+        </label>
+        <label class="preference-row" for="preferenceShowAxes">
+          <span>Show Axes</span>
+          <input id="preferenceShowAxes" type="checkbox">
+        </label>
+        <label class="preference-row preference-range" for="preferenceConeOpacity">
+          <span>Cone Opacity</span>
+          <input id="preferenceConeOpacity" type="range" min="0.05" max="0.50" step="0.05">
+          <output id="preferenceConeOpacityValue" class="preference-output">15%</output>
+        </label>
+        <label class="preference-row" for="preferenceModelImportPreset">
+          <span>Model Import</span>
+          <select id="preferenceModelImportPreset" title="Default model transform applied at import">
+            <option value="hvdcMm">HVDC / mm (-90 X, 0.01)</option>
+            <option value="asExported">As Exported</option>
+          </select>
+        </label>
+        <label class="preference-row" for="preferenceMetricDecimals"><span>Metric Decimals</span><select id="preferenceMetricDecimals"><option>0</option><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></label>
+        <label class="preference-row" for="preferenceShowNavigationCube"><span>Navigation Cube</span><input id="preferenceShowNavigationCube" type="checkbox" checked></label>
+        <label class="preference-row" for="preferenceShowScaleIndicator"><span>Scale Indicator</span><input id="preferenceShowScaleIndicator" type="checkbox" checked></label>        <label class="preference-row" for="preferenceFbxAutoScale">
+          <span>Large FBX Fallback</span>
+          <input id="preferenceFbxAutoScale" type="checkbox">
+        </label>
+        <button class="menu-button" id="resetPreferences" type="button">Reset Preferences</button>
+      </div>
+      <div class="menu-group collapsed" id="toolsGroup">
+        <div class="section-title">Measurement Tools</div>
+        <button class="menu-button" id="calibrateScaleTool" type="button">Calibrate Scale (2 Points)</button>
+<button class="menu-button" id="measureDistanceTool" type="button">Measure Distance</button>
+        <label class="preference-row preference-range" for="measurementMagnification">
+          <span>Loupe Magnification</span>
+          <input id="measurementMagnification" type="range" min="2" max="20" step="1" value="3">
+          <output id="measurementMagnificationValue" class="preference-output">3x</output>
+        </label>
+        <button class="menu-button" id="cancelMeasurementTool" type="button">Cancel Active Tool</button>
+        <button class="menu-button" id="clearMeasurements" type="button">Clear Measurements</button>
+        <div class="measurement-status" id="measurementStatus">Select a tool. Measurements use project units (metres).</div>
+      </div>
+      <div class="menu-group collapsed" id="reportGroup"><div class="section-title">Report</div><button class="menu-button" id="generateReport" type="button">Generate Report</button><button class="menu-button" id="reportSettings" type="button">Report Settings</button><button class="menu-button" id="openReportOptions" type="button">Open Report Options</button></div>
+      <div class="menu-group collapsed" id="helpGroup">
+        <div class="section-title">Help</div>
+        <div class="about-card">
+          <strong>User Guide</strong>
+          <div>Operating instructions for projects, models, cameras, PTZ presets, ROIs, measurements, Video Wall, saving, and reports.</div>
+          <div class="about-links"><a id="openUserGuide" href="/static/user-guide.html" target="_blank" rel="noopener noreferrer">Open User Guide</a></div>
+        </div>
+      </div>
+      <div class="menu-group collapsed" id="aboutGroup">
+        <div class="section-title">About</div>
+        <div class="about-card" id="aboutPanel">
+          <strong>N.O.M.A.D. CCTV Digital Twin Simulator</strong>
+          <div>Version <span id="aboutVersion">8e.7</span></div>
+          <div>© 2026 Felipe Gomez. All rights reserved.</div>
+          <div><a href="mailto:felipe.gomez@live.ca">felipe.gomez@live.ca</a></div>
+          <div class="about-links" aria-label="Open-source packages">
+            <a href="https://threejs.org/" target="_blank" rel="noopener noreferrer">Three.js</a>
+            <a href="https://flask.palletsprojects.com/en/stable/" target="_blank" rel="noopener noreferrer">Flask</a>
+            <a href="https://www.python.org/" target="_blank" rel="noopener noreferrer">Python</a>
+            <a href="https://esm.sh/" target="_blank" rel="noopener noreferrer">esm.sh</a>
+          </div>
+          <div>Source repository: publication link pending.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="viewer">
+  <div id="cameraViewports"></div>
+  <aside id="objectInfoPanel" class="panel-frame hidden" aria-label="Object Inspector">
+    <div class="panel-title">
+      <span>Inspector</span><button id="objectInspectorToggle" type="button" title="Collapse Inspector Panel" aria-expanded="true">▶</button>
+    </div>
+
+    <div id="objectInspectorBody" style="display: block;">
+      <div class="info-title small collapsible" onclick="toggleInspectorSection(this)">
+        <span class="collapse-indicator">▼</span> Object Inspector
+      </div>
+      <div class="info-section" style="display: block;">
+
+    <div class="info-row">
+      <span>Name</span>
+      <input id="infoName" type="text" style="width: 120px;">
+    </div>
+
+    <div class="info-row">
+      <span>Type</span>
+      <strong id="infoType">-</strong>
+    </div>
+
+    <div class="info-row">
+      <span>X</span>
+      <input id="infoX" type="number" step="0.1" style="width: 80px;">
+    </div>
+
+    <div class="info-row">
+      <span>Y</span>
+      <input id="infoY" type="number" step="0.1" style="width: 80px;">
+    </div>
+
+    <div class="info-row">
+      <span>Z</span>
+      <input id="infoZ" type="number" step="0.1" style="width: 80px;">
+    </div>
+
+    <div class="info-row">
+      <span>Rotation X</span>
+      <input id="infoRotX" type="number" step="1" style="width: 80px;">
+    </div>
+
+    <div class="info-row">
+      <span>Rotation Y</span>
+      <input id="infoRotY" type="number" step="1" style="width: 80px;">
+    </div>
+
+    <div class="info-row">
+      <span>Rotation Z</span>
+      <input id="infoRotZ" type="number" step="1" style="width: 80px;">
+    </div>
+
+    <div id="scaleInfoSection">
+      <div class="info-row">
+        <span>Scale</span>
+        <input id="infoScaleUniform" type="number" step="0.01" min="0.001" style="width: 80px;">
+      </div>
+
+      <div class="info-row">
+        <span>Scale X</span>
+        <input id="infoScaleX" type="number" step="0.01" min="0.001" style="width: 80px;">
+      </div>
+
+      <div class="info-row">
+        <span>Scale Y</span>
+        <input id="infoScaleY" type="number" step="0.01" min="0.001" style="width: 80px;">
+      </div>
+
+      <div class="info-row">
+        <span>Scale Z</span>
+        <input id="infoScaleZ" type="number" step="0.01" min="0.001" style="width: 80px;">
+      </div>
+
+      <div class="info-row">
+        <span>Actual Width</span>
+        <input id="realWorldWidth" type="number" step="0.1" min="0.1" style="width: 80px;">
+      </div>
+
+      <div class="info-row">
+        <span>Apply Width</span>
+        <button class="toolbar-button" id="applyRealWorldWidth" style="padding: 4px 8px;">
+          Apply
+        </button>
+      </div>
+
+    </div>
+    </div>
+
+    <div id="cameraInfoSection">
+      <div class="info-title small collapsible" onclick="toggleInspectorSection(this)">
+        <span class="collapse-indicator">▶</span> Camera
+      </div>
+
+      <div class="info-section" style="display: none;">
+
+      <div class="info-row">
+        <span>Make</span>
+        <strong id="infoMake">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Model</span>
+        <div class="camera-combo">
+          <input
+            id="cameraModelSelect"
+            type="text"
+            autocomplete="off"
+            placeholder="Type camera model"
+            style="width: 170px;"
+          >
+          <div id="cameraModelResults" class="camera-combo-results"></div>
+        </div>
+      </div>
+
+      <div class="info-row">
+        <span>Lens</span>
+        <strong id="infoLens">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Pan</span>
+        <strong id="infoPan">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Tilt</span>
+        <strong id="infoTilt">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Zoom</span>
+        <strong id="infoZoom">-</strong>
+      </div>
+    </div>
+    </div>
+
+      <div class="info-title small collapsible" onclick="toggleInspectorSection(this)">
+        <span class="collapse-indicator">▶</span> Projection / Pixel Density
+      </div>
+
+      <div class="info-section" style="display: none;">
+
+      <div class="info-row">
+        <span>HFOV</span>
+        <strong id="projectionHfovValue">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Scene Width</span>
+        <strong id="projectionSceneWidthValue">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Pixel Density</span>
+        <strong id="projectionPixelDensityValue">-</strong>
+      </div>
+
+      <div class="info-row">
+        <span>Color</span>
+        <input id="projectionColor" type="color" value="#00aaff">
+      </div>
+
+      <div class="info-row">
+        <span>Depth</span>
+        <strong><span id="projectionDistanceValue">20</span> m</strong>
+      </div>
+
+      <input
+        id="projectionDistanceSlider"
+        type="range"
+        min="1"
+        max="120"
+        step="1"
+        value="20"
+        style="width: 100%; margin-top: 8px;"
+      >
+
+      <div class="info-row">
+        <span>Depth Manual</span>
+        <input
+          id="projectionDistanceInput"
+          type="number"
+          min="1"
+          max="500"
+          step="0.5"
+          value="20"
+          style="width: 90px;"
+        >
+      </div>
+    </div>
+
+       <div class="info-title small collapsible" onclick="toggleInspectorSection(this)">
+         <span class="collapse-indicator">▶</span> PTZ Controls
+       </div>
+
+       <div class="info-section" style="display: none;">
+
+       <div class="ptz-cross">
+         <div></div>
+         <button class="toolbar-button ptz-arrow" id="ptzTiltUp">▲</button>
+         <div></div>
+
+         <button class="toolbar-button ptz-arrow" id="ptzPanLeft">◀</button>
+         <div class="ptz-center">PTZ</div>
+         <button class="toolbar-button ptz-arrow" id="ptzPanRight">▶</button>
+
+         <div></div>
+         <button class="toolbar-button ptz-arrow" id="ptzTiltDown">▼</button>
+         <div></div>
+       </div>
+
+       <div class="ptz-zoom-row">
+         <button class="toolbar-button" id="ptzZoomIn">Zoom In</button>
+         <button class="toolbar-button" id="ptzZoomOut">Zoom Out</button>
+       </div>
+       <button class="toolbar-button" id="ptzPresetsInspector" type="button">Presets</button>
+    </div>
+</div>
+</aside>
+
+  <div id="selectedToolbar" class="hidden">
+    <span id="selectedToolbarLabel">No object selected</span>
+    <button class="toolbar-button" id="toolbarMove">Move</button>
+    <button class="toolbar-button" id="toolbarRotate">Rotate</button>
+    <button class="toolbar-button" id="toolbarAlign">Drop to Ground</button>
+    <button class="toolbar-button" id="toolbarLayFace">Lay Face Flat</button>
+    <button class="toolbar-button" id="toolbarCameraView">Show Camera View</button>
+    <button class="toolbar-button disabled">Properties</button>
+    <button class="toolbar-button" id="toolbarDelete">Delete</button>
+  </div>
+</div>
+
+
+<div id="videoWallOverlay" class="hidden" aria-hidden="true">
+  <div class="video-wall-toolbar">
+    <strong>Video Wall</strong>
+    <label>Layout
+      <select id="videoWallLayout">
+        <option value="auto">Auto</option>
+        <option value="1">1 x 1</option>
+        <option value="1x2">1 x 2</option>
+        <option value="2">2 x 2</option>
+        <option value="3">3 x 3</option>
+        <option value="4">4 x 4</option>
+        <option value="5">5 x 5</option>
+      </select>
+    </label>
+    <label>Source
+      <select id="videoWallSource" title="Assign a source to the selected tile"></select>
+    </label>
+    <button id="refreshVideoWall" type="button">Refresh Sources</button>
+    <button id="popOutVideoWallOverlay" type="button">Pop Out</button>
+    <button id="closeVideoWall" type="button">Back to Planning Workspace</button>
+  </div>
+  <div id="videoWallGrid" class="video-wall-grid"></div>
+</div>
+<script>
+  (() => {
+    const groups = [...document.querySelectorAll('#operationsFrame .menu-group')];
+    const closeMenus = except => groups.forEach(group => {
+      if (group !== except) group.classList.remove('open');
+      group.classList.add('collapsed');
+    });
+
+    groups.forEach(group => {
+      const title = group.querySelector('.section-title');
+      const dropdown = document.createElement('div');
+      dropdown.className = 'menu-dropdown';
+      dropdown.setAttribute('role', 'menu');
+      [...group.children].filter(child => child !== title).forEach(child => dropdown.appendChild(child));
+      group.appendChild(dropdown);
+      title.setAttribute('role', 'button');
+      title.setAttribute('tabindex', '0');
+      const toggle = event => {
+        event.stopPropagation();
+        const willOpen = !group.classList.contains('open');
+        closeMenus(group);
+        group.classList.toggle('open', willOpen);
+        group.classList.toggle('collapsed', !willOpen);
+      };
+      title.addEventListener('click', toggle);
+      title.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') toggle(event);
+        if (event.key === 'Escape') closeMenus();
+      });
+      group.addEventListener('click', event => {
+        const command = event.target.closest('.menu-button:not(.disabled)');
+        if (command) setTimeout(() => closeMenus(), 0);
+      });
+      group.addEventListener('change', event => {
+        if (event.target.matches('select, input:not([type="range"])')) setTimeout(() => closeMenus(), 0);
+      });
+    });
+    document.addEventListener('pointerdown', event => {
+      if (!event.target.closest('#operationsFrame .menu-group')) closeMenus();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeMenus();
+    });
+
+    const sceneToggle = document.getElementById('sceneTreeToggle');
+    sceneToggle.addEventListener('click', () => {
+      const collapsed = document.body.classList.toggle('scene-tree-collapsed');
+      sceneToggle.textContent = collapsed ? '\u25B6' : '\u25C0';
+      sceneToggle.title = collapsed ? 'Expand Scene Tree' : 'Collapse Scene Tree';
+      sceneToggle.setAttribute('aria-expanded', String(!collapsed));
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 190);
+    });
+
+    const inspectorToggle = document.getElementById('objectInspectorToggle');
+    inspectorToggle.addEventListener('click', () => {
+      const collapsed = document.body.classList.toggle('object-inspector-collapsed');
+      inspectorToggle.textContent = collapsed ? '\u25C0' : '\u25B6';
+      inspectorToggle.title = collapsed ? 'Expand Inspector Panel' : 'Collapse Inspector Panel';
+      inspectorToggle.setAttribute('aria-expanded', String(!collapsed));
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 190);
+    });
+  })();
+</script>
+
+<script type="module" src="/static/viewer.js?v=872"></script>
+</body>
+</html>

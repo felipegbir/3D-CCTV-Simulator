@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const source=fs.readFileSync(new URL('../static/viewer.js',import.meta.url),'utf8');
+const start=source.indexOf('function getWallColumns(count, selection)');
+const end=source.indexOf('function applyVideoWallGridLayout',start);
+assert.ok(start>=0 && end>start,'Video Wall layout functions were not found');
+const sandbox={Math};
+vm.runInNewContext(`${source.slice(start,end)}\nthis.getWallColumns=getWallColumns;this.getVideoWallLayout=getVideoWallLayout;`,sandbox);
+for(const [count,expected] of [[1,1],[2,2],[4,2],[5,3],[9,3],[10,4],[16,4],[17,5]]) assert.equal(sandbox.getWallColumns(count,'auto'),expected);
+assert.deepEqual(JSON.parse(JSON.stringify(sandbox.getVideoWallLayout(2,'2'))),{columns:2,rows:2,capacity:4});
+assert.deepEqual(JSON.parse(JSON.stringify(sandbox.getVideoWallLayout(2,'3'))),{columns:3,rows:3,capacity:9});
+assert.deepEqual(JSON.parse(JSON.stringify(sandbox.getVideoWallLayout(5,'auto'))),{columns:3,rows:2,capacity:5});
+assert.equal(sandbox.getVideoWallLayout(12,'4').capacity,16);
+console.log('8e.7 true-grid Video Wall runtime tests passed');

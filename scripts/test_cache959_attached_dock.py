@@ -13,12 +13,12 @@ for marker in (
     '#sceneFrame {\n      flex: 1 1 auto;',
     'border-radius: 0;',
     'box-shadow: none;',
-    '/static/viewer.js?v=959',
+    '/static/viewer.js?v=960',
 ): assert marker in HTML, marker
 for marker in (
     "body.style.display = 'flex';",
     'const sensorAspect = (Number(cameraItem.data?.resolutionWidth) || 1920)',
-    'let bodyWidth = maxWidth, bodyHeight = bodyWidth / sensorAspect;',
+    'const frameAspect = 320 / 240;',
     '.video-wall-render-pane{position:relative;flex:1 1 100%;width:100%;',
 ): assert marker in JS, marker
 assert 'baseWidth + 360' not in JS

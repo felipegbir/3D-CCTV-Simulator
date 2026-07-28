@@ -2762,12 +2762,17 @@ function openCameraViewport(cameraItem) {
       } else if (isMaximized) {
 
         const containerRect = container.getBoundingClientRect();
+        const frameAspect = 320 / 240;
+        let frameWidth = Math.max(320, Math.floor(containerRect.width * 0.68));
+        let frameHeight = frameWidth / frameAspect;
+        const maximumHeight = Math.max(240, Math.floor(containerRect.height * 0.68));
+        if (frameHeight > maximumHeight) {
+          frameHeight = maximumHeight;
+          frameWidth = frameHeight * frameAspect;
+        }
 
-        viewport.style.width =
-          `${Math.floor(containerRect.width * 0.68)}px`;
-
-        viewport.style.height =
-          `${Math.floor(containerRect.height * 0.68)}px`;
+        viewport.style.width = `${Math.floor(frameWidth)}px`;
+        viewport.style.height = `${Math.floor(frameHeight)}px`;
 
       } else {
 
@@ -2863,16 +2868,18 @@ function openCameraViewport(cameraItem) {
       normalViewportState.top = viewport.style.top;
 
       const containerRect = container.getBoundingClientRect();
-      const sensorAspect = (Number(cameraItem.data?.resolutionWidth) || 1920) / (Number(cameraItem.data?.resolutionHeight) || 1080);
-      const headerHeight = Math.max(24, header.getBoundingClientRect().height);
-      const maxWidth = Math.max(320, Math.floor(containerRect.width * 0.68));
-      const maxBodyHeight = Math.max(180, Math.floor(containerRect.height * 0.68) - headerHeight);
-      let bodyWidth = maxWidth, bodyHeight = bodyWidth / sensorAspect;
-      if (bodyHeight > maxBodyHeight) { bodyHeight = maxBodyHeight; bodyWidth = bodyHeight * sensorAspect; }
+      const frameAspect = 320 / 240;
+      let frameWidth = Math.max(320, Math.floor(containerRect.width * 0.68));
+      let frameHeight = frameWidth / frameAspect;
+      const maximumHeight = Math.max(240, Math.floor(containerRect.height * 0.68));
+      if (frameHeight > maximumHeight) {
+        frameHeight = maximumHeight;
+        frameWidth = frameHeight * frameAspect;
+      }
       viewport.style.left = '24px';
       viewport.style.top = '24px';
-      viewport.style.width = `${Math.floor(bodyWidth)}px`;
-      viewport.style.height = `${Math.floor(bodyHeight + headerHeight)}px`;
+      viewport.style.width = `${Math.floor(frameWidth)}px`;
+      viewport.style.height = `${Math.floor(frameHeight)}px`;
       requestAnimationFrame(resizeCameraViewportRenderer);
 
       maximizeBtn.textContent = '❐';

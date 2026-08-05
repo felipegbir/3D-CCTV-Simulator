@@ -400,3 +400,8 @@ Server rollback: `/home/vmuser/nomad-cctv-simulator/deploy_backups/pre_8e_7_3_20
 Client-side validation returned HTTP 200 for the application root, versioned viewer module, and HTML user guide. Live content confirms version 8e.7.3, cache key 873, explicit camera-ID restoration, centralized VFOV calculation, safe report-view planning, and the updated guide. Local and deployed SHA-256 hashes match exactly for `viewer.js`, `index.html`, and `user-guide.html`.
 
 The complete Python regression suite, runtime modules (including execution of the actual ID/VFOV helpers), static audit, JavaScript syntax check, and backend compile all pass. Optional in-app visual automation could not launch because the Windows mapped-drive sandbox returned `CreateProcessWithLogonW 267`; owner visual/report QA remains required.
+### 8e.7.4 PTZ preset recall hotfix — deployment pending
+
+Manual PTZ movement correctly invalidates the active preset, but reopening the Presets panel then cleared the preset-list selection. Recall consequently became a silent no-op even when saved presets existed. The panel now preserves the prior selection, otherwise selects the active preset or first available preset, and Recall uses the same deterministic fallback while reporting an explicit empty-state message.
+
+Recall also snapshots and normalizes the selected target before scheduling animation so refreshes or metadata edits cannot mutate an in-flight destination. A runtime regression executes the production normalization, scheduling, interpolation, final PTZ/optical/depth/root-transform state, palette restoration, active-preset assignment, and ROI hide/restore lifecycle.

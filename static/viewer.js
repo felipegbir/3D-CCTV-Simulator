@@ -24,7 +24,7 @@ let videoWallOrder = ['scene'];
 let videoWallPresetPanelPercent = 20;
 let selectedVideoWallTileIndex = 0;
 let selectedPopupVideoWallTileIndex = 0;
-const APP_VERSION = '8e.7.3';
+const APP_VERSION = '8e.7.4';
 const PROJECT_SCHEMA_VERSION = 7;
 let projectDownloadExtension = 'nmd';
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
@@ -1707,22 +1707,24 @@ function calculatePtzRecallDurationMs(angularTravel, speed, opticalTravel = 0) {
 
 function recallPtzPreset(cameraItem, preset) {
   if (!cameraItem || !preset) return;
+  const targetPreset = normalizePtzPreset(preset);
+  targetPreset.id = preset.id;
   cancelCameraPresetAnimation(cameraItem);
   const startPan = Number(cameraItem.data.pan) || 0;
   const startTilt = Number(cameraItem.data.tilt) || 0;
   const startRoll = Number(cameraItem.data.roll) || 0;
   const angularTravel = Math.max(
-    Math.abs(shortestAngleDelta(startPan, preset.pan)),
-    Math.abs(preset.tilt - startTilt),
-    Math.abs(shortestAngleDelta(startRoll, preset.roll))
+    Math.abs(shortestAngleDelta(startPan, targetPreset.pan)),
+    Math.abs(targetPreset.tilt - startTilt),
+    Math.abs(shortestAngleDelta(startRoll, targetPreset.roll))
   );
   const speed = THREE.MathUtils.clamp(Number(preferences.ptzPresetSpeed) || 10, 1, 60);
-  const durationMs = calculatePtzRecallDurationMs(angularTravel, speed, Math.abs((preset.zoom || 1) - (cameraItem.data.zoom || 1)));
+  const durationMs = calculatePtzRecallDurationMs(angularTravel, speed, Math.abs(targetPreset.zoom - (Number(cameraItem.data.zoom) || 1)));
   cameraItem.data.activePtzPresetId = null;
   refreshPresetRoiOverlays(cameraItem);
   activePtzPresetAnimations.set(cameraItem.id, {
     cameraItem,
-    preset,
+    preset: targetPreset,
     startedAt: performance.now(),
     durationMs,
     start: {
@@ -1737,7 +1739,7 @@ function recallPtzPreset(cameraItem, preset) {
       quaternion: cameraItem.object.quaternion.clone()
     }
   });
-  if (ptzPresetPanel) ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `Recalling ${preset.name} at ${speed.toFixed(0)}°/s (${formatMetric(durationMs / 1000)} s)…`;
+  if (ptzPresetPanel) ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `Recalling ${targetPreset.name} at ${speed.toFixed(0)}°/s (${formatMetric(durationMs / 1000)} s)…`;
 }
 
 function updatePtzPresetAnimations(now) {
@@ -1887,7 +1889,13 @@ function ensurePtzPresetPanel() {
     if (!action || !activePresetCamera) return;
     const preset = selectedPreset();
     if (action === 'recall') {
-      if (preset) recallPtzPreset(activePresetCamera, preset);
+      const recallTarget = preset || ensureCameraPtzPresets(activePresetCamera).find(entry => entry.id === activePresetCamera.data?.activePtzPresetId) || ensureCameraPtzPresets(activePresetCamera)[0];
+      if (recallTarget) {
+        list.value = recallTarget.id;
+        recallPtzPreset(activePresetCamera, recallTarget);
+      } else {
+        ptzPresetPanel.querySelector('.ptz-preset-status').textContent = 'No PTZ presets are available to recall.';
+      }
       return;
     }
     const nameField = ptzPresetPanel.querySelector('.ptz-preset-name');
@@ -2001,7 +2009,9 @@ function openPtzPresetPanel(cameraItem, viewportElement = null) {
   speed.value = String(preferences.ptzPresetSpeed);
   panel.querySelector('.ptz-preset-speed-value').textContent = `${Number(preferences.ptzPresetSpeed).toFixed(0)}°/s`;
   panel.querySelector('.ptz-preset-status').textContent = '';
-  panel.refresh(cameraItem.data?.activePtzPresetId || undefined, { clearSelection: !cameraItem.data?.activePtzPresetId });
+  const previousSelection = panel.querySelector('.ptz-preset-list')?.value;
+  const initialPresetId = cameraItem.data?.activePtzPresetId || previousSelection || ensureCameraPtzPresets(cameraItem)[0]?.id;
+  panel.refresh(initialPresetId);
   panel.classList.remove('hidden');
 }
 

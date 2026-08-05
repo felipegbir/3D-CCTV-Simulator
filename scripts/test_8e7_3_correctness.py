@@ -1,4 +1,4 @@
-"""8e.7.3 camera identity, optical geometry, and report-view regression guard."""
+"""8e.7.4 camera identity, optical geometry, and report-view regression guard."""
 
 import math
 from pathlib import Path
@@ -8,15 +8,15 @@ JS = (ROOT / "static" / "viewer.js").read_text(encoding="utf-8")
 HTML = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
 GUIDE = (ROOT / "static" / "user-guide.html").read_text(encoding="utf-8")
 
-assert "const APP_VERSION = '8e.7.3';" in JS
+assert "const APP_VERSION = '8e.7.4';" in JS
 for marker in (
-    "N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.3",
-    'id="appVersionLabel">8e.7.3',
-    'id="menuVersionLabel">8e.7.3',
-    "/static/viewer.js?v=873",
+    "N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.4",
+    'id="appVersionLabel">8e.7.4',
+    'id="menuVersionLabel">8e.7.4',
+    "/static/viewer.js?v=874",
 ):
     assert marker in HTML, marker
-assert "Version 8e.7.3" in GUIDE
+assert "Version 8e.7.4" in GUIDE
 
 create_start = JS.index("function createCameraObject")
 create_end = JS.index("// Load model", create_start)
@@ -72,4 +72,4 @@ for marker in (
 assert "target.clone().sub(offset)" not in JS
 assert "Overview, opposite-side, and camera-context viewpoints are kept above the grid" in GUIDE
 
-print("8e.7.3 camera identity, optical geometry, and report-view guard passed")
+print("8e.7.4 camera identity, optical geometry, and report-view guard passed")

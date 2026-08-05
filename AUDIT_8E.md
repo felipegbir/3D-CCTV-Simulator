@@ -391,3 +391,12 @@ The Hitachi Engineering comparison repository was not yet available, so the thre
 VFOV is derived centrally as `2 * atan(tan(HFOV / 2) / (resolutionWidth / resolutionHeight))`. The same derived VFOV and actual sensor aspect drive the Three.js render camera, footprint height, vertical density, preset analysis, and ROI analysis. Saved derived preset/ROI metrics are refreshed during project load.
 
 Report overviews and camera-context captures now use scene bounds, clamp targets and camera positions above the grid/floor, and generate the opposite view by reversing only the horizontal orbit offset. Preset report cameras inherit the sensor aspect and continue to composite saved ROI overlays. Docker Compose, PostgreSQL, React, and Hitachi report changes remain deferred until repository access is available for a controlled comparison.
+## Deployment evidence
+
+Deployed 2026-08-05 to `192.168.2.208:/home/vmuser/nomad-cctv-simulator`. The identity-verified 8e.7.2 CCTV PID `176994` was stopped and replaced by 8e.7.3 PID `1878319` on port 5010. Independent application PIDs `1458`, `2912`, and `2733584` remained running and were not restarted.
+
+Server rollback: `/home/vmuser/nomad-cctv-simulator/deploy_backups/pre_8e_7_3_20260805_132721`.
+
+Client-side validation returned HTTP 200 for the application root, versioned viewer module, and HTML user guide. Live content confirms version 8e.7.3, cache key 873, explicit camera-ID restoration, centralized VFOV calculation, safe report-view planning, and the updated guide. Local and deployed SHA-256 hashes match exactly for `viewer.js`, `index.html`, and `user-guide.html`.
+
+The complete Python regression suite, runtime modules (including execution of the actual ID/VFOV helpers), static audit, JavaScript syntax check, and backend compile all pass. Optional in-app visual automation could not launch because the Windows mapped-drive sandbox returned `CreateProcessWithLogonW 267`; owner visual/report QA remains required.

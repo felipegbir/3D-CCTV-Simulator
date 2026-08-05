@@ -24,7 +24,7 @@ let videoWallOrder = ['scene'];
 let videoWallPresetPanelPercent = 20;
 let selectedVideoWallTileIndex = 0;
 let selectedPopupVideoWallTileIndex = 0;
-const APP_VERSION = '8e.7.2';
+const APP_VERSION = '8e.7.3';
 const PROJECT_SCHEMA_VERSION = 7;
 let projectDownloadExtension = 'nmd';
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
@@ -1067,6 +1067,36 @@ function alignObjectToGround(object) {
   object.position.y -= minY;
 }
 
+function getCameraSensorResolution(cameraData = {}, overrides = {}) {
+  const width = Number(overrides.resolutionWidth ?? cameraData.resolutionWidth);
+  const height = Number(overrides.resolutionHeight ?? cameraData.resolutionHeight);
+  return {
+    width: Number.isFinite(width) && width > 0 ? width : 1920,
+    height: Number.isFinite(height) && height > 0 ? height : 1080
+  };
+}
+
+function computeVerticalFovDegrees(horizontalFovDegrees, resolutionWidth, resolutionHeight) {
+  const horizontalFov = THREE.MathUtils.clamp(Number(horizontalFovDegrees) || 90, 0.01, 179);
+  const width = Number(resolutionWidth);
+  const height = Number(resolutionHeight);
+  const aspect = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
+    ? width / height
+    : 16 / 9;
+  return THREE.MathUtils.radToDeg(
+    2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(horizontalFov) / 2) / aspect)
+  );
+}
+
+function refreshDerivedCameraFov(cameraData, overrides = {}) {
+  if (!cameraData) return computeVerticalFovDegrees(90, 1920, 1080);
+  const { width, height } = getCameraSensorResolution(cameraData, overrides);
+  const horizontalFov = Number(overrides.hfov ?? cameraData.hfov) || 90;
+  const verticalFov = computeVerticalFovDegrees(horizontalFov, width, height);
+  cameraData.vfov = verticalFov;
+  return verticalFov;
+}
+
 function updateCameraProjection(cameraItem) {
   if (!cameraItem || cameraItem.type !== 'camera') return;
 
@@ -1076,22 +1106,29 @@ function updateCameraProjection(cameraItem) {
     cameraItem.object.userData.projectionDistance ||
     20;
 
-  if (!projectionCone) return;
-
   const currentHfov = Number.parseFloat(cameraItem.data?.hfov) || 90;
+  const { width: resolutionWidth, height: resolutionHeight } = getCameraSensorResolution(cameraItem.data);
+  const currentVfov = refreshDerivedCameraFov(cameraItem.data, {
+    hfov: currentHfov,
+    resolutionWidth,
+    resolutionHeight
+  });
   const radius = Math.tan((currentHfov / 2) * Math.PI / 180) * projectionDistance;
 
-  projectionCone.geometry.dispose();
-  projectionCone.geometry = new THREE.ConeGeometry(radius, projectionDistance, 32, 1, true);
-  projectionCone.rotation.x = Math.PI / 2;
-  projectionCone.position.set(0, 0, -projectionDistance / 2);
+  if (projectionCone) {
+    projectionCone.geometry.dispose();
+    projectionCone.geometry = new THREE.ConeGeometry(radius, projectionDistance, 32, 1, true);
+    projectionCone.rotation.x = Math.PI / 2;
+    projectionCone.position.set(0, 0, -projectionDistance / 2);
+  }
 
   cameraItem.object.userData.projectionDistance = projectionDistance;
   cameraItem.object.userData.baseHfov = currentHfov;
 
   const renderCamera = cameraItem.object.userData.renderCamera;
   if (renderCamera) {
-    renderCamera.fov = currentHfov;
+    renderCamera.fov = currentVfov;
+    renderCamera.aspect = resolutionWidth / resolutionHeight;
     renderCamera.far = Math.max(renderCamera.near + 0.01, projectionDistance);
     renderCamera.updateProjectionMatrix();
   }
@@ -1461,11 +1498,12 @@ function formatPresetRoiAnalysis(roi){if(!roi)return 'Selected ROI: none';const 
 function calculatePresetAnalysis(cameraItem, roi = {}, state = {}) {
   const depth = Math.max(0.02, Number(state.projectionDistance ?? cameraItem.data?.projectionDistance) || 20);
   const hfov = Number(state.hfov ?? cameraItem.data?.hfov) || 90;
-  const vfov = Number(state.vfov ?? cameraItem.data?.vfov) || hfov * 9 / 16;
+  const { width: resolutionWidth, height: resolutionHeight } = getCameraSensorResolution(cameraItem.data, state);
+  const vfov = computeVerticalFovDegrees(hfov, resolutionWidth, resolutionHeight);
+  if (cameraItem.data && state.hfov === undefined) cameraItem.data.vfov = vfov;
   const width = 2 * depth * Math.tan(THREE.MathUtils.degToRad(hfov / 2));
   const height = 2 * depth * Math.tan(THREE.MathUtils.degToRad(vfov / 2));
-  const resolutionWidth = Number(cameraItem.data?.resolutionWidth) || 1920;
-  const resolutionHeight = Number(cameraItem.data?.resolutionHeight) || 1080;
+
   const horizontalPixelDensity = width > 0 ? resolutionWidth / width : 0;
   const verticalPixelDensity = height > 0 ? resolutionHeight / height : 0;
   const roiWidth = Number(roi.width) || null;
@@ -1597,6 +1635,12 @@ function refreshCameraPresetDerivedData(cameraItem) {
     preset.analysis = calculatePresetAnalysis(cameraItem, preset.roi, {
       projectionDistance: preset.projectionDistance,
       hfov: preset.hfov
+    });
+    (preset.rois || []).forEach(roi => {
+      roi.metrics = calculatePolygonRoiMetrics(cameraItem, roi, {
+        projectionDistance: roi.projectionDistance || preset.projectionDistance,
+        hfov: preset.hfov
+      });
     });
   });
   if (ptzPresetPanel && activePresetCamera?.id === cameraItem.id && !ptzPresetPanel.classList.contains('hidden')) {
@@ -3004,7 +3048,7 @@ function buildGenericCameraData() {
     hfovWide: 120,
     hfovTele: 2,
     hfov: 120,
-    vfov: 67.5,
+    vfov: computeVerticalFovDegrees(120, 3840, 2160),
     pan: 0,
     tilt: 0,
     zoom: 1,
@@ -3076,7 +3120,7 @@ function buildCameraDataFromRecord(record) {
     hfovWide,
     hfovTele,
     hfov: hfovWide,
-    vfov: 50,
+    vfov: computeVerticalFovDegrees(hfovWide, toNumberOrDefault(record?.resolution_width, 1920), toNumberOrDefault(record?.resolution_height, 1080)),
     pan: 0,
     tilt: 0,
     zoom: 1,
@@ -3096,7 +3140,57 @@ function buildCameraDataFromRecord(record) {
 // Add default camera
 // createCameraObject('Camera 001', new THREE.Vector3(0, 2, 0));
 
-function createCameraObject(name, position = new THREE.Vector3(0, 2, 0)) {
+function registerCameraId(cameraId) {
+  const match = /^camera-(\d+)$/i.exec(String(cameraId || '').trim());
+  if (!match) return;
+  const numericId = Number.parseInt(match[1], 10);
+  if (Number.isFinite(numericId)) cameraCounter = Math.max(cameraCounter, numericId + 1);
+}
+
+function getNextAvailableCameraId(reservedIds = new Set()) {
+  let id;
+  do {
+    id = `camera-${String(cameraCounter).padStart(3, '0')}`;
+    cameraCounter += 1;
+  } while (
+    sceneObjects.some(item => item.id === id) ||
+    reservedIds.has(id)
+  );
+  return id;
+}
+
+function resolveCameraObjectId(explicitId = null, reservedIds = new Set()) {
+  const requestedId = typeof explicitId === 'string' ? explicitId.trim() : '';
+  if (!requestedId) return getNextAvailableCameraId(reservedIds);
+  if (sceneObjects.some(item => item.id === requestedId) || reservedIds.has(requestedId)) {
+    throw new Error(`Camera ID collision: ${requestedId}`);
+  }
+  registerCameraId(requestedId);
+  return requestedId;
+}
+
+function resolveLoadedCameraId(rawId, claimedIds, cameraIndex, warnings) {
+  const requestedId = typeof rawId === 'string' ? rawId.trim() : '';
+  let restoredId = requestedId;
+  let reason = '';
+  if (!requestedId) {
+    reason = 'missing camera ID';
+  } else if (claimedIds.has(requestedId)) {
+    reason = `duplicate camera ID "${requestedId}"`;
+  } else if (sceneObjects.some(item => item.id === requestedId && item.type !== 'camera')) {
+    reason = `camera ID "${requestedId}" conflicts with a non-camera object`;
+  }
+  if (reason) {
+    restoredId = getNextAvailableCameraId(claimedIds);
+    warnings.push(`Camera ${cameraIndex + 1}: ${reason}; restored as "${restoredId}".`);
+  }
+  claimedIds.add(restoredId);
+  registerCameraId(restoredId);
+  return restoredId;
+}
+
+function createCameraObject(name, position = new THREE.Vector3(0, 2, 0), explicitId = null) {
+  const id = resolveCameraObjectId(explicitId);
   const cameraRoot = new THREE.Group();
   cameraRoot.position.copy(position);
 
@@ -3142,9 +3236,11 @@ function createCameraObject(name, position = new THREE.Vector3(0, 2, 0)) {
   projectionCone.position.set(0, 0, -projectionDistance / 2);
   rollPivot.add(projectionCone);
 
+  const { width: resolutionWidth, height: resolutionHeight } = getCameraSensorResolution(cameraData);
+  const vfov = refreshDerivedCameraFov(cameraData, { hfov, resolutionWidth, resolutionHeight });
   const renderCamera = new THREE.PerspectiveCamera(
-    hfov,
-    16 / 9,
+    vfov,
+    resolutionWidth / resolutionHeight,
     0.01,
     Math.max(0.02, projectionDistance)
   );
@@ -3177,7 +3273,6 @@ function createCameraObject(name, position = new THREE.Vector3(0, 2, 0)) {
   cameraData.tilt = 0;
   cameraData.roll = 0;
 
-  const id = `camera-${String(cameraCounter).padStart(3, '0')}`;
 
   addSceneObject({
     id,
@@ -3188,8 +3283,6 @@ function createCameraObject(name, position = new THREE.Vector3(0, 2, 0)) {
   });
 
   applyCameraPtzRig(sceneObjects[sceneObjects.length - 1]);
-
-  cameraCounter += 1;
 
   selectObject(id);
 
@@ -3452,8 +3545,121 @@ document.getElementById('exportProject')?.addEventListener('click', () => { proj
 document.getElementById('uploadProject')?.addEventListener('click', () => loadProjectFile.click());
 function openReportConfiguration(){document.querySelector('.report-config-backdrop')?.remove();const backdrop=document.createElement('div');backdrop.className='report-config-backdrop';backdrop.innerHTML=`<div class="report-config-dialog"><div class="report-config-title"><strong>Report Configuration</strong><button data-close aria-label="Close">x</button></div><div class="report-config-body"><details open><summary>Project Identity</summary><div class="report-config-grid"><label>Company<input data-key="companyName"></label><label>Website<input data-key="website"></label><label>Project title<input data-key="projectTitle"></label><label>Client<input data-key="client"></label><label>Location<input data-key="location"></label><label>Subject<input data-key="subject"></label><label>Prepared by<input data-key="preparedBy"></label><label>Version<input data-key="versionNumber"></label></div></details><details><summary>Report Contents</summary><div class="report-config-checks"><label><input type="checkbox" data-key="includeTitlePage">Title page</label><label><input type="checkbox" data-key="includeDescription">Project description</label><label><input type="checkbox" data-key="includeSceneOverview">Scene overview</label><label><input type="checkbox" data-key="includeOppositeView">Opposite-side context view</label><label><input type="checkbox" data-key="includeCameraContext">Camera location/context views</label><label><input type="checkbox" data-key="includeBom">Camera BOM</label><label><input type="checkbox" data-key="includePresets">PTZ preset pages</label><label><input type="checkbox" data-key="includeRois">ROI and pixel-density analysis</label><label><input type="checkbox" data-key="showCameraModels">Show camera models in context</label></div></details><details><summary>Page and Image Output</summary><div class="report-config-grid"><label>Page size<select data-key="pageSize"><option value="letter">Letter</option><option value="a4">A4</option></select></label><label>Orientation<select data-key="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label><label>Watermark<input data-key="watermark"></label><label>Image quality <output class="quality-value"></output><input type="range" min="40" max="100" data-key="imageQuality"></label></div></details><details><summary>Description and Notes</summary><textarea data-key="description" rows="8"></textarea></details></div><div class="report-config-actions"><button data-close>Cancel</button><button data-save>Save Settings</button><button data-generate>Generate Report</button></div></div>`;document.body.appendChild(backdrop);const style=document.createElement('style');style.textContent=`.report-config-backdrop{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.64);display:grid;place-items:center}.report-config-dialog{width:min(760px,92vw);max-height:90vh;display:flex;flex-direction:column;background:var(--panel-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;box-shadow:0 18px 50px rgba(0,0,0,.65);font:13px Arial,sans-serif}.report-config-title{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--panel-title-bg);font-size:16px}.report-config-body{padding:10px;overflow:auto}.report-config-body details{margin-bottom:8px}.report-config-body summary{padding:8px;background:var(--section-bg);font-weight:bold;cursor:pointer}.report-config-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:9px}.report-config-grid label,.report-config-body textarea{display:flex;flex-direction:column;gap:4px}.report-config-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px}.report-config-dialog input,.report-config-dialog select,.report-config-dialog textarea{background:var(--control-bg);color:var(--text);border:1px solid var(--border);padding:6px;box-sizing:border-box}.report-config-body textarea{width:100%;resize:vertical}.report-config-actions{display:flex;justify-content:flex-end;gap:8px;padding:10px;border-top:1px solid var(--border)}.report-config-actions button,.report-config-title button{background:var(--control-bg);color:var(--text);border:1px solid var(--border);padding:6px 12px;border-radius:4px}@media(max-width:650px){.report-config-grid,.report-config-checks{grid-template-columns:1fr}}`;backdrop.appendChild(style);backdrop.querySelectorAll('[data-key]').forEach(field=>{const key=field.dataset.key;if(field.type==='checkbox')field.checked=Boolean(reportSettingsState[key]);else field.value=reportSettingsState[key]??''});const quality=backdrop.querySelector('[data-key="imageQuality"]'),qualityValue=backdrop.querySelector('.quality-value');const syncQuality=()=>qualityValue.textContent=`${quality.value}%`;quality.addEventListener('input',syncQuality);syncQuality();const save=()=>{backdrop.querySelectorAll('[data-key]').forEach(field=>{reportSettingsState[field.dataset.key]=field.type==='checkbox'?field.checked:(field.type==='range'?Number(field.value):field.value)})};backdrop.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>backdrop.remove()));backdrop.querySelector('[data-save]').addEventListener('click',()=>{save();backdrop.remove()});backdrop.querySelector('[data-generate]').addEventListener('click',()=>{save();backdrop.remove();generateNomadReport()})}
 function editReportSettings(){openReportConfiguration()}
-function captureReportSceneViews(){const savedPosition=viewerCamera.position.clone(),savedQuaternion=viewerCamera.quaternion.clone(),target=orbitControls.target.clone();const capture=()=>{renderer.render(scene,viewerCamera);try{return renderer.domElement.toDataURL('image/jpeg',Math.min(1,Math.max(.4,Number(reportSettingsState.imageQuality||85)/100)))}catch{return''}};const primary=capture();const offset=savedPosition.clone().sub(target);viewerCamera.position.copy(target.clone().sub(offset));viewerCamera.lookAt(target);viewerCamera.updateMatrixWorld(true);const opposite=capture();viewerCamera.position.copy(savedPosition);viewerCamera.quaternion.copy(savedQuaternion);viewerCamera.updateMatrixWorld(true);renderer.render(scene,viewerCamera);return{primary,opposite}}
-function captureReportCameraContexts(cameras){const images=new Map(),savedPosition=viewerCamera.position.clone(),savedQuaternion=viewerCamera.quaternion.clone(),savedTarget=orbitControls.target.clone();for(const cameraItem of cameras){const cameraPosition=cameraItem.object.getWorldPosition(new THREE.Vector3()),preset=ensureCameraPtzPresets(cameraItem)[0],point=preset?.depthTarget?.point;let target=point?new THREE.Vector3(Number(point.x)||0,Number(point.y)||0,Number(point.z)||0):cameraPosition.clone().add(new THREE.Vector3(0,0,-Math.max(2,Number(cameraItem.data?.projectionDistance)||10)));const midpoint=cameraPosition.clone().lerp(target,.5),span=Math.max(2,cameraPosition.distanceTo(target));let side=new THREE.Vector3().subVectors(target,cameraPosition).cross(new THREE.Vector3(0,1,0));if(side.lengthSq()<.001)side.set(1,0,0);side.normalize();viewerCamera.position.copy(midpoint).addScaledVector(side,span*.85).add(new THREE.Vector3(0,span*.35,0));viewerCamera.lookAt(midpoint);viewerCamera.updateMatrixWorld(true);renderer.render(scene,viewerCamera);try{images.set(cameraItem.id,renderer.domElement.toDataURL('image/jpeg',Math.min(1,Math.max(.4,Number(reportSettingsState.imageQuality||85)/100))))}catch{images.set(cameraItem.id,'')}}viewerCamera.position.copy(savedPosition);viewerCamera.quaternion.copy(savedQuaternion);orbitControls.target.copy(savedTarget);viewerCamera.updateMatrixWorld(true);renderer.render(scene,viewerCamera);return images}
+function getReportSceneBounds() {
+  const bounds = new THREE.Box3();
+  let hasContent = false;
+  sceneObjects.forEach(item => {
+    if (!item?.object || item.object.visible === false) return;
+    const itemBounds = new THREE.Box3().setFromObject(item.object);
+    if (itemBounds.isEmpty()) return;
+    const coordinates = [...itemBounds.min.toArray(), ...itemBounds.max.toArray()];
+    if (!coordinates.every(Number.isFinite)) return;
+    bounds.union(itemBounds);
+    hasContent = true;
+  });
+  if (!hasContent) bounds.set(new THREE.Vector3(-5, 0, -5), new THREE.Vector3(5, 5, 5));
+  return bounds;
+}
+
+function clampReportTargetAboveFloor(target, bounds) {
+  const floorY = Math.max(0, Number.isFinite(bounds.min.y) ? bounds.min.y : 0);
+  const safeTarget = target.clone();
+  safeTarget.y = Math.max(safeTarget.y, floorY);
+  return safeTarget;
+}
+
+function ensureAboveGroundReportPosition(position, target, bounds) {
+  const floorY = Math.max(0, Number.isFinite(bounds.min.y) ? bounds.min.y : 0);
+  const sceneHeight = Math.max(1, Number.isFinite(bounds.max.y - bounds.min.y) ? bounds.max.y - bounds.min.y : 1);
+  const clearance = Math.max(1, sceneHeight * 0.12);
+  const safePosition = position.clone();
+  safePosition.y = Math.max(safePosition.y, floorY + clearance, target.y + clearance);
+  return safePosition;
+}
+
+function captureReportJpeg() {
+  renderer.render(scene, viewerCamera);
+  try {
+    const quality = Math.min(1, Math.max(.4, Number(reportSettingsState.imageQuality || 85) / 100));
+    return renderer.domElement.toDataURL('image/jpeg', quality);
+  } catch {
+    return '';
+  }
+}
+
+function captureReportSceneViews() {
+  const savedPosition = viewerCamera.position.clone();
+  const savedQuaternion = viewerCamera.quaternion.clone();
+  const savedTarget = orbitControls.target.clone();
+  const bounds = getReportSceneBounds();
+  const target = clampReportTargetAboveFloor(savedTarget, bounds);
+  const primaryPosition = ensureAboveGroundReportPosition(savedPosition, target, bounds);
+
+  viewerCamera.position.copy(primaryPosition);
+  viewerCamera.lookAt(target);
+  viewerCamera.updateMatrixWorld(true);
+  const primary = captureReportJpeg();
+
+  const horizontalOffset = primaryPosition.clone().sub(target);
+  horizontalOffset.y = 0;
+  if (horizontalOffset.lengthSq() < 0.001) {
+    const sceneSpan = Math.max(5, bounds.getSize(new THREE.Vector3()).length());
+    horizontalOffset.set(sceneSpan, 0, sceneSpan);
+  }
+  const oppositePosition = target.clone().sub(horizontalOffset);
+  oppositePosition.y = primaryPosition.y;
+  viewerCamera.position.copy(ensureAboveGroundReportPosition(oppositePosition, target, bounds));
+  viewerCamera.lookAt(target);
+  viewerCamera.updateMatrixWorld(true);
+  const opposite = captureReportJpeg();
+
+  viewerCamera.position.copy(savedPosition);
+  viewerCamera.quaternion.copy(savedQuaternion);
+  orbitControls.target.copy(savedTarget);
+  viewerCamera.updateMatrixWorld(true);
+  renderer.render(scene, viewerCamera);
+  return { primary, opposite };
+}
+function captureReportCameraContexts(cameras) {
+  const images = new Map();
+  const savedPosition = viewerCamera.position.clone();
+  const savedQuaternion = viewerCamera.quaternion.clone();
+  const savedTarget = orbitControls.target.clone();
+  const bounds = getReportSceneBounds();
+
+  for (const cameraItem of cameras) {
+    const cameraPosition = cameraItem.object.getWorldPosition(new THREE.Vector3());
+    const preset = ensureCameraPtzPresets(cameraItem)[0];
+    const point = preset?.depthTarget?.point;
+    const rawTarget = point
+      ? new THREE.Vector3(Number(point.x) || 0, Number(point.y) || 0, Number(point.z) || 0)
+      : cameraPosition.clone().add(new THREE.Vector3(0, 0, -Math.max(2, Number(cameraItem.data?.projectionDistance) || 10)));
+    const target = clampReportTargetAboveFloor(rawTarget, bounds);
+    const midpoint = cameraPosition.clone().lerp(target, .5);
+    const span = Math.max(2, cameraPosition.distanceTo(target));
+    let side = new THREE.Vector3().subVectors(target, cameraPosition).cross(new THREE.Vector3(0, 1, 0));
+    if (side.lengthSq() < .001) side.set(1, 0, 0);
+    side.normalize();
+    const candidate = midpoint.clone().addScaledVector(side, span * 1.05).add(new THREE.Vector3(0, span * .45, 0));
+    viewerCamera.position.copy(ensureAboveGroundReportPosition(candidate, midpoint, bounds));
+    viewerCamera.lookAt(midpoint);
+    viewerCamera.updateMatrixWorld(true);
+    renderer.render(scene, viewerCamera);
+    try {
+      const quality = Math.min(1, Math.max(.4, Number(reportSettingsState.imageQuality || 85) / 100));
+      images.set(cameraItem.id, renderer.domElement.toDataURL('image/jpeg', quality));
+    } catch {
+      images.set(cameraItem.id, '');
+    }
+  }
+
+  viewerCamera.position.copy(savedPosition);
+  viewerCamera.quaternion.copy(savedQuaternion);
+  orbitControls.target.copy(savedTarget);
+  viewerCamera.updateMatrixWorld(true);
+  renderer.render(scene, viewerCamera);
+  return images;
+}
 function captureReportFrameWithRois(sourceCanvas, preset, quality) {
   const output = document.createElement('canvas');
   output.width = sourceCanvas.width;
@@ -3496,7 +3702,7 @@ function captureReportPresetViews(cameras) {
       if (preset.cameraPosition) cameraItem.object.position.set(Number(preset.cameraPosition.x) || 0, Number(preset.cameraPosition.y) || 0, Number(preset.cameraPosition.z) || 0);
       if (preset.cameraRotation) cameraItem.object.rotation.set(Number(preset.cameraRotation.x) || 0, Number(preset.cameraRotation.y) || 0, Number(preset.cameraRotation.z) || 0);
       applyCameraPtzRig(cameraItem); updateCameraProjection(cameraItem); cameraItem.object.updateMatrixWorld(true);
-      const reportCamera = new THREE.PerspectiveCamera(source.fov, 16 / 9, source.near, source.far);
+      const reportCamera = new THREE.PerspectiveCamera(source.fov, source.aspect, source.near, source.far);
       reportCamera.position.copy(source.getWorldPosition(new THREE.Vector3()));
       reportCamera.quaternion.copy(source.getWorldQuaternion(new THREE.Quaternion()));
       reportCamera.zoom = source.zoom; reportCamera.updateProjectionMatrix();
@@ -4387,12 +4593,6 @@ cameraModelSelect.addEventListener('change', async () => {
 
   updateCameraProjection(item);
 
-  const renderCamera = item.object.userData.renderCamera;
-  if (renderCamera) {
-    renderCamera.fov = item.data.hfov;
-    renderCamera.far = item.data.projectionDistance;
-    renderCamera.updateProjectionMatrix();
-  }
 
   updateObjectInfoPanel();
   if (ptzPresetPanel && activePresetCamera?.id === item.id) {
@@ -4951,20 +5151,30 @@ function applyLoadedProject(project) {
 
   restoreMeasurements(project.measurements);
 
+  const claimedCameraIds = new Set();
+  const cameraIdWarnings = [];
   project.cameras.forEach((cameraData, index) => {
-    let item = sceneObjects.find(o => o.id === cameraData.id);
+    const restoredId = resolveLoadedCameraId(cameraData.id, claimedCameraIds, index, cameraIdWarnings);
+    let item = sceneObjects.find(o => o.id === restoredId && o.type === 'camera');
 
     if (!item) {
-      createCameraObject(
-        cameraData.name || `Camera ${String(index + 1).padStart(3, '0')}`,
-        new THREE.Vector3(0, 2, 0)
-      );
+      try {
+        createCameraObject(
+          cameraData.name || `Camera ${String(index + 1).padStart(3, '0')}`,
+          new THREE.Vector3(0, 2, 0),
+          restoredId
+        );
+      } catch (error) {
+        cameraIdWarnings.push(`Camera ${index + 1}: ${error.message}`);
+        return;
+      }
 
-      item = sceneObjects.find(o => o.id === cameraData.id) ||
-             sceneObjects.find(o => o.name === cameraData.name);
+      item = sceneObjects.find(o => o.id === restoredId && o.type === 'camera');
     }
 
-    if (!item || item.type !== 'camera') return;
+    if (!item) return;
+
+    item.name = cameraData.name || item.name;
 
     item.object.position.set(
       cameraData.position?.x ?? 0,
@@ -5001,6 +5211,7 @@ function applyLoadedProject(project) {
 
     applyCameraPtzRig(item);
     updateCameraProjection(item);
+    refreshCameraPresetDerivedData(item);
 
     const cone = item.object.userData.projectionCone;
     if (cone && cone.material && cameraData.color !== undefined) {
@@ -5008,6 +5219,10 @@ function applyLoadedProject(project) {
       cone.material.needsUpdate = true;
     }
   });
+
+  if (cameraIdWarnings.length) {
+    alert(`Project camera identity warnings:\n\n${cameraIdWarnings.join('\n')}\n\nThe repaired IDs will be preserved on the next save.`);
+  }
 
   renderSceneTree();
   const savedSelectedId = String(project.workspace?.selectedObjectId || '');

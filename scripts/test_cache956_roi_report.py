@@ -14,5 +14,5 @@ for marker in [
 ]:
     assert marker in js or marker in html, marker
 assert 'pixels ?' not in js
-assert '/static/viewer.js?v=872' in html
+assert '/static/viewer.js?v=873' in html
 print('cache 956 live ROI analysis, fixed camera canvas, typography, and report configuration guard passed')

@@ -405,3 +405,9 @@ The complete Python regression suite, runtime modules (including execution of th
 Manual PTZ movement correctly invalidates the active preset, but reopening the Presets panel then cleared the preset-list selection. Recall consequently became a silent no-op even when saved presets existed. The panel now preserves the prior selection, otherwise selects the active preset or first available preset, and Recall uses the same deterministic fallback while reporting an explicit empty-state message.
 
 Recall also snapshots and normalizes the selected target before scheduling animation so refreshes or metadata edits cannot mutate an in-flight destination. A runtime regression executes the production normalization, scheduling, interpolation, final PTZ/optical/depth/root-transform state, palette restoration, active-preset assignment, and ROI hide/restore lifecycle.
+
+Deployment passed on 2026-08-05. The identity-verified 8e.7.3 CCTV PID `1878319` was stopped and replaced by 8e.7.4 PID `1927694` on port 5010. Independent PIDs `1458`, `2912`, and `2733584` remained running and were not restarted.
+
+Server rollback: `/home/vmuser/nomad-cctv-simulator/deploy_backups/pre_8e_7_4_20260805182916`.
+
+The application root, `/static/viewer.js?v=874`, and `/static/user-guide.html` return successfully. Live content confirms version 8e.7.4, cache key 874, deterministic Recall fallback selection, and normalized in-flight preset snapshots. Local, staged, and deployed SHA-256 hashes match for `viewer.js`, `index.html`, and `user-guide.html`. Static audit, every Python regression, every JavaScript runtime regression, module syntax, and backend compile pass. Visual owner QA remains required.

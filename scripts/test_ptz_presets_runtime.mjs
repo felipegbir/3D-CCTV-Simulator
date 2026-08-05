@@ -143,5 +143,5 @@ assert.deepEqual(
 );
 assert.ok(rigApplications >= 2, 'Recall must apply the PTZ hierarchy during and after animation');
 assert.ok(overlayRefreshes >= 2, 'Recall must hide ROIs during movement and restore them after completion');
-console.log('8e.7.4 PTZ preset selection and recall animation runtime tests passed');
+console.log('8e.7.5 PTZ preset selection and recall animation runtime tests passed');
 

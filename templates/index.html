@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-  <title>N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.4</title>
+  <title>N.O.M.A.D. CCTV Digital Twin Simulator 8e.7.5</title>
   <style>
     :root {
       color-scheme: light;
@@ -1276,7 +1276,7 @@
 <body data-theme="dark">
 <div id="sidebar">
   <div id="appHeader">
-    <h3>N.O.M.A.D. CCTV Simulator <span class="app-version">v<span id="appVersionLabel">8e.7.4</span></span></h3>
+    <h3>N.O.M.A.D. CCTV Simulator <span class="app-version">v<span id="appVersionLabel">8e.7.5</span></span></h3>
   </div>
 
   <div id="sceneFrame" class="panel-frame">
@@ -1289,7 +1289,7 @@
   <div id="sidebarSpacer"></div>
 
   <div id="operationsFrame" class="panel-frame">
-    <div class="panel-title">N.O.M.A.D. CCTV Simulator <span class="app-version">&nbsp;v<span id="menuVersionLabel">8e.7.4</span></span></div>
+    <div class="panel-title">N.O.M.A.D. CCTV Simulator <span class="app-version">&nbsp;v<span id="menuVersionLabel">8e.7.5</span></span></div>
     <div class="panel-content">
       <div class="menu-group collapsed">
         <div class="section-title">File</div>
@@ -1304,7 +1304,7 @@
 
         <button class="menu-button" id="closeProject" type="button">Close Project</button>
         <button class="menu-button" id="saveProject">Save Project</button>
-        <button class="menu-button" id="saveAsProject" type="button" hidden>Save As</button>
+
         <button class="menu-button" id="importModel">Import Model</button>
 
         <input
@@ -1323,8 +1323,8 @@
           style="display: none;"
         >
 
-        <button class="menu-button" id="exportProject" type="button">Export JSON</button>
-        <button class="menu-button" id="uploadProject" type="button" hidden>Open Project File</button>
+        <button class="menu-button" id="exportProject" type="button" title="Download the same project data as portable JSON instead of the normal .nmd extension.">Export Project JSON</button>
+
       </div>
 
       <div class="menu-group collapsed">
@@ -1334,28 +1334,26 @@
         <button class="menu-button" id="editPaste" type="button">Paste</button>
         <button class="menu-button" id="editDelete" type="button">Delete</button>
         <button class="menu-button" id="editClone" type="button">Clone</button>
-        <button class="menu-button" id="editAdd" type="button" hidden>Add Box</button>
+
       </div>
 
       <div class="menu-group collapsed">
         <div class="section-title">View</div>
-        <button class="menu-button" id="resetView">Reset View</button>
-        <button class="menu-button" id="fitSelectedView">Fit Selected</button>
+        <button class="menu-button" id="resetView" type="button" title="Restore the standard planning camera and fit the working grid.">Reset View</button>
+        <button class="menu-button" id="fitSelectedView" type="button">Fit Selected</button>
+        <button class="menu-button" id="viewZoomIn" type="button">Zoom In</button>
+        <button class="menu-button" id="viewZoomOut" type="button">Zoom Out</button>
         <button class="menu-button" id="openVideoWall" type="button">Open Video Wall</button>
         <button class="menu-button" id="popOutVideoWall" type="button">Pop Out Video Wall</button>
-        <button class="menu-button" id="viewZoomOut" type="button">Zoom Out</button>
-        <button class="menu-button" id="viewFitGrid" type="button">Fit Grid</button>
-        <button class="menu-button" id="viewToggleGrid" type="button" hidden>Show / Hide Grid</button>
-        <button class="menu-button" id="viewToggleAxes" type="button" hidden>Show / Hide Axes</button>
       </div>
 
       <div class="menu-group collapsed">
         <div class="section-title">Object</div>
         <button class="menu-button" id="addCameraButton">Add Camera</button>
         <button class="menu-button" id="objectAdd" type="button">Add Box Object</button>
-        <button class="menu-button" id="objectDefine" type="button">Rename / Define</button>
-        <button class="menu-button" id="objectProperties" type="button">Object Properties</button>
-        <button class="menu-button" id="objectLock" type="button">Lock / Unlock</button>
+        <button class="menu-button" id="objectDefine" type="button" title="Rename the selected scene item.">Rename Selected</button>
+        <button class="menu-button" id="objectProperties" type="button" title="Open the right-side Inspector for the selected item.">Show in Inspector</button>
+        <button class="menu-button" id="objectLock" type="button" title="Prevent or allow move/rotate edits for the selected item.">Lock / Unlock Transform</button>
       </div>
 
       <div class="menu-group collapsed" id="preferencesGroup">
@@ -1778,6 +1776,6 @@
   })();
 </script>
 
-<script type="module" src="/static/viewer.js?v=874"></script>
+<script type="module" src="/static/viewer.js?v=875"></script>
 </body>
 </html>

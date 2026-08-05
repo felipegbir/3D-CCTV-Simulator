@@ -5,7 +5,7 @@ html = (root / "templates" / "index.html").read_text(encoding="utf-8")
 js = (root / "static" / "viewer.js").read_text(encoding="utf-8")
 
 for marker in (
-    "const PROJECT_SCHEMA_VERSION = 7;",
+    "const PROJECT_SCHEMA_VERSION = 8;",
     "projectDownloadExtension = 'nmd'",
     "function beginPresetRoiCreation",
     "attachPresetRoiDrawing",
@@ -22,10 +22,10 @@ for marker in (
     assert marker in js, f"Missing cache 951 workflow marker: {marker}"
 
 for marker in (
-    "/static/viewer.js?v=874",
+    "/static/viewer.js?v=875",
     'accept=".nmd,.json,application/json"',
     'id="editCopy"',
-    'id="viewFitGrid"',
+    'id="resetView"',
     'id="objectLock"',
     ".preset-roi-overlay",
 ):
@@ -35,6 +35,6 @@ assert "menu-button disabled" not in "\n".join(
     line for line in html.splitlines()
     if any(label in line for label in ("Close Project", "Copy", "Zoom Out", "Add Object"))
 )
-print("cache 951 .nmd, menu, maximized-Presets, and ROI workflow guard passed")
+print("cache 951 .nmd, consolidated menu, maximized-Presets, and ROI workflow guard passed")
 
 

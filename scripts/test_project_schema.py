@@ -8,7 +8,7 @@ root = Path(__file__).resolve().parents[1]
 source = (root / "static" / "viewer.js").read_text(encoding="utf-8")
 
 required_contract = (
-    "const PROJECT_SCHEMA_VERSION = 7;",
+    "const PROJECT_SCHEMA_VERSION = 8;",
     "const LEGACY_PROJECT_SCHEMA_VERSION = 1;",
     "function buildProjectAssetManifest()",
     "function validateProjectSchema(project)",

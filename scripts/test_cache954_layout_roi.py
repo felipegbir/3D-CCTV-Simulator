@@ -5,6 +5,6 @@ html=(root/'templates/index.html').read_text(encoding='utf-8')
 for marker in ['metricDecimals: 3','normalizedPtzPresetObjects','videoWallPresetPanelPercent = 20','presetPanelPercent: videoWallPresetPanelPercent']:
     assert marker in js, marker
 assert 'video-wall-preset-resizer' in html
-assert '/static/viewer.js?v=874' in html
+assert '/static/viewer.js?v=875' in html
 print('cache 954 stable ROI, precision refresh, and resizable dock guard passed')
 

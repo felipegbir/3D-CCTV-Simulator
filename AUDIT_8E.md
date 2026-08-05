@@ -411,3 +411,11 @@ Deployment passed on 2026-08-05. The identity-verified 8e.7.3 CCTV PID `1878319`
 Server rollback: `/home/vmuser/nomad-cctv-simulator/deploy_backups/pre_8e_7_4_20260805182916`.
 
 The application root, `/static/viewer.js?v=874`, and `/static/user-guide.html` return successfully. Live content confirms version 8e.7.4, cache key 874, deterministic Recall fallback selection, and normalized in-flight preset snapshots. Local, staged, and deployed SHA-256 hashes match for `viewer.js`, `index.html`, and `user-guide.html`. Static audit, every Python regression, every JavaScript runtime regression, module syntax, and backend compile pass. Visual owner QA remains required.
+
+### 8e.7.5 model-source project restoration and menu consolidation — deployment pending
+
+Schema 8 records each model's file name, best available source path, source route, storage type, format, and server-library fallback. Loading is transactional: the user sees a confirmation naming current cameras/models absent from the saved project; Cancel makes no scene change. After confirmation, missing GLB/glTF assets are prepared from the saved server route or `/models/<saved file name>`, current scene-only cameras/models are removed, and saved transforms/camera identities are applied. Automatic FBX restore stays guarded. Browser file-picker security may limit a local source path to its file name, in which case a matching server-library asset or manual re-import is required. Generation tokens prevent late starter/local-import callbacks from contaminating restored projects.
+
+The top menu now has one canonical command per operation. Save As, Open Project File, Edit Add Box, Fit Grid, and View Grid/Axes duplicates are removed; Export Project JSON is clearly distinguished from normal `.nmd` Save Project; Zoom In complements Zoom Out; Reset View owns the standard grid framing; and Object commands are relabelled Rename Selected, Show in Inspector, and Lock / Unlock Transform. The HTML guide documents the final commands and restore behavior.
+
+Pre-deployment static audit and JavaScript syntax validation pass. Dedicated schema-8 source-path, fallback-route, replacement-confirmation, cancellation, and consolidated-menu regression guards have been added. Full regression and deployment evidence remain pending.

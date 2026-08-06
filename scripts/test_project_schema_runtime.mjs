@@ -13,12 +13,12 @@ function section(startMarker, endMarker) {
 }
 
 const executable = [
-  "const PROJECT_SCHEMA_VERSION = 7;",
+  "const PROJECT_SCHEMA_VERSION = 8;",
   "const LEGACY_PROJECT_SCHEMA_VERSION = 1;",
-  section('function buildProjectAssetManifest()', 'function formatAssetWarningMessage'),
+  section('function normalizeModelSourceFormat', 'function formatAssetWarningMessage'),
   section('function formatAssetWarningMessage', 'function validateProjectSchema'),
   section('function validateProjectSchema', 'function showProjectAssetWarnings'),
-  section('function showProjectAssetWarnings', 'function applyLoadedProject')
+  section('function showProjectAssetWarnings', 'async function applyLoadedProject')
 ].join('\n');
 
 const alerts = [];
@@ -36,7 +36,8 @@ const context = vm.createContext({
       id: 'model-server',
       name: 'Server Model',
       type: 'model',
-      object: { userData: {} }
+      data: { fileName: 'server.glb', sourceFormat: 'glb', sourcePath: '/models/server.glb', sourceRoute: '/models/server.glb', storage: 'server' },
+      object: { userData: { fileName: 'server.glb', sourceFormat: 'glb', sourcePath: '/models/server.glb', sourceRoute: '/models/server.glb', storage: 'server' } }
     },
     {
       id: 'model-local',
@@ -72,16 +73,16 @@ assert.match(manifest.warnings[0].message, /Local Plant\.fbx/);
 assert.match(manifest.warnings[1].message, /Floor Plan\.png/);
 
 alerts.length = 0;
-assert.equal(context.validateProjectSchema({ schemaVersion: 7 }), true);
+assert.equal(context.validateProjectSchema({ schemaVersion: 8 }), true);
 assert.equal(alerts.length, 0);
 
 assert.equal(context.validateProjectSchema({}), true);
 assert.match(alerts.pop(), /Legacy project schema 1/);
 
-assert.equal(context.validateProjectSchema({ schemaVersion: 8 }), false);
+assert.equal(context.validateProjectSchema({ schemaVersion: 9 }), false);
 assert.match(alerts.pop(), /newer simulator version/);
 
 assert.equal(context.validateProjectSchema({ schemaVersion: 'invalid' }), false);
 assert.match(alerts.pop(), /invalid schemaVersion/);
 
-console.log('8e.7.1 runtime schema and asset manifest tests passed');
+console.log('8e.7.5 runtime schema and asset manifest tests passed');

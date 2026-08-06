@@ -13,7 +13,7 @@ for marker in (
     '#sceneFrame {\n      flex: 1 1 auto;',
     'border-radius: 0;',
     'box-shadow: none;',
-    '/static/viewer.js?v=872',
+    '/static/viewer.js?v=875',
 ): assert marker in HTML, marker
 for marker in (
     "body.style.display = 'flex';",

@@ -5,7 +5,7 @@ html = (root / "templates" / "index.html").read_text(encoding="utf-8")
 js = (root / "static" / "viewer.js").read_text(encoding="utf-8")
 
 for marker in (
-    "const PROJECT_SCHEMA_VERSION = 7;",
+    "const PROJECT_SCHEMA_VERSION = 8;",
     "selectedObjectId: selectedId",
     "sceneTreeCollapsed:",
     "objectInspectorCollapsed:",

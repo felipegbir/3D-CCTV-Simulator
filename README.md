@@ -1,4 +1,4 @@
-# N.O.M.A.D. CCTV Digital Twin Simulator
+# 3D Inspection Simulator
 
 > **License:** Noncommercial use is governed by the PolyForm Noncommercial
 > License 1.0.0. Commercial use requires a separate paid license.

@@ -1,5 +1,10 @@
 # N.O.M.A.D. CCTV Digital Twin Simulator
 
+> **License:** Noncommercial use is governed by the PolyForm Noncommercial
+> License 1.0.0. Commercial use requires a separate paid license.
+> See [LICENSE](LICENSE) and [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
+
+
 This workspace is the recoverable N.O.M.A.D. 8e application baseline assembled for continued development.
 
 ## Included

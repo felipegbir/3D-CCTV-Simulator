@@ -1,0 +1,14 @@
+.git
+.gitignore
+__pycache__
+*.py[cod]
+*.log
+*.backup-*
+.env
+.venv
+venv
+data
+releases
+docs
+scripts
+*.nmd

@@ -3589,11 +3589,30 @@ function clampReportTargetAboveFloor(target, bounds) {
 }
 
 function ensureAboveGroundReportPosition(position, target, bounds) {
-  const floorY = Math.max(0, Number.isFinite(bounds.min.y) ? bounds.min.y : 0);
-  const sceneHeight = Math.max(1, Number.isFinite(bounds.max.y - bounds.min.y) ? bounds.max.y - bounds.min.y : 1);
-  const clearance = Math.max(1, sceneHeight * 0.12);
+  const floorY = Math.max(
+    0,
+    Number.isFinite(bounds.min.y) ? bounds.min.y : 0
+  );
+  const sceneTopY = Math.max(
+    floorY,
+    Number.isFinite(bounds.max.y) ? bounds.max.y : floorY
+  );
+  const sceneHeight = Math.max(
+    1,
+    Number.isFinite(sceneTopY - floorY) ? sceneTopY - floorY : 1
+  );
+  const clearance = Math.max(1, sceneHeight * 0.18);
+
   const safePosition = position.clone();
-  safePosition.y = Math.max(safePosition.y, floorY + clearance, target.y + clearance);
+
+  // Report overview and context views must remain above the complete
+  // model—not merely above the floor or target point.
+  safePosition.y = Math.max(
+    safePosition.y,
+    sceneTopY + clearance,
+    target.y + clearance
+  );
+
   return safePosition;
 }
 

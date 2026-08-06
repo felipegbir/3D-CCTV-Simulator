@@ -24,18 +24,19 @@ let videoWallOrder = ['scene'];
 let videoWallPresetPanelPercent = 20;
 let selectedVideoWallTileIndex = 0;
 let selectedPopupVideoWallTileIndex = 0;
-const APP_VERSION = '8e.7.2';
-const PROJECT_SCHEMA_VERSION = 7;
+const APP_VERSION = '8e.7.5';
+const PROJECT_SCHEMA_VERSION = 8;
 let projectDownloadExtension = 'nmd';
 const LEGACY_PROJECT_SCHEMA_VERSION = 1;
 let reportSettingsState={projectTitle:'N.O.M.A.D. CCTV Assessment',client:'',location:'',preparedBy:'Felipe Gomez',companyName:'',website:'',subject:'',versionNumber:'',description:'',pageSize:'letter',orientation:'portrait',includeTitlePage:true,includeDescription:true,includeSceneOverview:true,includeOppositeView:true,includeCameraContext:true,includeBom:true,includePresets:true,includeRois:true,showCameraModels:true,watermark:'',imageQuality:85};
 const appVersionLabel = document.getElementById('appVersionLabel');
 const aboutVersion = document.getElementById('aboutVersion');
 if (appVersionLabel) appVersionLabel.textContent = APP_VERSION;
-if (aboutVersion) aboutVersion.textContent = APP_VERSION;
-document.title = `N.O.M.A.D. CCTV Digital Twin Simulator ${APP_VERSION}`;
+if (aboutVersion) aboutVersion.textContent = 'v8e.7.5-vista.1';
+document.title = '3D Inspection Simulator';
 const addCameraButton = document.getElementById('addCameraButton');
 let cameraCounter = 1;
+let sceneLoadGeneration = 0;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf2f2f2);
@@ -1067,6 +1068,36 @@ function alignObjectToGround(object) {
   object.position.y -= minY;
 }
 
+function getCameraSensorResolution(cameraData = {}, overrides = {}) {
+  const width = Number(overrides.resolutionWidth ?? cameraData.resolutionWidth);
+  const height = Number(overrides.resolutionHeight ?? cameraData.resolutionHeight);
+  return {
+    width: Number.isFinite(width) && width > 0 ? width : 1920,
+    height: Number.isFinite(height) && height > 0 ? height : 1080
+  };
+}
+
+function computeVerticalFovDegrees(horizontalFovDegrees, resolutionWidth, resolutionHeight) {
+  const horizontalFov = THREE.MathUtils.clamp(Number(horizontalFovDegrees) || 90, 0.01, 179);
+  const width = Number(resolutionWidth);
+  const height = Number(resolutionHeight);
+  const aspect = Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0
+    ? width / height
+    : 16 / 9;
+  return THREE.MathUtils.radToDeg(
+    2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(horizontalFov) / 2) / aspect)
+  );
+}
+
+function refreshDerivedCameraFov(cameraData, overrides = {}) {
+  if (!cameraData) return computeVerticalFovDegrees(90, 1920, 1080);
+  const { width, height } = getCameraSensorResolution(cameraData, overrides);
+  const horizontalFov = Number(overrides.hfov ?? cameraData.hfov) || 90;
+  const verticalFov = computeVerticalFovDegrees(horizontalFov, width, height);
+  cameraData.vfov = verticalFov;
+  return verticalFov;
+}
+
 function updateCameraProjection(cameraItem) {
   if (!cameraItem || cameraItem.type !== 'camera') return;
 
@@ -1076,22 +1107,29 @@ function updateCameraProjection(cameraItem) {
     cameraItem.object.userData.projectionDistance ||
     20;
 
-  if (!projectionCone) return;
-
   const currentHfov = Number.parseFloat(cameraItem.data?.hfov) || 90;
+  const { width: resolutionWidth, height: resolutionHeight } = getCameraSensorResolution(cameraItem.data);
+  const currentVfov = refreshDerivedCameraFov(cameraItem.data, {
+    hfov: currentHfov,
+    resolutionWidth,
+    resolutionHeight
+  });
   const radius = Math.tan((currentHfov / 2) * Math.PI / 180) * projectionDistance;
 
-  projectionCone.geometry.dispose();
-  projectionCone.geometry = new THREE.ConeGeometry(radius, projectionDistance, 32, 1, true);
-  projectionCone.rotation.x = Math.PI / 2;
-  projectionCone.position.set(0, 0, -projectionDistance / 2);
+  if (projectionCone) {
+    projectionCone.geometry.dispose();
+    projectionCone.geometry = new THREE.ConeGeometry(radius, projectionDistance, 32, 1, true);
+    projectionCone.rotation.x = Math.PI / 2;
+    projectionCone.position.set(0, 0, -projectionDistance / 2);
+  }
 
   cameraItem.object.userData.projectionDistance = projectionDistance;
   cameraItem.object.userData.baseHfov = currentHfov;
 
   const renderCamera = cameraItem.object.userData.renderCamera;
   if (renderCamera) {
-    renderCamera.fov = currentHfov;
+    renderCamera.fov = currentVfov;
+    renderCamera.aspect = resolutionWidth / resolutionHeight;
     renderCamera.far = Math.max(renderCamera.near + 0.01, projectionDistance);
     renderCamera.updateProjectionMatrix();
   }
@@ -1461,11 +1499,12 @@ function formatPresetRoiAnalysis(roi){if(!roi)return 'Selected ROI: none';const 
 function calculatePresetAnalysis(cameraItem, roi = {}, state = {}) {
   const depth = Math.max(0.02, Number(state.projectionDistance ?? cameraItem.data?.projectionDistance) || 20);
   const hfov = Number(state.hfov ?? cameraItem.data?.hfov) || 90;
-  const vfov = Number(state.vfov ?? cameraItem.data?.vfov) || hfov * 9 / 16;
+  const { width: resolutionWidth, height: resolutionHeight } = getCameraSensorResolution(cameraItem.data, state);
+  const vfov = computeVerticalFovDegrees(hfov, resolutionWidth, resolutionHeight);
+  if (cameraItem.data && state.hfov === undefined) cameraItem.data.vfov = vfov;
   const width = 2 * depth * Math.tan(THREE.MathUtils.degToRad(hfov / 2));
   const height = 2 * depth * Math.tan(THREE.MathUtils.degToRad(vfov / 2));
-  const resolutionWidth = Number(cameraItem.data?.resolutionWidth) || 1920;
-  const resolutionHeight = Number(cameraItem.data?.resolutionHeight) || 1080;
+
   const horizontalPixelDensity = width > 0 ? resolutionWidth / width : 0;
   const verticalPixelDensity = height > 0 ? resolutionHeight / height : 0;
   const roiWidth = Number(roi.width) || null;
@@ -1598,6 +1637,12 @@ function refreshCameraPresetDerivedData(cameraItem) {
       projectionDistance: preset.projectionDistance,
       hfov: preset.hfov
     });
+    (preset.rois || []).forEach(roi => {
+      roi.metrics = calculatePolygonRoiMetrics(cameraItem, roi, {
+        projectionDistance: roi.projectionDistance || preset.projectionDistance,
+        hfov: preset.hfov
+      });
+    });
   });
   if (ptzPresetPanel && activePresetCamera?.id === cameraItem.id && !ptzPresetPanel.classList.contains('hidden')) {
     ptzPresetPanel.refreshDerived?.();
@@ -1663,22 +1708,24 @@ function calculatePtzRecallDurationMs(angularTravel, speed, opticalTravel = 0) {
 
 function recallPtzPreset(cameraItem, preset) {
   if (!cameraItem || !preset) return;
+  const targetPreset = normalizePtzPreset(preset);
+  targetPreset.id = preset.id;
   cancelCameraPresetAnimation(cameraItem);
   const startPan = Number(cameraItem.data.pan) || 0;
   const startTilt = Number(cameraItem.data.tilt) || 0;
   const startRoll = Number(cameraItem.data.roll) || 0;
   const angularTravel = Math.max(
-    Math.abs(shortestAngleDelta(startPan, preset.pan)),
-    Math.abs(preset.tilt - startTilt),
-    Math.abs(shortestAngleDelta(startRoll, preset.roll))
+    Math.abs(shortestAngleDelta(startPan, targetPreset.pan)),
+    Math.abs(targetPreset.tilt - startTilt),
+    Math.abs(shortestAngleDelta(startRoll, targetPreset.roll))
   );
   const speed = THREE.MathUtils.clamp(Number(preferences.ptzPresetSpeed) || 10, 1, 60);
-  const durationMs = calculatePtzRecallDurationMs(angularTravel, speed, Math.abs((preset.zoom || 1) - (cameraItem.data.zoom || 1)));
+  const durationMs = calculatePtzRecallDurationMs(angularTravel, speed, Math.abs(targetPreset.zoom - (Number(cameraItem.data.zoom) || 1)));
   cameraItem.data.activePtzPresetId = null;
   refreshPresetRoiOverlays(cameraItem);
   activePtzPresetAnimations.set(cameraItem.id, {
     cameraItem,
-    preset,
+    preset: targetPreset,
     startedAt: performance.now(),
     durationMs,
     start: {
@@ -1693,7 +1740,7 @@ function recallPtzPreset(cameraItem, preset) {
       quaternion: cameraItem.object.quaternion.clone()
     }
   });
-  if (ptzPresetPanel) ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `Recalling ${preset.name} at ${speed.toFixed(0)}°/s (${formatMetric(durationMs / 1000)} s)…`;
+  if (ptzPresetPanel) ptzPresetPanel.querySelector('.ptz-preset-status').textContent = `Recalling ${targetPreset.name} at ${speed.toFixed(0)}°/s (${formatMetric(durationMs / 1000)} s)…`;
 }
 
 function updatePtzPresetAnimations(now) {
@@ -1843,7 +1890,13 @@ function ensurePtzPresetPanel() {
     if (!action || !activePresetCamera) return;
     const preset = selectedPreset();
     if (action === 'recall') {
-      if (preset) recallPtzPreset(activePresetCamera, preset);
+      const recallTarget = preset || ensureCameraPtzPresets(activePresetCamera).find(entry => entry.id === activePresetCamera.data?.activePtzPresetId) || ensureCameraPtzPresets(activePresetCamera)[0];
+      if (recallTarget) {
+        list.value = recallTarget.id;
+        recallPtzPreset(activePresetCamera, recallTarget);
+      } else {
+        ptzPresetPanel.querySelector('.ptz-preset-status').textContent = 'No PTZ presets are available to recall.';
+      }
       return;
     }
     const nameField = ptzPresetPanel.querySelector('.ptz-preset-name');
@@ -1957,7 +2010,9 @@ function openPtzPresetPanel(cameraItem, viewportElement = null) {
   speed.value = String(preferences.ptzPresetSpeed);
   panel.querySelector('.ptz-preset-speed-value').textContent = `${Number(preferences.ptzPresetSpeed).toFixed(0)}°/s`;
   panel.querySelector('.ptz-preset-status').textContent = '';
-  panel.refresh(cameraItem.data?.activePtzPresetId || undefined, { clearSelection: !cameraItem.data?.activePtzPresetId });
+  const previousSelection = panel.querySelector('.ptz-preset-list')?.value;
+  const initialPresetId = cameraItem.data?.activePtzPresetId || previousSelection || ensureCameraPtzPresets(cameraItem)[0]?.id;
+  panel.refresh(initialPresetId);
   panel.classList.remove('hidden');
 }
 
@@ -3004,7 +3059,7 @@ function buildGenericCameraData() {
     hfovWide: 120,
     hfovTele: 2,
     hfov: 120,
-    vfov: 67.5,
+    vfov: computeVerticalFovDegrees(120, 3840, 2160),
     pan: 0,
     tilt: 0,
     zoom: 1,
@@ -3076,7 +3131,7 @@ function buildCameraDataFromRecord(record) {
     hfovWide,
     hfovTele,
     hfov: hfovWide,
-    vfov: 50,
+    vfov: computeVerticalFovDegrees(hfovWide, toNumberOrDefault(record?.resolution_width, 1920), toNumberOrDefault(record?.resolution_height, 1080)),
     pan: 0,
     tilt: 0,
     zoom: 1,
@@ -3096,7 +3151,57 @@ function buildCameraDataFromRecord(record) {
 // Add default camera
 // createCameraObject('Camera 001', new THREE.Vector3(0, 2, 0));
 
-function createCameraObject(name, position = new THREE.Vector3(0, 2, 0)) {
+function registerCameraId(cameraId) {
+  const match = /^camera-(\d+)$/i.exec(String(cameraId || '').trim());
+  if (!match) return;
+  const numericId = Number.parseInt(match[1], 10);
+  if (Number.isFinite(numericId)) cameraCounter = Math.max(cameraCounter, numericId + 1);
+}
+
+function getNextAvailableCameraId(reservedIds = new Set()) {
+  let id;
+  do {
+    id = `camera-${String(cameraCounter).padStart(3, '0')}`;
+    cameraCounter += 1;
+  } while (
+    sceneObjects.some(item => item.id === id) ||
+    reservedIds.has(id)
+  );
+  return id;
+}
+
+function resolveCameraObjectId(explicitId = null, reservedIds = new Set()) {
+  const requestedId = typeof explicitId === 'string' ? explicitId.trim() : '';
+  if (!requestedId) return getNextAvailableCameraId(reservedIds);
+  if (sceneObjects.some(item => item.id === requestedId) || reservedIds.has(requestedId)) {
+    throw new Error(`Camera ID collision: ${requestedId}`);
+  }
+  registerCameraId(requestedId);
+  return requestedId;
+}
+
+function resolveLoadedCameraId(rawId, claimedIds, cameraIndex, warnings) {
+  const requestedId = typeof rawId === 'string' ? rawId.trim() : '';
+  let restoredId = requestedId;
+  let reason = '';
+  if (!requestedId) {
+    reason = 'missing camera ID';
+  } else if (claimedIds.has(requestedId)) {
+    reason = `duplicate camera ID "${requestedId}"`;
+  } else if (sceneObjects.some(item => item.id === requestedId && item.type !== 'camera')) {
+    reason = `camera ID "${requestedId}" conflicts with a non-camera object`;
+  }
+  if (reason) {
+    restoredId = getNextAvailableCameraId(claimedIds);
+    warnings.push(`Camera ${cameraIndex + 1}: ${reason}; restored as "${restoredId}".`);
+  }
+  claimedIds.add(restoredId);
+  registerCameraId(restoredId);
+  return restoredId;
+}
+
+function createCameraObject(name, position = new THREE.Vector3(0, 2, 0), explicitId = null) {
+  const id = resolveCameraObjectId(explicitId);
   const cameraRoot = new THREE.Group();
   cameraRoot.position.copy(position);
 
@@ -3142,9 +3247,11 @@ function createCameraObject(name, position = new THREE.Vector3(0, 2, 0)) {
   projectionCone.position.set(0, 0, -projectionDistance / 2);
   rollPivot.add(projectionCone);
 
+  const { width: resolutionWidth, height: resolutionHeight } = getCameraSensorResolution(cameraData);
+  const vfov = refreshDerivedCameraFov(cameraData, { hfov, resolutionWidth, resolutionHeight });
   const renderCamera = new THREE.PerspectiveCamera(
-    hfov,
-    16 / 9,
+    vfov,
+    resolutionWidth / resolutionHeight,
     0.01,
     Math.max(0.02, projectionDistance)
   );
@@ -3177,7 +3284,6 @@ function createCameraObject(name, position = new THREE.Vector3(0, 2, 0)) {
   cameraData.tilt = 0;
   cameraData.roll = 0;
 
-  const id = `camera-${String(cameraCounter).padStart(3, '0')}`;
 
   addSceneObject({
     id,
@@ -3189,23 +3295,30 @@ function createCameraObject(name, position = new THREE.Vector3(0, 2, 0)) {
 
   applyCameraPtzRig(sceneObjects[sceneObjects.length - 1]);
 
-  cameraCounter += 1;
-
   selectObject(id);
 
   return cameraRoot;
 }
 
-// Load model
-// Load model
+// Load the bundled starter model. A project load increments sceneLoadGeneration,
+// so a late starter-model callback cannot contaminate the restored project.
 const loader = new GLTFLoader();
 const loadedModelFile = 'test_power_transformer.glb';
 const loadedModelPath = `/models/${loadedModelFile}`;
+const starterModelGeneration = sceneLoadGeneration;
 
 loader.load(loadedModelPath, (gltf) => {
-//loader.load('/models/converted_simplified.glb', (gltf) => {
   const model = gltf.scene;
+  if (starterModelGeneration !== sceneLoadGeneration) {
+    disposeObjectResources(model);
+    return;
+  }
 
+  model.userData.sourceFormat = 'glb';
+  model.userData.fileName = loadedModelFile;
+  model.userData.sourcePath = loadedModelPath;
+  model.userData.sourceRoute = loadedModelPath;
+  model.userData.storage = 'server';
   model.userData.layFlatIndex = 0;
   model.userData.layFlatRotations = [
     { x: 0, y: 0, z: 0 },
@@ -3217,23 +3330,25 @@ loader.load(loadedModelPath, (gltf) => {
     { x: 0, y: -Math.PI / 2, z: 0 }
   ];
 
-  const box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  // model.position.sub(center);
-
   scene.add(model);
-
   addSceneObject({
     id: 'model-001',
     name: 'Power Transformer',
     type: 'model',
-    object: model
+    object: model,
+    data: {
+      sourceFormat: 'glb',
+      fileName: loadedModelFile,
+      sourcePath: loadedModelPath,
+      sourceRoute: loadedModelPath,
+      storage: 'server'
+    }
   });
 
   frameObject(model);
-
-  // Default selected object
   selectObject('camera-001');
+}, undefined, (error) => {
+  console.warn(`Starter model could not be loaded from ${loadedModelPath}.`, error);
 });
 
 toolbarMove.addEventListener('click', () => {
@@ -3447,13 +3562,143 @@ function pasteSceneObject() {
 document.getElementById('closeProject')?.addEventListener('click', () => {
   if (confirm('Close the current project and clear unsaved changes?')) window.location.reload();
 });
-document.getElementById('saveAsProject')?.addEventListener('click', () => saveProjectButton.click());
 document.getElementById('exportProject')?.addEventListener('click', () => { projectDownloadExtension = 'json'; saveProjectButton.click(); });
-document.getElementById('uploadProject')?.addEventListener('click', () => loadProjectFile.click());
 function openReportConfiguration(){document.querySelector('.report-config-backdrop')?.remove();const backdrop=document.createElement('div');backdrop.className='report-config-backdrop';backdrop.innerHTML=`<div class="report-config-dialog"><div class="report-config-title"><strong>Report Configuration</strong><button data-close aria-label="Close">x</button></div><div class="report-config-body"><details open><summary>Project Identity</summary><div class="report-config-grid"><label>Company<input data-key="companyName"></label><label>Website<input data-key="website"></label><label>Project title<input data-key="projectTitle"></label><label>Client<input data-key="client"></label><label>Location<input data-key="location"></label><label>Subject<input data-key="subject"></label><label>Prepared by<input data-key="preparedBy"></label><label>Version<input data-key="versionNumber"></label></div></details><details><summary>Report Contents</summary><div class="report-config-checks"><label><input type="checkbox" data-key="includeTitlePage">Title page</label><label><input type="checkbox" data-key="includeDescription">Project description</label><label><input type="checkbox" data-key="includeSceneOverview">Scene overview</label><label><input type="checkbox" data-key="includeOppositeView">Opposite-side context view</label><label><input type="checkbox" data-key="includeCameraContext">Camera location/context views</label><label><input type="checkbox" data-key="includeBom">Camera BOM</label><label><input type="checkbox" data-key="includePresets">PTZ preset pages</label><label><input type="checkbox" data-key="includeRois">ROI and pixel-density analysis</label><label><input type="checkbox" data-key="showCameraModels">Show camera models in context</label></div></details><details><summary>Page and Image Output</summary><div class="report-config-grid"><label>Page size<select data-key="pageSize"><option value="letter">Letter</option><option value="a4">A4</option></select></label><label>Orientation<select data-key="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></label><label>Watermark<input data-key="watermark"></label><label>Image quality <output class="quality-value"></output><input type="range" min="40" max="100" data-key="imageQuality"></label></div></details><details><summary>Description and Notes</summary><textarea data-key="description" rows="8"></textarea></details></div><div class="report-config-actions"><button data-close>Cancel</button><button data-save>Save Settings</button><button data-generate>Generate Report</button></div></div>`;document.body.appendChild(backdrop);const style=document.createElement('style');style.textContent=`.report-config-backdrop{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.64);display:grid;place-items:center}.report-config-dialog{width:min(760px,92vw);max-height:90vh;display:flex;flex-direction:column;background:var(--panel-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;box-shadow:0 18px 50px rgba(0,0,0,.65);font:13px Arial,sans-serif}.report-config-title{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--panel-title-bg);font-size:16px}.report-config-body{padding:10px;overflow:auto}.report-config-body details{margin-bottom:8px}.report-config-body summary{padding:8px;background:var(--section-bg);font-weight:bold;cursor:pointer}.report-config-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:9px}.report-config-grid label,.report-config-body textarea{display:flex;flex-direction:column;gap:4px}.report-config-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px}.report-config-dialog input,.report-config-dialog select,.report-config-dialog textarea{background:var(--control-bg);color:var(--text);border:1px solid var(--border);padding:6px;box-sizing:border-box}.report-config-body textarea{width:100%;resize:vertical}.report-config-actions{display:flex;justify-content:flex-end;gap:8px;padding:10px;border-top:1px solid var(--border)}.report-config-actions button,.report-config-title button{background:var(--control-bg);color:var(--text);border:1px solid var(--border);padding:6px 12px;border-radius:4px}@media(max-width:650px){.report-config-grid,.report-config-checks{grid-template-columns:1fr}}`;backdrop.appendChild(style);backdrop.querySelectorAll('[data-key]').forEach(field=>{const key=field.dataset.key;if(field.type==='checkbox')field.checked=Boolean(reportSettingsState[key]);else field.value=reportSettingsState[key]??''});const quality=backdrop.querySelector('[data-key="imageQuality"]'),qualityValue=backdrop.querySelector('.quality-value');const syncQuality=()=>qualityValue.textContent=`${quality.value}%`;quality.addEventListener('input',syncQuality);syncQuality();const save=()=>{backdrop.querySelectorAll('[data-key]').forEach(field=>{reportSettingsState[field.dataset.key]=field.type==='checkbox'?field.checked:(field.type==='range'?Number(field.value):field.value)})};backdrop.querySelectorAll('[data-close]').forEach(button=>button.addEventListener('click',()=>backdrop.remove()));backdrop.querySelector('[data-save]').addEventListener('click',()=>{save();backdrop.remove()});backdrop.querySelector('[data-generate]').addEventListener('click',()=>{save();backdrop.remove();generateNomadReport()})}
 function editReportSettings(){openReportConfiguration()}
-function captureReportSceneViews(){const savedPosition=viewerCamera.position.clone(),savedQuaternion=viewerCamera.quaternion.clone(),target=orbitControls.target.clone();const capture=()=>{renderer.render(scene,viewerCamera);try{return renderer.domElement.toDataURL('image/jpeg',Math.min(1,Math.max(.4,Number(reportSettingsState.imageQuality||85)/100)))}catch{return''}};const primary=capture();const offset=savedPosition.clone().sub(target);viewerCamera.position.copy(target.clone().sub(offset));viewerCamera.lookAt(target);viewerCamera.updateMatrixWorld(true);const opposite=capture();viewerCamera.position.copy(savedPosition);viewerCamera.quaternion.copy(savedQuaternion);viewerCamera.updateMatrixWorld(true);renderer.render(scene,viewerCamera);return{primary,opposite}}
-function captureReportCameraContexts(cameras){const images=new Map(),savedPosition=viewerCamera.position.clone(),savedQuaternion=viewerCamera.quaternion.clone(),savedTarget=orbitControls.target.clone();for(const cameraItem of cameras){const cameraPosition=cameraItem.object.getWorldPosition(new THREE.Vector3()),preset=ensureCameraPtzPresets(cameraItem)[0],point=preset?.depthTarget?.point;let target=point?new THREE.Vector3(Number(point.x)||0,Number(point.y)||0,Number(point.z)||0):cameraPosition.clone().add(new THREE.Vector3(0,0,-Math.max(2,Number(cameraItem.data?.projectionDistance)||10)));const midpoint=cameraPosition.clone().lerp(target,.5),span=Math.max(2,cameraPosition.distanceTo(target));let side=new THREE.Vector3().subVectors(target,cameraPosition).cross(new THREE.Vector3(0,1,0));if(side.lengthSq()<.001)side.set(1,0,0);side.normalize();viewerCamera.position.copy(midpoint).addScaledVector(side,span*.85).add(new THREE.Vector3(0,span*.35,0));viewerCamera.lookAt(midpoint);viewerCamera.updateMatrixWorld(true);renderer.render(scene,viewerCamera);try{images.set(cameraItem.id,renderer.domElement.toDataURL('image/jpeg',Math.min(1,Math.max(.4,Number(reportSettingsState.imageQuality||85)/100))))}catch{images.set(cameraItem.id,'')}}viewerCamera.position.copy(savedPosition);viewerCamera.quaternion.copy(savedQuaternion);orbitControls.target.copy(savedTarget);viewerCamera.updateMatrixWorld(true);renderer.render(scene,viewerCamera);return images}
+function getReportSceneBounds() {
+  const bounds = new THREE.Box3();
+  let hasContent = false;
+  sceneObjects.forEach(item => {
+    if (!item?.object || item.object.visible === false) return;
+    const itemBounds = new THREE.Box3().setFromObject(item.object);
+    if (itemBounds.isEmpty()) return;
+    const coordinates = [...itemBounds.min.toArray(), ...itemBounds.max.toArray()];
+    if (!coordinates.every(Number.isFinite)) return;
+    bounds.union(itemBounds);
+    hasContent = true;
+  });
+  if (!hasContent) bounds.set(new THREE.Vector3(-5, 0, -5), new THREE.Vector3(5, 5, 5));
+  return bounds;
+}
+
+function clampReportTargetAboveFloor(target, bounds) {
+  const floorY = Math.max(0, Number.isFinite(bounds.min.y) ? bounds.min.y : 0);
+  const safeTarget = target.clone();
+  safeTarget.y = Math.max(safeTarget.y, floorY);
+  return safeTarget;
+}
+
+function ensureAboveGroundReportPosition(position, target, bounds) {
+  const floorY = Math.max(
+    0,
+    Number.isFinite(bounds.min.y) ? bounds.min.y : 0
+  );
+  const sceneTopY = Math.max(
+    floorY,
+    Number.isFinite(bounds.max.y) ? bounds.max.y : floorY
+  );
+  const sceneHeight = Math.max(
+    1,
+    Number.isFinite(sceneTopY - floorY) ? sceneTopY - floorY : 1
+  );
+  const clearance = Math.max(1, sceneHeight * 0.18);
+
+  const safePosition = position.clone();
+
+  // Report overview and context views must remain above the complete
+  // model—not merely above the floor or target point.
+  safePosition.y = Math.max(
+    safePosition.y,
+    sceneTopY + clearance,
+    target.y + clearance
+  );
+
+  return safePosition;
+}
+
+function captureReportJpeg() {
+  renderer.render(scene, viewerCamera);
+  try {
+    const quality = Math.min(1, Math.max(.4, Number(reportSettingsState.imageQuality || 85) / 100));
+    return renderer.domElement.toDataURL('image/jpeg', quality);
+  } catch {
+    return '';
+  }
+}
+
+function captureReportSceneViews() {
+  const savedPosition = viewerCamera.position.clone();
+  const savedQuaternion = viewerCamera.quaternion.clone();
+  const savedTarget = orbitControls.target.clone();
+  const bounds = getReportSceneBounds();
+  const target = clampReportTargetAboveFloor(savedTarget, bounds);
+  const primaryPosition = ensureAboveGroundReportPosition(savedPosition, target, bounds);
+
+  viewerCamera.position.copy(primaryPosition);
+  viewerCamera.lookAt(target);
+  viewerCamera.updateMatrixWorld(true);
+  const primary = captureReportJpeg();
+
+  const horizontalOffset = primaryPosition.clone().sub(target);
+  horizontalOffset.y = 0;
+  if (horizontalOffset.lengthSq() < 0.001) {
+    const sceneSpan = Math.max(5, bounds.getSize(new THREE.Vector3()).length());
+    horizontalOffset.set(sceneSpan, 0, sceneSpan);
+  }
+  const oppositePosition = target.clone().sub(horizontalOffset);
+  oppositePosition.y = primaryPosition.y;
+  viewerCamera.position.copy(ensureAboveGroundReportPosition(oppositePosition, target, bounds));
+  viewerCamera.lookAt(target);
+  viewerCamera.updateMatrixWorld(true);
+  const opposite = captureReportJpeg();
+
+  viewerCamera.position.copy(savedPosition);
+  viewerCamera.quaternion.copy(savedQuaternion);
+  orbitControls.target.copy(savedTarget);
+  viewerCamera.updateMatrixWorld(true);
+  renderer.render(scene, viewerCamera);
+  return { primary, opposite };
+}
+function captureReportCameraContexts(cameras) {
+  const images = new Map();
+  const savedPosition = viewerCamera.position.clone();
+  const savedQuaternion = viewerCamera.quaternion.clone();
+  const savedTarget = orbitControls.target.clone();
+  const bounds = getReportSceneBounds();
+
+  for (const cameraItem of cameras) {
+    const cameraPosition = cameraItem.object.getWorldPosition(new THREE.Vector3());
+    const preset = ensureCameraPtzPresets(cameraItem)[0];
+    const point = preset?.depthTarget?.point;
+    const rawTarget = point
+      ? new THREE.Vector3(Number(point.x) || 0, Number(point.y) || 0, Number(point.z) || 0)
+      : cameraPosition.clone().add(new THREE.Vector3(0, 0, -Math.max(2, Number(cameraItem.data?.projectionDistance) || 10)));
+    const target = clampReportTargetAboveFloor(rawTarget, bounds);
+    const midpoint = cameraPosition.clone().lerp(target, .5);
+    const span = Math.max(2, cameraPosition.distanceTo(target));
+    let side = new THREE.Vector3().subVectors(target, cameraPosition).cross(new THREE.Vector3(0, 1, 0));
+    if (side.lengthSq() < .001) side.set(1, 0, 0);
+    side.normalize();
+    const candidate = midpoint.clone().addScaledVector(side, span * 1.05).add(new THREE.Vector3(0, span * .45, 0));
+    viewerCamera.position.copy(ensureAboveGroundReportPosition(candidate, midpoint, bounds));
+    viewerCamera.lookAt(midpoint);
+    viewerCamera.updateMatrixWorld(true);
+    renderer.render(scene, viewerCamera);
+    try {
+      const quality = Math.min(1, Math.max(.4, Number(reportSettingsState.imageQuality || 85) / 100));
+      images.set(cameraItem.id, renderer.domElement.toDataURL('image/jpeg', quality));
+    } catch {
+      images.set(cameraItem.id, '');
+    }
+  }
+
+  viewerCamera.position.copy(savedPosition);
+  viewerCamera.quaternion.copy(savedQuaternion);
+  orbitControls.target.copy(savedTarget);
+  viewerCamera.updateMatrixWorld(true);
+  renderer.render(scene, viewerCamera);
+  return images;
+}
 function captureReportFrameWithRois(sourceCanvas, preset, quality) {
   const output = document.createElement('canvas');
   output.width = sourceCanvas.width;
@@ -3496,7 +3741,7 @@ function captureReportPresetViews(cameras) {
       if (preset.cameraPosition) cameraItem.object.position.set(Number(preset.cameraPosition.x) || 0, Number(preset.cameraPosition.y) || 0, Number(preset.cameraPosition.z) || 0);
       if (preset.cameraRotation) cameraItem.object.rotation.set(Number(preset.cameraRotation.x) || 0, Number(preset.cameraRotation.y) || 0, Number(preset.cameraRotation.z) || 0);
       applyCameraPtzRig(cameraItem); updateCameraProjection(cameraItem); cameraItem.object.updateMatrixWorld(true);
-      const reportCamera = new THREE.PerspectiveCamera(source.fov, 16 / 9, source.near, source.far);
+      const reportCamera = new THREE.PerspectiveCamera(source.fov, source.aspect, source.near, source.far);
       reportCamera.position.copy(source.getWorldPosition(new THREE.Vector3()));
       reportCamera.quaternion.copy(source.getWorldQuaternion(new THREE.Quaternion()));
       reportCamera.zoom = source.zoom; reportCamera.updateProjectionMatrix();
@@ -3517,25 +3762,24 @@ document.getElementById('editCut')?.addEventListener('click', () => { if (copySe
 document.getElementById('editPaste')?.addEventListener('click', pasteSceneObject);
 document.getElementById('editDelete')?.addEventListener('click', () => toolbarDelete.click());
 document.getElementById('editClone')?.addEventListener('click', () => { if (copySelectedObject()) pasteSceneObject(); });
-document.getElementById('editAdd')?.addEventListener('click', addBoxObject);
-document.getElementById('viewZoomOut')?.addEventListener('click', () => {
-  viewerCamera.position.copy(orbitControls.target.clone().add(viewerCamera.position.clone().sub(orbitControls.target).multiplyScalar(1.25)));
-  orbitControls.update();
-});
-document.getElementById('viewFitGrid')?.addEventListener('click', () => {
+function resetPlanningView() {
   orbitControls.target.set(0, 0, 0);
   viewerCamera.position.set(18, 18, 18);
   viewerCamera.lookAt(0, 0, 0);
   orbitControls.update();
-});
-document.getElementById('viewToggleGrid')?.addEventListener('click', () => {
-  preferences.showGrid = !preferences.showGrid;
-  applyPreferences({ persist: true });
-});
-document.getElementById('viewToggleAxes')?.addEventListener('click', () => {
-  preferences.showAxes = !preferences.showAxes;
-  applyPreferences({ persist: true });
-});
+}
+
+function zoomPlanningView(factor) {
+  const offset = viewerCamera.position.clone().sub(orbitControls.target);
+  if (offset.lengthSq() < 0.0001) offset.set(1, 1, 1);
+  viewerCamera.position.copy(orbitControls.target).add(offset.multiplyScalar(factor));
+  viewerCamera.lookAt(orbitControls.target);
+  orbitControls.update();
+}
+
+document.getElementById('resetView')?.addEventListener('click', resetPlanningView);
+document.getElementById('viewZoomIn')?.addEventListener('click', () => zoomPlanningView(0.8));
+document.getElementById('viewZoomOut')?.addEventListener('click', () => zoomPlanningView(1.25));
 document.getElementById('objectAdd')?.addEventListener('click', addBoxObject);
 document.getElementById('objectDefine')?.addEventListener('click', () => {
   const item = sceneObjects.find(entry => entry.id === selectedId);
@@ -4387,12 +4631,6 @@ cameraModelSelect.addEventListener('change', async () => {
 
   updateCameraProjection(item);
 
-  const renderCamera = item.object.userData.renderCamera;
-  if (renderCamera) {
-    renderCamera.fov = item.data.hfov;
-    renderCamera.far = item.data.projectionDistance;
-    renderCamera.updateProjectionMatrix();
-  }
 
   updateObjectInfoPanel();
   if (ptzPresetPanel && activePresetCamera?.id === item.id) {
@@ -4507,11 +4745,14 @@ function countModelTriangles(object) {
   return Math.round(triangles);
 }
 
-function registerImportedModel(model, fileName, sourceFormat) {
+function registerImportedModel(model, fileName, sourceFormat, sourcePath = fileName) {
   const modelId = `model-${Date.now()}`;
 
   model.userData.sourceFormat = sourceFormat;
   model.userData.fileName = fileName;
+  model.userData.sourcePath = sourcePath;
+  model.userData.sourceRoute = null;
+  model.userData.storage = 'browser-session';
   model.userData.layFlatIndex = 0;
   model.userData.layFlatRotations = [
     { x: 0, y: 0, z: 0 },
@@ -4568,6 +4809,10 @@ addSceneObject({
   object: model,
   data: {
     sourceFormat,
+    fileName,
+    sourcePath,
+    sourceRoute: null,
+    storage: 'browser-session',
     importScale,
     maxDimensionBeforeScale,
     importPreset: preferences.modelImportPreset,
@@ -4595,14 +4840,21 @@ addSceneObject({
   selectObject(modelId);
 }
 
+function getBrowserModelSourcePath(file) {
+  return String(file?.path || file?.webkitRelativePath || file?.name || '');
+}
+
 function loadGltfModel(file) {
   const url = URL.createObjectURL(file);
   const loader = new GLTFLoader();
+  const importGeneration = sceneLoadGeneration;
+  const sourcePath = getBrowserModelSourcePath(file);
 
   loader.load(
     url,
     (gltf) => {
-      registerImportedModel(gltf.scene, file.name, 'gltf');
+      if (importGeneration !== sceneLoadGeneration) disposeObjectResources(gltf.scene);
+      else registerImportedModel(gltf.scene, file.name, getFileExtension(file.name), sourcePath);
       URL.revokeObjectURL(url);
     },
     undefined,
@@ -4644,11 +4896,14 @@ function loadFbxModel(file) {
 
   const url = URL.createObjectURL(file);
   const loader = new FBXLoader();
+  const importGeneration = sceneLoadGeneration;
+  const sourcePath = getBrowserModelSourcePath(file);
 
   loader.load(
     url,
     (model) => {
-      registerImportedModel(model, file.name, 'fbx');
+      if (importGeneration !== sceneLoadGeneration) disposeObjectResources(model);
+      else registerImportedModel(model, file.name, 'fbx', sourcePath);
       URL.revokeObjectURL(url);
     },
     undefined,
@@ -4755,25 +5010,212 @@ toolbarLayFace.addEventListener('click', () => {
   alert(`Detected ${planes.length} triangle planes. Check browser console for top candidates.`);
 });
 
+function normalizeModelSourceFormat(value, fileName = '') {
+  const requested = String(value || '').toLowerCase();
+  if (requested === 'glb' || requested === 'gltf' || requested === 'fbx') return requested;
+  const extension = String(fileName).split('.').pop().toLowerCase();
+  return extension === 'fbx' || extension === 'gltf' ? extension : 'glb';
+}
+
+function getModelSourceDescriptor(item) {
+  const userData = item?.object?.userData || {};
+  const data = item?.data || {};
+  const fileName = String(data.fileName || userData.fileName || item?.name || '').split(/[\\/]/).pop();
+  const path = String(data.sourcePath || userData.sourcePath || fileName || '');
+  const routeCandidate = data.sourceRoute || userData.sourceRoute || '';
+  const route = String(routeCandidate).startsWith('/models/') ? String(routeCandidate) : null;
+  const sourceFormat = normalizeModelSourceFormat(data.sourceFormat || userData.sourceFormat, fileName);
+  const storage = String(data.storage || userData.storage || (route ? 'server' : 'browser-session'));
+  const fallbackRoute = fileName ? `/models/${encodeURIComponent(fileName)}` : null;
+  return {
+    fileName,
+    sourceFormat,
+    path,
+    route,
+    storage,
+    restorable: Boolean(route),
+    fallbackRoute: route ? null : fallbackRoute
+  };
+}
+
+function resolveSavedModelSource(project, modelData, index) {
+  const manifestEntry = Array.isArray(project?.assetManifest?.models)
+    ? project.assetManifest.models.find(entry => entry.id === modelData?.id || entry.name === modelData?.name)
+    : null;
+  const legacy = index === 0 && project?.model && typeof project.model === 'object' ? project.model : {};
+  const saved = modelData?.source && typeof modelData.source === 'object' ? modelData.source : {};
+  const data = modelData?.data && typeof modelData.data === 'object' ? modelData.data : {};
+  const path = String(saved.path || data.sourcePath || manifestEntry?.path || legacy.path || '');
+  const rawFileName = saved.fileName || data.fileName || manifestEntry?.fileName || legacy.file || modelData?.name || path;
+  const fileName = String(rawFileName || '').split(/[\\/]/).pop();
+  const explicitRoute = saved.route || data.sourceRoute || manifestEntry?.route || (path.startsWith('/models/') ? path : '');
+  const route = String(explicitRoute || '').startsWith('/models/') ? String(explicitRoute) : null;
+  const sourceFormat = normalizeModelSourceFormat(saved.sourceFormat || data.sourceFormat || manifestEntry?.sourceFormat, fileName);
+  const storage = String(saved.storage || data.storage || manifestEntry?.storage || (route ? 'server' : 'browser-session'));
+  return {
+    fileName,
+    sourceFormat,
+    path: path || fileName,
+    route,
+    storage,
+    fallbackRoute: fileName ? `/models/${encodeURIComponent(fileName)}` : null
+  };
+}
+
+function disposeObjectResources(object) {
+  if (!object?.traverse) return;
+  object.traverse(child => {
+    child.geometry?.dispose?.();
+    const materials = Array.isArray(child.material) ? child.material : (child.material ? [child.material] : []);
+    materials.forEach(material => {
+      Object.values(material).forEach(value => value?.isTexture && value.dispose?.());
+      material.dispose?.();
+    });
+  });
+}
+
+function modelMatchesSavedSource(project, item, saved, index) {
+  if (!(saved.id === item.id || saved.name === item.name)) return false;
+  const currentSource = getModelSourceDescriptor(item);
+  const savedSource = resolveSavedModelSource(project, saved, index);
+  if (!currentSource.fileName || !savedSource.fileName) return true;
+  return currentSource.fileName.toLowerCase() === savedSource.fileName.toLowerCase();
+}
+
+function getProjectReplacementItems(project) {
+  const savedModels = Array.isArray(project?.models) ? project.models : [];
+  const savedCameras = Array.isArray(project?.cameras) ? project.cameras : [];
+  return sceneObjects.filter(item => {
+    if (item.type === 'model') return !savedModels.some((saved, index) => modelMatchesSavedSource(project, item, saved, index));
+    if (item.type === 'camera') return !savedCameras.some(saved => String(saved.id || '') === item.id);
+    return false;
+  });
+}
+
+function confirmProjectReplacement(items) {
+  if (!items.length) return true;
+  const details = items.map(item => `- ${item.type === 'camera' ? 'Camera' : 'Model'}: ${item.name}`).join('\n');
+  return confirm(
+    'Loading this project will replace the current camera/model set. The following items are not in the saved project and will be removed:\n\n' +
+    details +
+    '\n\nUnsaved changes to those items cannot be recovered. Continue?'
+  );
+}
+
+function removeSceneItem(item) {
+  if (!item) return;
+  if (selectedId === item.id) clearSelection();
+  if (item.type === 'camera') {
+    activePtzPresetAnimations.delete(item.id);
+    for (let index = openCameraViewports.length - 1; index >= 0; index -= 1) {
+      const viewport = openCameraViewports[index];
+      if (viewport.cameraId !== item.id) continue;
+      viewport.element?.remove();
+      viewport.renderer?.dispose?.();
+      viewport.renderer?.forceContextLoss?.();
+      openCameraViewports.splice(index, 1);
+    }
+    if (activePresetCamera?.id === item.id) {
+      closePtzPresetPanel();
+      activePresetCamera = null;
+    }
+    if (pendingPresetDepthCamera?.id === item.id) endPresetDepthSelection();
+  }
+  scene.remove(item.object);
+  disposeObjectResources(item.object);
+  const index = sceneObjects.indexOf(item);
+  if (index >= 0) sceneObjects.splice(index, 1);
+}
+
+function loadSavedModelSource(source) {
+  const candidates = [...new Set([source.route, source.fallbackRoute].filter(Boolean))];
+  if (!candidates.length) return Promise.reject(new Error('No restorable model route was saved.'));
+  if (source.sourceFormat === 'fbx') {
+    return Promise.reject(new Error('Automatic FBX restore is guarded. Re-import the FBX or convert it to optimized GLB.'));
+  }
+  return new Promise((resolve, reject) => {
+    const errors = [];
+    const tryNext = index => {
+      if (index >= candidates.length) {
+        reject(new Error(errors.join('; ') || 'Model could not be loaded.'));
+        return;
+      }
+      const route = candidates[index];
+      new GLTFLoader().load(
+        route,
+        gltf => resolve({ object: gltf.scene, route }),
+        undefined,
+        error => {
+          errors.push(`${route}: ${error?.message || 'load failed'}`);
+          tryNext(index + 1);
+        }
+      );
+    };
+    tryNext(0);
+  });
+}
+
+function registerRestoredProjectModel(modelData, source, loaded) {
+  const model = loaded.object;
+  model.userData.sourceFormat = source.sourceFormat;
+  model.userData.fileName = source.fileName;
+  model.userData.sourcePath = source.path;
+  model.userData.sourceRoute = loaded.route;
+  model.userData.storage = 'server';
+  model.userData.layFlatIndex = Number(model.userData.layFlatIndex) || 0;
+  model.userData.layFlatRotations ||= [
+    { x: 0, y: 0, z: 0 },
+    { x: Math.PI / 2, y: 0, z: 0 },
+    { x: -Math.PI / 2, y: 0, z: 0 },
+    { x: 0, y: 0, z: Math.PI / 2 },
+    { x: 0, y: 0, z: -Math.PI / 2 },
+    { x: 0, y: Math.PI / 2, z: 0 },
+    { x: 0, y: -Math.PI / 2, z: 0 }
+  ];
+  scene.add(model);
+  addSceneObject({
+    id: modelData.id || `model-${Date.now()}-${sceneObjects.length}`,
+    name: modelData.name || source.fileName,
+    type: 'model',
+    object: model,
+    data: {
+      ...(modelData.data || {}),
+      fileName: source.fileName,
+      sourceFormat: source.sourceFormat,
+      sourcePath: source.path,
+      sourceRoute: loaded.route,
+      storage: 'server'
+    }
+  });
+}
+
+async function prepareProjectModelRestorations(project, generation) {
+  const prepared = [];
+  const warnings = [];
+  const savedModels = Array.isArray(project.models) ? project.models : [];
+  for (let index = 0; index < savedModels.length; index += 1) {
+    const modelData = savedModels[index];
+    const existing = sceneObjects.find(item => item.type === 'model' && modelMatchesSavedSource(project, item, modelData, index));
+    if (existing) continue;
+    const source = resolveSavedModelSource(project, modelData, index);
+    try {
+      const loaded = await loadSavedModelSource(source);
+      if (generation !== sceneLoadGeneration) {
+        disposeObjectResources(loaded.object);
+        return { prepared: [], warnings: ['Project restore was superseded by another scene load.'] };
+      }
+      prepared.push({ modelData, source, loaded });
+    } catch (error) {
+      warnings.push(`${modelData.name || source.fileName}: ${error.message}`);
+    }
+  }
+  return { prepared, warnings };
+}
+
 function buildProjectAssetManifest() {
   const modelAssets = sceneObjects
     .filter(item => item.type === 'model')
-    .map(item => {
-      const browserLocal = Boolean(item.data?.sourceFormat);
-      const sourceFormat =
-        item.data?.sourceFormat ||
-        item.object.userData.sourceFormat ||
-        'glb';
-
-      return {
-        id: item.id,
-        name: item.name,
-        fileName: item.object.userData.fileName || item.name,
-        sourceFormat,
-        storage: browserLocal ? 'browser-session' : 'server',
-        restorable: !browserLocal
-      };
-    });
+    .map(item => ({ id: item.id, name: item.name, ...getModelSourceDescriptor(item) }));
 
   const referenceImageAssets = sceneObjects
     .filter(item => item.data?.referenceImage)
@@ -4794,14 +5236,14 @@ function buildProjectAssetManifest() {
         severity: 'warning',
         assetId: asset.id,
         assetName: asset.name,
-        message: `${asset.name} is a browser-local ${asset.sourceFormat.toUpperCase()} model and is not embedded in the project JSON. Re-import the source file before loading this project.`
+        message: `${asset.name} is not embedded. Its source path (${asset.path || asset.fileName}) is recorded; restore will try the server model library by file name, otherwise the file must be re-imported.`
       })),
     ...referenceImageAssets.map(asset => ({
       code: 'REFERENCE_IMAGE_NOT_EMBEDDED',
       severity: 'warning',
       assetId: asset.id,
       assetName: asset.name,
-      message: `${asset.name} is a browser-local reference image and is not embedded in the project JSON. Re-import the image before loading this project.`
+      message: `${asset.name} is a browser-local reference image and is not embedded in the project. Re-import the image after loading.`
     }))
   ];
 
@@ -4812,7 +5254,6 @@ function buildProjectAssetManifest() {
     warnings
   };
 }
-
 function formatAssetWarningMessage(warnings) {
   return warnings
     .map((warning, index) => `${index + 1}. ${warning.message}`)
@@ -4854,14 +5295,25 @@ function showProjectAssetWarnings(project) {
   return confirm(
     'Project asset warning:\n\n' +
     formatAssetWarningMessage(warnings) +
-    '\n\nCamera records and transforms can still load, but missing browser-local assets must be re-imported. Continue loading?'
+    '\n\nThe simulator will try the recorded server route or the server model library by file name. Missing browser-local assets may still require re-import. Continue loading?'
   );
 }
-function applyLoadedProject(project) {
+async function applyLoadedProject(project) {
   if (!project || !Array.isArray(project.cameras)) {
     alert('Project file does not contain a valid cameras array.');
-    return;
+    return false;
   }
+
+  const replacementItems = getProjectReplacementItems(project);
+  if (!confirmProjectReplacement(replacementItems)) return false;
+
+  sceneLoadGeneration += 1;
+  const generation = sceneLoadGeneration;
+  const restoration = await prepareProjectModelRestorations(project, generation);
+  if (generation !== sceneLoadGeneration) return false;
+
+  replacementItems.forEach(removeSceneItem);
+  restoration.prepared.forEach(entry => registerRestoredProjectModel(entry.modelData, entry.source, entry.loaded));
 
   if (project.reportSettings && typeof project.reportSettings === 'object') reportSettingsState={...reportSettingsState,...project.reportSettings};
   if (project.preferences && typeof project.preferences === 'object') {
@@ -4905,17 +5357,22 @@ function applyLoadedProject(project) {
   }
 
   if (Array.isArray(project.models)) {
-    project.models.forEach((modelData) => {
+    project.models.forEach((modelData, modelIndex) => {
       const item = sceneObjects.find(o =>
         o.type === 'model' &&
-        (o.id === modelData.id || o.name === modelData.name)
+        modelMatchesSavedSource(project, o, modelData, modelIndex)
       );
 
       if (!item) return;
 
       item.name = modelData.name || item.name;
       if (modelData.data && typeof modelData.data === 'object') {
+        const restoredRoute = item.object.userData.sourceRoute;
         item.data = { ...item.data, ...modelData.data };
+        if (restoredRoute) {
+          item.data.sourceRoute = restoredRoute;
+          item.data.storage = 'server';
+        }
       }
 
       item.object.position.set(
@@ -4951,20 +5408,30 @@ function applyLoadedProject(project) {
 
   restoreMeasurements(project.measurements);
 
+  const claimedCameraIds = new Set();
+  const cameraIdWarnings = [];
   project.cameras.forEach((cameraData, index) => {
-    let item = sceneObjects.find(o => o.id === cameraData.id);
+    const restoredId = resolveLoadedCameraId(cameraData.id, claimedCameraIds, index, cameraIdWarnings);
+    let item = sceneObjects.find(o => o.id === restoredId && o.type === 'camera');
 
     if (!item) {
-      createCameraObject(
-        cameraData.name || `Camera ${String(index + 1).padStart(3, '0')}`,
-        new THREE.Vector3(0, 2, 0)
-      );
+      try {
+        createCameraObject(
+          cameraData.name || `Camera ${String(index + 1).padStart(3, '0')}`,
+          new THREE.Vector3(0, 2, 0),
+          restoredId
+        );
+      } catch (error) {
+        cameraIdWarnings.push(`Camera ${index + 1}: ${error.message}`);
+        return;
+      }
 
-      item = sceneObjects.find(o => o.id === cameraData.id) ||
-             sceneObjects.find(o => o.name === cameraData.name);
+      item = sceneObjects.find(o => o.id === restoredId && o.type === 'camera');
     }
 
-    if (!item || item.type !== 'camera') return;
+    if (!item) return;
+
+    item.name = cameraData.name || item.name;
 
     item.object.position.set(
       cameraData.position?.x ?? 0,
@@ -5001,6 +5468,7 @@ function applyLoadedProject(project) {
 
     applyCameraPtzRig(item);
     updateCameraProjection(item);
+    refreshCameraPresetDerivedData(item);
 
     const cone = item.object.userData.projectionCone;
     if (cone && cone.material && cameraData.color !== undefined) {
@@ -5008,6 +5476,10 @@ function applyLoadedProject(project) {
       cone.material.needsUpdate = true;
     }
   });
+
+  if (cameraIdWarnings.length) {
+    alert(`Project camera identity warnings:\n\n${cameraIdWarnings.join('\n')}\n\nThe repaired IDs will be preserved on the next save.`);
+  }
 
   renderSceneTree();
   const savedSelectedId = String(project.workspace?.selectedObjectId || '');
@@ -5019,6 +5491,14 @@ function applyLoadedProject(project) {
   if (project.workspace?.mode === 'videoWall') showVideoWall();
   else hideVideoWall();
 
+  if (restoration.warnings.length) {
+    alert(
+      'Project loaded, but some model assets could not be restored automatically:\n\n' +
+      restoration.warnings.map((warning, index) => `${index + 1}. ${warning}`).join('\n') +
+      '\n\nThe saved source paths remain in the project. Re-import any missing model, preferably as optimized GLB.'
+    );
+  }
+  return true;
 }
 
 loadProjectFile.addEventListener('change', (event) => {
@@ -5027,19 +5507,20 @@ loadProjectFile.addEventListener('change', (event) => {
 
   const reader = new FileReader();
 
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const project = JSON.parse(e.target.result);
       console.log('Loaded project:', project);
 
       if (!validateProjectSchema(project)) return;
-
       if (!showProjectAssetWarnings(project)) return;
 
-      applyLoadedProject(project);
+      await applyLoadedProject(project);
     } catch (err) {
-      alert('Invalid project file');
+      alert(`Invalid or unreadable project file: ${err.message || err}`);
       console.error(err);
+    } finally {
+      loadProjectFile.value = '';
     }
   };
 
@@ -5051,7 +5532,7 @@ saveProjectButton.addEventListener('click', () => {
 
   if (assetManifest.warnings.length > 0) {
     const shouldSave = confirm(
-      'This project contains browser-local assets that are not embedded in the JSON:\n\n' +
+      'This project contains browser-local assets that are not embedded in the project file:\n\n' +
       formatAssetWarningMessage(assetManifest.warnings) +
       '\n\nSave the project anyway?'
     );
@@ -5086,16 +5567,25 @@ saveProjectButton.addEventListener('click', () => {
       }
     },
 
-    model: {
-      file: loadedModelFile,
-      path: loadedModelPath
-    },
+    model: (() => {
+      const firstModel = sceneObjects.find(item => item.type === 'model');
+      if (!firstModel) return null;
+      const source = getModelSourceDescriptor(firstModel);
+      return {
+        file: source.fileName,
+        path: source.path,
+        route: source.route,
+        storage: source.storage,
+        sourceFormat: source.sourceFormat
+      };
+    })(),
 
     models: sceneObjects
       .filter(item => item.type === 'model')
       .map(item => ({
         id: item.id,
         name: item.name,
+        source: getModelSourceDescriptor(item),
         position: {
           x: item.object.position.x,
           y: item.object.position.y,

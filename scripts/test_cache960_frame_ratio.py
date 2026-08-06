@@ -11,5 +11,5 @@ assert 'bodyHeight + headerHeight' not in JS
 assert 'containerRect.height * 0.68)}px' not in JS
 vertical = '.video-wall-tile.preset-dock-vertical .ptz-preset-panel { position: absolute; z-index: 20; left: auto; right: 0; top: 0; bottom: auto;'
 assert vertical in HTML
-assert '/static/viewer.js?v=872' in HTML
+assert '/static/viewer.js?v=875' in HTML
 print('cache 960 fixed 4:3 Camera View and exclusive right-dock guard passed')

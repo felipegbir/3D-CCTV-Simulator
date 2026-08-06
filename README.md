@@ -1,4 +1,9 @@
-# N.O.M.A.D. CCTV Digital Twin Simulator
+# 3D Inspection Simulator
+
+> **License:** Noncommercial use is governed by the PolyForm Noncommercial
+> License 1.0.0. Commercial use requires a separate paid license.
+> See [LICENSE](LICENSE) and [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
+
 
 This workspace is the recoverable N.O.M.A.D. 8e application baseline assembled for continued development.
 
@@ -42,6 +47,7 @@ The frontend imports Three.js modules from `esm.sh`, so the browser needs networ
 python scripts/audit_static.py
 python scripts/test_ptz_persistence.py
 python scripts/test_project_schema.py
+python scripts/test_8e7_5_project_restore.py
 python scripts/test_theme_engine.py
 python scripts/test_preferences.py
 node scripts/test_preferences_runtime.mjs
@@ -49,6 +55,7 @@ python scripts/test_viewport_renderer_parity.py
 python scripts/test_ui_viewport_management.py
 node scripts/test_ui_viewport_management_runtime.mjs
 node scripts/test_project_schema_runtime.mjs
+node scripts/test_8e7_5_project_restore_runtime.mjs
 Copy-Item static/viewer.js audit/viewer.mjs
 node --check audit/viewer.mjs
 python -m py_compile app.py

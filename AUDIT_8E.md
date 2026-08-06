@@ -384,3 +384,41 @@ Cache 960 defines the Camera View outer-window contract explicitly: normal, maxi
 ### 8e.7.2 baseline promotion and HTML user guide — deployment pending
 
 The owner accepted cache 960 and closed 8e.7.1. Version 8e.7.2 promotes that stabilized feature set, corrects the attached Camera View Presets dock to border-box sizing so its external height exactly equals the owning Camera View, and publishes a responsive dark-themed HTML user guide from Help. The guide covers project files, workspace navigation, models/references, cameras, PTZ presets, depth surfaces, polygon ROIs, pixel-density analysis, measurements, Video Wall, reports, preferences, shortcuts, and final QA. Lay Face Flat remains explicitly experimental. Full static, syntax, regression, runtime, link, and release guards are required before deployment.8e.7.2 deployment passed on CCTV PID 176994 at port 5010. The application root and `/static/user-guide.html` both return HTTP 200; live content confirms version 8e.7.2, cache key 872, the Help guide link, and PTZ guide content. Local/deployed SHA-256 hashes match for `viewer.js`, `index.html`, and `user-guide.html`. NAS baseline: `NOMAD_8e.7.1_FINAL_PRE_8e.7.2_20260727`; server rollback: `deploy_backups/pre_8e_7_2_20260727`. Only verified CCTV PID 139261 was replaced; independent PIDs 1458, 2912, and 2733584 remained running. Owner visual confirmation of exact dock height and guide presentation remains pending.
+### 8e.7.3 camera identity, sensor-aware VFOV, and safe report viewpoints — deployment pending
+
+The Hitachi Engineering comparison repository was not yet available, so the three independently described correctness fixes were implemented against the verified 8e.7.2 baseline. Saved camera IDs now pass explicitly into camera creation; restored numeric IDs advance the auto-ID counter, and missing/duplicate/conflicting legacy IDs receive deterministic replacements and a visible warning. Camera display-name restoration no longer relies on a name fallback.
+
+VFOV is derived centrally as `2 * atan(tan(HFOV / 2) / (resolutionWidth / resolutionHeight))`. The same derived VFOV and actual sensor aspect drive the Three.js render camera, footprint height, vertical density, preset analysis, and ROI analysis. Saved derived preset/ROI metrics are refreshed during project load.
+
+Report overviews and camera-context captures now use scene bounds, clamp targets and camera positions above the grid/floor, and generate the opposite view by reversing only the horizontal orbit offset. Preset report cameras inherit the sensor aspect and continue to composite saved ROI overlays. Docker Compose, PostgreSQL, React, and Hitachi report changes remain deferred until repository access is available for a controlled comparison.
+## Deployment evidence
+
+Deployed 2026-08-05 to `192.168.2.208:/home/vmuser/nomad-cctv-simulator`. The identity-verified 8e.7.2 CCTV PID `176994` was stopped and replaced by 8e.7.3 PID `1878319` on port 5010. Independent application PIDs `1458`, `2912`, and `2733584` remained running and were not restarted.
+
+Server rollback: `/home/vmuser/nomad-cctv-simulator/deploy_backups/pre_8e_7_3_20260805_132721`.
+
+Client-side validation returned HTTP 200 for the application root, versioned viewer module, and HTML user guide. Live content confirms version 8e.7.3, cache key 873, explicit camera-ID restoration, centralized VFOV calculation, safe report-view planning, and the updated guide. Local and deployed SHA-256 hashes match exactly for `viewer.js`, `index.html`, and `user-guide.html`.
+
+The complete Python regression suite, runtime modules (including execution of the actual ID/VFOV helpers), static audit, JavaScript syntax check, and backend compile all pass. Optional in-app visual automation could not launch because the Windows mapped-drive sandbox returned `CreateProcessWithLogonW 267`; owner visual/report QA remains required.
+### 8e.7.4 PTZ preset recall hotfix — deployment pending
+
+Manual PTZ movement correctly invalidates the active preset, but reopening the Presets panel then cleared the preset-list selection. Recall consequently became a silent no-op even when saved presets existed. The panel now preserves the prior selection, otherwise selects the active preset or first available preset, and Recall uses the same deterministic fallback while reporting an explicit empty-state message.
+
+Recall also snapshots and normalizes the selected target before scheduling animation so refreshes or metadata edits cannot mutate an in-flight destination. A runtime regression executes the production normalization, scheduling, interpolation, final PTZ/optical/depth/root-transform state, palette restoration, active-preset assignment, and ROI hide/restore lifecycle.
+
+Deployment passed on 2026-08-05. The identity-verified 8e.7.3 CCTV PID `1878319` was stopped and replaced by 8e.7.4 PID `1927694` on port 5010. Independent PIDs `1458`, `2912`, and `2733584` remained running and were not restarted.
+
+Server rollback: `/home/vmuser/nomad-cctv-simulator/deploy_backups/pre_8e_7_4_20260805182916`.
+
+The application root, `/static/viewer.js?v=874`, and `/static/user-guide.html` return successfully. Live content confirms version 8e.7.4, cache key 874, deterministic Recall fallback selection, and normalized in-flight preset snapshots. Local, staged, and deployed SHA-256 hashes match for `viewer.js`, `index.html`, and `user-guide.html`. Static audit, every Python regression, every JavaScript runtime regression, module syntax, and backend compile pass. Visual owner QA remains required.
+
+### 8e.7.5 model-source project restoration and menu consolidation — deployed
+
+Schema 8 records each model's file name, best available source path, source route, storage type, format, and server-library fallback. Loading is transactional: the user sees a confirmation naming current cameras/models absent from the saved project; Cancel makes no scene change. After confirmation, missing GLB/glTF assets are prepared from the saved server route or `/models/<saved file name>`, current scene-only cameras/models are removed, and saved transforms/camera identities are applied. Automatic FBX restore stays guarded. Browser file-picker security may limit a local source path to its file name, in which case a matching server-library asset or manual re-import is required. Generation tokens prevent late starter/local-import callbacks from contaminating restored projects.
+
+The top menu now has one canonical command per operation. Save As, Open Project File, Edit Add Box, Fit Grid, and View Grid/Axes duplicates are removed; Export Project JSON is clearly distinguished from normal `.nmd` Save Project; Zoom In complements Zoom Out; Reset View owns the standard grid framing; and Object commands are relabelled Rename Selected, Show in Inspector, and Lock / Unlock Transform. The HTML guide documents the final commands and restore behavior.
+
+Pre-deployment static audit and JavaScript syntax validation pass. Dedicated schema-8 source-path, fallback-route, replacement-confirmation, cancellation, and consolidated-menu regression guards have been added. Full regression and deployment evidence remain pending.
+8e.7.5 deployment passed on CCTV PID `2105144` at port 5010. The identity-verified 8e.7.4 PID `1927694` was the only process stopped. Independent PIDs `1458`, `2912`, and `2733584` retained their original process start identities and were not restarted. Server rollback: `/home/vmuser/nomad-cctv-simulator/deploy_backups/pre_8e_7_5_20260805_180621`.
+
+The application root, `/static/viewer.js?v=875`, HTML user guide, camera API, model API, and default-model route return HTTP 200. Live content confirms version 8e.7.5, schema 8, cache key 875, recorded model-source descriptors, and confirmed project replacement. Local, staged, and deployed SHA-256 hashes match for `viewer.js`, `index.html`, and `user-guide.html`. Static audit, every Python regression, every JavaScript runtime regression, module syntax, and dedicated schema-8 restore/menu guards pass. Implementation commit: `086ea80`; annotated tag: `v8e.7.5`. Owner save/load interaction QA remains requested.
